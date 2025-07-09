@@ -5,12 +5,14 @@
         <h1 class="fs-3">Перевірка домену</h1>
       </div>
       <DomainChecker />
+      <DnsManager />
     </main>
   </div>
 </template>
 
 <script setup>
 import DomainChecker from './components/DomainChecker.vue'
+import DnsManager from './components/DnsManager.vue'
 </script>
 
 <style>

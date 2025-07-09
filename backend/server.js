@@ -19,10 +19,6 @@ const NAMECHEAP_API_USER = process.env.VITE_NAMECHEAP_API_USER
 const NAMECHEAP_API_KEY = process.env.VITE_NAMECHEAP_API_KEY
 const CLIENT_IP = process.env.VITE_CLIENT_IP
 
-// Custom NameServers
-const CUSTOM_DNS_1 = process.env.CUSTOM_DNS_1
-const CUSTOM_DNS_2 = process.env.CUSTOM_DNS_2
-
 // ✅ Проверка домена
 app.post('/check-domain', async (req, res) => {
   const { domain } = req.body
@@ -77,6 +73,7 @@ app.post('/check-domain', async (req, res) => {
   }
 })
 
+// Покупка домена
 app.post('/buy-domain', async (req, res) => {
   const { domain } = req.body
 
@@ -135,12 +132,6 @@ app.post('/buy-domain', async (req, res) => {
 
     if (result?.Registered === 'true') {
       console.log(`✅ Домен успешно куплен: ${result.Domain}`)
-      try {
-        await setCustomDNS(result.Domain)
-        console.log(`🧷 DNS встановлено на ns1.sedopark.net`)
-      } catch (dnsErr) {
-        console.warn(`⚠️ DNS не встановлено: ${dnsErr.message}`)
-      }
       return res.json({
         success: true,
         domain: result.Domain,
@@ -156,31 +147,52 @@ app.post('/buy-domain', async (req, res) => {
   }
 })
 
-async function setCustomDNS(domain) {
-  const nameservers = [CUSTOM_DNS_1, CUSTOM_DNS_2].filter(Boolean).join(',')
+// Установка DNS для доменов
+app.post('/set-dns', async (req, res) => {
+  const { domain, nameservers } = req.body
 
-  const response = await axios.get('https://api.namecheap.com/xml.response', {
-    params: {
-      ApiUser: NAMECHEAP_API_USER,
-      ApiKey: NAMECHEAP_API_KEY,
-      UserName: NAMECHEAP_API_USER,
-      Command: 'namecheap.domains.dns.setCustom',
-      ClientIp: CLIENT_IP,
-      DomainName: domain,
-      Nameservers: nameservers,
-    },
-  })
-
-  const parsed = await parseStringPromise(response.data)
-  const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
-
-  if (errors) {
-    const msg = errors[0]?._ || 'Unknown DNS error'
-    throw new Error(`DNS Error: ${msg}`)
+  if (!domain || !Array.isArray(nameservers) || nameservers.length === 0) {
+    return res.status(400).json({ error: 'Invalid input data' })
   }
 
-  return true
-}
+  // 🔍 Разделение домена на SLD и TLD
+  const [sld, ...tldParts] = domain.split('.')
+  const tld = tldParts.join('.')
+
+  if (!sld || !tld) {
+    return res.status(400).json({ error: 'Invalid domain format' })
+  }
+
+  try {
+    const response = await axios.get('https://api.namecheap.com/xml.response', {
+      params: {
+        ApiUser: NAMECHEAP_API_USER,
+        ApiKey: NAMECHEAP_API_KEY,
+        UserName: NAMECHEAP_API_USER,
+        Command: 'namecheap.domains.dns.setCustom',
+        ClientIp: CLIENT_IP,
+        SLD: sld,
+        TLD: tld,
+        Nameservers: nameservers.join(','),
+      },
+    })
+
+    const parsed = await parseStringPromise(response.data)
+    const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
+
+    if (errors) {
+      const msg = errors[0]?._ || 'Unknown DNS error'
+      console.error('❌ DNS Error:', msg)
+      return res.status(500).json({ error: msg })
+    }
+
+    console.log(`✅ DNS збережено для ${domain}:`, nameservers.join(', '))
+    return res.json({ success: true, domain, nameservers })
+  } catch (err) {
+    console.error('❌ set-dns exception:', err.message)
+    res.status(500).json({ error: 'Server error while setting DNS' })
+  }
+})
 
 // 🚀 Запуск сервера
 app.listen(PORT, () => {

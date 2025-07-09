@@ -3,8 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "npm": "10.8.2",
+    "node": "20.18.2"
+  },
   "scripts": {
     "dev": "vite",
+    "server": "node ./backend/server.js",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -14,6 +19,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
+    "pinia": "^3.0.3",
     "vue": "^3.5.17",
     "xml2js": "^0.6.2"
   },
