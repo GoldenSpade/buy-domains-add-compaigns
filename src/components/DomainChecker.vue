@@ -3,17 +3,26 @@
     <div class="col-md-6">
       <form
         @submit.prevent="checkDomain"
-        class="domain-checker row g-2 mt-3 justify-content-center"
+        class="domain-checker row g-2 mt-3 my-0 justify-content-center align-items-center"
       >
-        <div class="col">
+        <!-- Инпут с крестиком -->
+        <div class="col position-relative">
           <input
             v-model="domain"
             type="text"
-            class="form-control"
+            class="form-control pe-5"
             placeholder="Введіть домен (наприклад, example.com)"
             required
           />
+          <i
+            v-if="domain"
+            class="bi bi-x-circle-fill position-absolute text-secondary"
+            style="top: 50%; right: 10px; transform: translateY(-50%); cursor: pointer"
+            @click="domain = ''"
+          ></i>
         </div>
+
+        <!-- Кнопки -->
         <div class="col-auto">
           <button type="submit" class="btn btn-primary" :disabled="checking">
             <span
@@ -41,20 +50,22 @@
           </button>
         </div>
 
-        <div class="col-12 mt-3 mb-0" v-if="purchaseMessage">
-          <div :class="['alert', purchaseSuccess ? 'alert-success' : 'alert-danger', 'mb-0']">
+        <!-- Объединённый alert-блок -->
+        <div class="col-12 mt-3">
+          <div
+            v-if="purchaseMessage"
+            :class="['alert', purchaseSuccess ? 'alert-success' : 'alert-danger', 'mb-2']"
+          >
             {{ purchaseMessage }}
           </div>
-        </div>
 
-        <div class="col-12 mt-3 my-0 mb-0" v-if="statusMessage">
-          <div :class="['alert', statusClass, 'mb-0']" role="alert">
+          <div v-if="statusMessage" :class="['alert', statusClass, 'mb-2']">
             {{ statusMessage }}
           </div>
-        </div>
 
-        <div class="col-12 mt-2" v-if="serverError">
-          <div class="alert alert-danger" role="alert">⚠️ {{ serverError }}</div>
+          <div v-if="serverError" class="alert alert-danger mb-0" role="alert">
+            ⚠️ {{ serverError }}
+          </div>
         </div>
       </form>
     </div>
@@ -112,6 +123,9 @@ const checkDomain = async () => {
 
 const buyDomain = async () => {
   if (!domain.value.trim()) return
+
+  const confirmed = window.confirm(`Ви дійсно хочете купити домен ${domain.value}?`)
+  if (!confirmed) return
 
   checking.value = true
   purchaseMessage.value = ''

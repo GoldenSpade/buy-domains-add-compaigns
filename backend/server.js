@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import axios from 'axios'
 import { parseStringPromise } from 'xml2js'
+import qs from 'qs'
 import dotenv from 'dotenv'
 
 // 📦 Загрузка .env переменных
@@ -191,6 +192,74 @@ app.post('/set-dns', async (req, res) => {
   } catch (err) {
     console.error('❌ set-dns exception:', err.message)
     res.status(500).json({ error: 'Server error while setting DNS' })
+  }
+})
+
+app.post('/send-to-sedo', async (req, res) => {
+  const { domain } = req.body
+
+  if (!domain) {
+    return res.status(400).json({ error: 'No domain provided' })
+  }
+
+  const postData = {
+    partnerid: process.env.SEDO_PARTNER_ID,
+    signkey: process.env.SEDO_SIGN_KEY,
+    username: process.env.SEDO_USERNAME,
+    password: process.env.SEDO_PASSWORD,
+    output_method: 'xml',
+    domainentry: [
+      {
+        domain,
+        forsale: 1,
+        price: 0,
+        minprice: 0,
+        fixedprice: 0,
+        currency: 1,
+        domainlanguage: 'en',
+      },
+    ],
+  }
+
+  try {
+    console.log('📤 Отправка POST-запроса в Sedo:', postData)
+
+    const response = await axios.post(
+      'https://api.sedo.com/api/v1/DomainInsert',
+      qs.stringify(postData, { arrayFormat: 'indices' }),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }
+    )
+
+    const xml = response.data
+    console.log('📥 Ответ от Sedo (XML):', xml.slice(0, 500))
+
+    const parsed = await parseStringPromise(xml)
+    const result = parsed?.SEDOLIST?.item?.[0]
+
+    if (result?.status?.[0] === 'ok') {
+      return res.json({ success: true, domain: result.domain?.[0] })
+    }
+
+    // Обрабатываем сообщение от Sedo как "мягкую ошибку"
+    const message = result?.message?.[0] || 'Неизвестная помилка'
+
+    return res.status(200).json({
+      success: false,
+      error: message,
+    })
+  } catch (err) {
+    if (err.response?.data?.startsWith?.('<?xml')) {
+      const parsedError = await parseStringPromise(err.response.data)
+      console.error('❌ XML-ошибка от Sedo:', JSON.stringify(parsedError, null, 2))
+
+      const faultString = parsedError?.SEDOFAULT?.faultstring?.[0] || 'Невідома помилка'
+      return res.status(500).json({ error: faultString })
+    }
+
+    console.error('❌ Ошибка при отправке в Sedo:', err.response?.data || err.message)
+    return res.status(500).json({ error: err.message || 'Серверна помилка' })
   }
 })
 

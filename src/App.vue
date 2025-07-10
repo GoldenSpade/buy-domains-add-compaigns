@@ -6,6 +6,7 @@
       </div>
       <DomainChecker />
       <DnsManager />
+      <SedoAdder />
     </main>
   </div>
 </template>
@@ -13,6 +14,7 @@
 <script setup>
 import DomainChecker from './components/DomainChecker.vue'
 import DnsManager from './components/DnsManager.vue'
+import SedoAdder from './components/SedoAdder.vue'
 </script>
 
 <style>

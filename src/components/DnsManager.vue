@@ -7,19 +7,55 @@
           Управління DNS
         </h5>
 
-        <div class="mb-3">
+        <!-- DOMAIN -->
+        <div class="mb-3 position-relative">
           <label class="form-label">Домен</label>
-          <input v-model="dnsDomain" type="text" class="form-control" placeholder="example.com" />
+          <input
+            v-model="dnsDomain"
+            type="text"
+            class="form-control pe-5"
+            placeholder="example.com"
+          />
+          <i
+            v-if="dnsDomain"
+            class="bi bi-x-circle-fill text-muted"
+            style="right: 1rem; cursor: pointer; position: absolute; top: 40px; right: 10px"
+            @click="dnsDomain = ''"
+          />
         </div>
 
-        <div class="mb-3">
+        <!-- NS1 -->
+        <div class="mb-3 position-relative">
           <label class="form-label">Nameserver 1</label>
-          <input v-model="ns1" type="text" class="form-control" placeholder="ns1.example.net" />
+          <input
+            v-model="ns1"
+            type="text"
+            class="form-control pe-5"
+            placeholder="ns1.example.net"
+          />
+          <i
+            v-if="ns1"
+            class="bi bi-x-circle-fill translate-middle-y text-muted"
+            style="right: 1rem; cursor: pointer; position: absolute; top: 50px; right: 10px"
+            @click="ns1 = ''"
+          />
         </div>
 
-        <div class="mb-3">
+        <!-- NS2 -->
+        <div class="mb-3 position-relative">
           <label class="form-label">Nameserver 2</label>
-          <input v-model="ns2" type="text" class="form-control" placeholder="ns2.example.net" />
+          <input
+            v-model="ns2"
+            type="text"
+            class="form-control pe-5"
+            placeholder="ns2.example.net"
+          />
+          <i
+            v-if="ns2"
+            class="bi bi-x-circle-fill position-absolute translate-middle-y text-muted"
+            style="right: 1rem; cursor: pointer; position: absolute; top: 50px; right: 10px"
+            @click="ns2 = ''"
+          />
         </div>
 
         <button @click="setDNS" class="btn btn-secondary w-100" :disabled="loading">
