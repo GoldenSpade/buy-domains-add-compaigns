@@ -195,6 +195,7 @@ app.post('/set-dns', async (req, res) => {
   }
 })
 
+// Додавання домену до Sedo.com
 app.post('/send-to-sedo', async (req, res) => {
   const { domain } = req.body
 
