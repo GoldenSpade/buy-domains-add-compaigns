@@ -1,13 +1,15 @@
 <template>
-  <div class="app col-12">
-    <main class="main mt-5">
-      <div class="wrapper text-center">
-        <h1 class="fs-3">Перевірка домену</h1>
+  <div class="app">
+    <TheHeader title="Перевірка домену" />
+    <div class="row">
+      <div class="col-md-6">
+        <DomainChecker />
+        <SedoAdder />
       </div>
-      <DomainChecker />
-      <DnsManager />
-      <SedoAdder />
-    </main>
+      <div class="col-md-6">
+        <DnsManager />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -15,6 +17,7 @@
 import DomainChecker from './components/DomainChecker.vue'
 import DnsManager from './components/DnsManager.vue'
 import SedoAdder from './components/SedoAdder.vue'
+import TheHeader from './components/TheHeader.vue'
 </script>
 
 <style>

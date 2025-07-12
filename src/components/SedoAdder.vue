@@ -1,123 +1,88 @@
 <template>
-  <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="card p-4 mt-4 shadow-sm border-1">
-        <h5 class="mb-3">
-          <i class="bi bi-plus-circle me-2"></i>
-          Додати домен до Sedo.com
-        </h5>
+  <div class="card p-3 mt-3 bg-light">
+    <h5><i class="bi bi-plus-circle me-2"></i> Додати домени до Sedo.com</h5>
 
-        <!-- Поле ввода домена -->
-        <div class="position-relative mb-3">
-          <input
-            v-model="sedoDomain"
-            @input="clearMessages"
-            type="text"
-            class="form-control pe-5"
-            placeholder="example.com"
-          />
+    <button
+      class="btn btn-primary w-100 my-3"
+      :disabled="loading || domains.length === 0"
+      @click="submitAll"
+    >
+      {{ loading ? 'Відправка...' : 'Додати на Sedo' }}
+    </button>
+
+    <ul class="list-group mt-2" v-if="results.length > 0">
+      <li
+        v-for="item in results"
+        :key="item.domain"
+        class="list-group-item d-flex justify-content-between align-items-center"
+      >
+        {{ item.domain }}
+        <span :title="item.message">
           <i
-            v-if="sedoDomain"
-            class="bi bi-x-circle-fill position-absolute text-secondary"
-            style="top: 50%; right: 10px; transform: translateY(-50%); cursor: pointer"
-            @click="clearDomain"
+            :class="item.success ? 'bi bi-check-circle text-success' : 'bi bi-x-circle text-danger'"
           ></i>
-        </div>
-
-        <!-- Кнопка отправки -->
-        <button @click="addToSedo" class="btn btn-secondary w-100">
-          <span
-            v-if="loading"
-            class="spinner-border spinner-border-sm me-2"
-            role="status"
-            aria-hidden="true"
-          ></span>
-          Додати на Sedo
-        </button>
-        <!-- Сообщение об успехе -->
-        <div v-if="sedoSuccess" class="alert alert-success mt-3 mb-0" role="alert">
-          {{ sedoSuccess }}
-        </div>
-
-        <!-- Сообщение об ошибке -->
-        <div v-if="sedoError" class="alert alert-danger mt-3 mb-0" role="alert">
-          {{ sedoError }}
-        </div>
-      </div>
-    </div>
+        </span>
+      </li>
+    </ul>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import axios from 'axios'
 import { useDomainStore } from '@/stores/domainStore'
 
-const domainStore = useDomainStore()
-
-const sedoDomain = computed({
-  get: () => domainStore.domain,
-  set: (val) => (domainStore.domain = val),
-})
+const { domains } = useDomainStore()
 
 const loading = ref(false)
-const sedoError = ref('')
-const sedoSuccess = ref('')
+const results = ref([])
 
-const clearMessages = () => {
-  sedoError.value = ''
-  sedoSuccess.value = ''
-}
-
-const clearDomain = () => {
-  sedoDomain.value = ''
-  clearMessages()
-}
-
-const addToSedo = async () => {
-  const domain = sedoDomain.value.trim().toLowerCase()
-
-  if (!domain) {
-    sedoError.value = '❌ Введіть домен'
-    sedoSuccess.value = ''
-    return
-  }
-
+const submitAll = async () => {
   loading.value = true
-  sedoError.value = ''
-  sedoSuccess.value = ''
+  results.value = []
 
-  try {
-    const response = await fetch('http://localhost:3000/send-to-sedo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain }),
-    })
+  for (const d of domains) {
+    try {
+      const res = await axios.post('http://localhost:3000/send-to-sedo', {
+        domain: d.name.trim(),
+      })
 
-    const data = await response.json()
+      const { error = {}, info = '' } = res.data || {}
 
-    const isEmptySedoXMLObject =
-      typeof data.error === 'object' && !('_' in data.error) && data.error?.$?.type === 'xsd:string'
+      const isObjectError = typeof error === 'object' && error !== null
+      const errorKeys = Object.keys(error)
+      const isTrulySuccess = isObjectError && errorKeys.length === 1 && errorKeys[0] === '$'
 
-    if ((response.ok && data.success) || isEmptySedoXMLObject) {
-      sedoSuccess.value = `✅ Домен ${data.domain || domain} успішно додано на Sedo!`
-      sedoError.value = ''
-      return
+      const message = isTrulySuccess
+        ? info || '' // Всё хорошо
+        : error._ || error || 'Невідома помилка'
+
+      results.value.push({
+        domain: d.name,
+        success: isTrulySuccess,
+        message,
+      })
+    } catch (err) {
+      results.value.push({
+        domain: d.name,
+        success: false,
+        message: err?.response?.data?.error || err.message || 'Помилка при відправці',
+      })
     }
-
-    const errorText =
-      typeof data.error === 'string'
-        ? data.error
-        : typeof data.error === 'object' && typeof data.error._ === 'string'
-        ? data.error._
-        : JSON.stringify(data.error)
-
-    sedoError.value = `❌ ${errorText}`
-    sedoSuccess.value = ''
-  } catch (err) {
-    sedoError.value = '❌ Помилка з’єднання з сервером'
-    sedoSuccess.value = ''
-  } finally {
-    loading.value = false
   }
+
+  loading.value = false
+}
+
+function extractMessage(msg) {
+  if (typeof msg === 'string') return msg
+  if (msg && typeof msg === 'object' && '_' in msg) return msg._
+  return 'Невідома помилка'
 }
 </script>
+
+<style scoped>
+.list-group-item {
+  border-top: 1px !important;
+}
+</style>

@@ -239,16 +239,21 @@ app.post('/send-to-sedo', async (req, res) => {
     const parsed = await parseStringPromise(xml)
     const result = parsed?.SEDOLIST?.item?.[0]
 
-    if (result?.status?.[0] === 'ok') {
-      return res.json({ success: true, domain: result.domain?.[0] })
-    }
+    const status = result?.status?.[0]
+    const domainName = result?.domain?.[0]
+    const message = result?.message?.[0] || ''
 
-    // Обрабатываем сообщение от Sedo как "мягкую ошибку"
-    const message = result?.message?.[0] || 'Неизвестная помилка'
+    if (status === 'ok' && message === '') {
+      return res.json({
+        success: true,
+        domain: domainName,
+        info: '',
+      })
+    }
 
     return res.status(200).json({
       success: false,
-      error: message,
+      error: message || 'Невідома помилка',
     })
   } catch (err) {
     if (err.response?.data?.startsWith?.('<?xml')) {
