@@ -19,6 +19,7 @@ app.use(express.json())
 const NAMECHEAP_API_USER = process.env.NAMECHEAP_API_USER
 const NAMECHEAP_API_KEY = process.env.NAMECHEAP_API_KEY
 const CLIENT_IP = process.env.NAMECHEAP_CLIENT_IP
+const NAMECHEAP_API_URL = process.env.NAMECHEAP_API_URL || 'https://api.namecheap.com/xml.response'
 
 // ✅ Проверка домена
 app.post('/check-domain', async (req, res) => {
@@ -31,7 +32,7 @@ app.post('/check-domain', async (req, res) => {
   console.log(`🔍 Проверка домена: ${domain}`)
 
   try {
-    const response = await axios.get('https://api.namecheap.com/xml.response', {
+    const response = await axios.get(NAMECHEAP_API_URL, {
       params: {
         ApiUser: NAMECHEAP_API_USER,
         ApiKey: NAMECHEAP_API_KEY,
@@ -117,7 +118,7 @@ app.post('/buy-domain', async (req, res) => {
       return res.json({ success: true, test: true, domain })
     }
 
-    const response = await axios.get('https://api.namecheap.com/xml.response', { params })
+    const response = await axios.get(NAMECHEAP_API_URL, { params })
     const xml = response.data
     console.log('📦 XML (обрезка):', xml.slice(0, 500))
 
@@ -165,7 +166,7 @@ app.post('/set-dns', async (req, res) => {
   }
 
   try {
-    const response = await axios.get('https://api.namecheap.com/xml.response', {
+    const response = await axios.get(NAMECHEAP_API_URL, {
       params: {
         ApiUser: NAMECHEAP_API_USER,
         ApiKey: NAMECHEAP_API_KEY,
