@@ -19,7 +19,7 @@
       <h6><i class="bi bi-globe2 me-2"></i>{{ domainObj.name }}</h6>
 
       <div class="mb-2">
-        <label class="form-label">Ad title</label>
+        <label class="form-label">End of link</label>
         <input
           v-model="adTitles[index]"
           class="form-control"
@@ -94,6 +94,7 @@ const submitOffers = async () => {
   isSubmitting.value = true
   results.value = []
 
+  const sedoUsername = import.meta.env.VITE_SEDO_USERNAME
   const apiUrl = import.meta.env.VITE_CLICKFLARE_API_URL
   const apiKey = import.meta.env.VITE_CLICKFLARE_API_KEY
   const workspaceId = import.meta.env.VITE_CLICKFLARE_WORKSPACE_ID
@@ -110,7 +111,7 @@ const submitOffers = async () => {
         apiUrl,
         {
           workspace_id: workspaceId,
-          name: offer.adTitle?.trim() || offer.domain,
+          name: `${offer.domain} - ${sedoUsername}`,
           url: offer.url,
           direct: true,
           affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_ID,

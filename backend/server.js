@@ -16,9 +16,9 @@ app.use(cors())
 app.use(express.json())
 
 // 🔐 Настройки API Namecheap
-const NAMECHEAP_API_USER = process.env.VITE_NAMECHEAP_API_USER
-const NAMECHEAP_API_KEY = process.env.VITE_NAMECHEAP_API_KEY
-const CLIENT_IP = process.env.VITE_CLIENT_IP
+const NAMECHEAP_API_USER = process.env.NAMECHEAP_API_USER
+const NAMECHEAP_API_KEY = process.env.NAMECHEAP_API_KEY
+const CLIENT_IP = process.env.NAMECHEAP_CLIENT_IP
 
 // ✅ Проверка домена
 app.post('/check-domain', async (req, res) => {
@@ -206,7 +206,7 @@ app.post('/send-to-sedo', async (req, res) => {
   const postData = {
     partnerid: process.env.SEDO_PARTNER_ID,
     signkey: process.env.SEDO_SIGN_KEY,
-    username: process.env.SEDO_USERNAME,
+    username: process.env.VITE_SEDO_USERNAME,
     password: process.env.SEDO_PASSWORD,
     output_method: 'xml',
     domainentry: [

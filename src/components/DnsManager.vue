@@ -1,5 +1,5 @@
 <template>
-  <div class="card p-3 bg-light">
+  <div class="card p-3 bg-light" :class="{ 'mt-4': isMobile }">
     <h5><i class="bi bi-globe-americas me-2"></i> Управління DNS</h5>
 
     <div class="mt-3 mb-2">
@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useDomainStore } from '@/stores/domainStore'
 import axios from 'axios'
 
@@ -51,6 +51,21 @@ const domains = domainStore.domains
 const nameservers = ref(['ns1.sedopark.net', 'ns2.sedopark.net'])
 const loading = ref(false)
 const results = ref([])
+
+const isMobile = ref(window.innerWidth <= 767)
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 767
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  handleResize()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 const setDnsForAll = async () => {
   loading.value = true
