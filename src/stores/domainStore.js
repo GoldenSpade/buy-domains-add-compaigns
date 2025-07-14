@@ -2,13 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 export const useDomainStore = defineStore('domain', () => {
-  // const domains = ref(loadDomainsFromLocalStorage())
-
-  const domains = ref([
-    { message: '', name: 'sperm-donation-123.click', status: 'pending' },
-    { message: '', name: 'counstruction-services.click ', status: 'pending' },
-    { message: '', name: 'laser-skinrejuvenation.click ', status: 'pending' },
-  ])
+  const domains = ref(loadDomainsFromLocalStorage())
 
   // Добавить домен
   function addDomain(name) {
