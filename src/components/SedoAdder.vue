@@ -43,7 +43,7 @@ const submitAll = async () => {
 
   for (const d of domains) {
     try {
-      const res = await axios.post('http://localhost:3000/send-to-sedo', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/send-to-sedo`, {
         domain: d.name.trim(),
       })
 

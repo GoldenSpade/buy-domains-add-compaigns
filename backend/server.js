@@ -272,5 +272,5 @@ app.post('/send-to-sedo', async (req, res) => {
 
 // 🚀 Запуск сервера
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на http://localhost:${PORT}`)
+  console.log(`🚀 Сервер запущен на ${process.env.VITE_API_BASE_URL || 'http://localhost'}:${PORT}`)
 })

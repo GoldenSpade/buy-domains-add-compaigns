@@ -73,7 +73,7 @@ const setDnsForAll = async () => {
 
   for (const d of domains) {
     try {
-      const response = await axios.post('http://localhost:3000/set-dns', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/set-dns`, {
         domain: d.name,
         nameservers: nameservers.value,
       })

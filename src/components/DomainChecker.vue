@@ -157,7 +157,7 @@ const checkDomain = async () => {
   serverError.value = ''
 
   try {
-    const response = await fetch('http://localhost:3000/check-domain', {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/check-domain`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ domain: domain.value }),
@@ -201,7 +201,7 @@ const buyAll = async () => {
     d.message = ''
 
     try {
-      const response = await fetch('http://localhost:3000/buy-domain', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/buy-domain`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain: d.name }),
