@@ -6,7 +6,7 @@
         <DomainChecker />
         <SedoAdder />
       </div>
-      <div class="col-md-6">
+      <div class="col-md-6" :class="{ 'mt-4': isMobile }">
         <DnsManager />
         <ClickflareOffer />
       </div>
@@ -15,9 +15,25 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import DomainChecker from './components/DomainChecker.vue'
 import DnsManager from './components/DnsManager.vue'
 import SedoAdder from './components/SedoAdder.vue'
 import TheHeader from './components/TheHeader.vue'
 import ClickflareOffer from './components/ClickflareOffer.vue'
+
+const isMobile = ref(window.innerWidth <= 767)
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 767
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  handleResize()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
