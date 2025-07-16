@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import Home from '@/pages/Home.vue'
-import domainsSedoAFD from '@/pages/DomainsSedoAFD.vue'
+import domainsSedoAFD from '@/pages/domainsSedoAFD.vue'
 
 const routes = [
   {
