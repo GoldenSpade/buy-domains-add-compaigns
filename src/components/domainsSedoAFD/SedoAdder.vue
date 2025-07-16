@@ -2,6 +2,16 @@
   <div class="card p-3 mt-3 bg-light">
     <h5><i class="bi bi-plus-circle me-2"></i> Додати домени до Sedo.com</h5>
 
+    <div class="form-group mt-2">
+      <label for="sedoAccount">Обрати акаунт Sedo</label>
+      <select id="sedoAccount" v-model="domainStore.selectedSedoAccount" class="form-select">
+        <option value="TT1">dgtluniontt1</option>
+        <option value="TT2">dgtluniontt2</option>
+        <option value="FB1">dgtlunionfb1</option>
+        <option value="FB2">dgtlunionfb2</option>
+      </select>
+    </div>
+
     <button
       class="btn btn-primary w-100 my-3"
       :disabled="loading || domains.length === 0"
@@ -32,7 +42,8 @@ import { ref } from 'vue'
 import axios from 'axios'
 import { useDomainStore } from '@/stores/domainStore'
 
-const { domains } = useDomainStore()
+const domainStore = useDomainStore()
+const { domains } = domainStore
 
 const loading = ref(false)
 const results = ref([])
@@ -45,6 +56,7 @@ const submitAll = async () => {
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/send-to-sedo`, {
         domain: d.name.trim(),
+        accountKey: domainStore.selectedSedoAccount,
       })
 
       const { error = {}, info = '' } = res.data || {}
@@ -53,9 +65,7 @@ const submitAll = async () => {
       const errorKeys = Object.keys(error)
       const isTrulySuccess = isObjectError && errorKeys.length === 1 && errorKeys[0] === '$'
 
-      const message = isTrulySuccess
-        ? info || '' // Всё хорошо
-        : error._ || error || 'Невідома помилка'
+      const message = isTrulySuccess ? info || '' : error._ || error || 'Невідома помилка'
 
       results.value.push({
         domain: d.name,
@@ -72,12 +82,6 @@ const submitAll = async () => {
   }
 
   loading.value = false
-}
-
-function extractMessage(msg) {
-  if (typeof msg === 'string') return msg
-  if (msg && typeof msg === 'object' && '_' in msg) return msg._
-  return 'Невідома помилка'
 }
 </script>
 

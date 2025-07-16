@@ -198,17 +198,17 @@ app.post('/set-dns', async (req, res) => {
 
 // Додавання домену до Sedo.com
 app.post('/send-to-sedo', async (req, res) => {
-  const { domain } = req.body
+  const { domain, accountKey = 'TT1' } = req.body
 
   if (!domain) {
     return res.status(400).json({ error: 'No domain provided' })
   }
 
   const postData = {
-    partnerid: process.env.SEDO_PARTNER_ID,
-    signkey: process.env.SEDO_SIGN_KEY,
-    username: process.env.VITE_SEDO_USERNAME,
-    password: process.env.SEDO_PASSWORD,
+    partnerid: process.env[`SEDO_PARTNER_ID_${accountKey}`],
+    signkey: process.env[`SEDO_SIGN_KEY_${accountKey}`],
+    username: process.env[`VITE_SEDO_USERNAME_${accountKey}`],
+    password: process.env[`SEDO_PASSWORD_${accountKey}`],
     output_method: 'xml',
     domainentry: [
       {
@@ -224,7 +224,7 @@ app.post('/send-to-sedo', async (req, res) => {
   }
 
   try {
-    console.log('📤 Отправка POST-запроса в Sedo:', postData)
+    console.log(`📤 Отправка домена в Sedo (${accountKey}):`, postData.username, domain)
 
     const response = await axios.post(
       'https://api.sedo.com/api/v1/DomainInsert',
@@ -260,7 +260,6 @@ app.post('/send-to-sedo', async (req, res) => {
     if (err.response?.data?.startsWith?.('<?xml')) {
       const parsedError = await parseStringPromise(err.response.data)
       console.error('❌ XML-ошибка от Sedo:', JSON.stringify(parsedError, null, 2))
-
       const faultString = parsedError?.SEDOFAULT?.faultstring?.[0] || 'Невідома помилка'
       return res.status(500).json({ error: faultString })
     }

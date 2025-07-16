@@ -10,6 +10,13 @@
         placeholder="?sub1={cf_click_id}&network=tiktok&site=tiktok&adtitle="
       />
     </div>
+    <div class="mb-3">
+      <label class="form-label">Workspace</label>
+      <select v-model="selectedWorkspace" class="form-select">
+        <option value="Alex">Alex</option>
+        <option value="Davyd">Davyd</option>
+      </select>
+    </div>
 
     <div
       class="border rounded p-3 mb-3"
@@ -19,11 +26,11 @@
       <h6><i class="bi bi-globe2 me-2"></i>{{ domainObj.name }}</h6>
 
       <div class="mb-2">
-        <label class="form-label">End of link</label>
+        <label class="form-label">Ad title</label>
         <input
           v-model="adTitles[index]"
           class="form-control"
-          placeholder="Наприклад, Rooftop solar panels - TikTok"
+          placeholder="Наприклад, Rooftop solar panels"
         />
       </div>
 
@@ -63,16 +70,40 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
 import axios from 'axios'
-import { useDomainStore } from '../stores/domainStore'
+import { useDomainStore } from '../../stores/domainStore'
 
 const domainStore = useDomainStore()
 
 const adTitles = ref([])
-const defaultQueryString = ref('?sub1={cf_click_id}&network=tiktok&site=tiktok&adtitle=')
+const defaultQueryString = ref('')
 const isSubmitting = ref(false)
 const results = ref([])
+const selectedWorkspace = ref('Alex')
+
+const workspaceMap = {
+  Alex: import.meta.env.VITE_WORKSPACE_ALEX,
+  Davyd: import.meta.env.VITE_WORKSPACE_DAVYD,
+}
+
+selectedWorkspace.value = localStorage.getItem('selectedWorkspace') || 'Alex'
+
+watch(selectedWorkspace, (val) => {
+  localStorage.setItem('selectedWorkspace', val)
+})
+
+const network = computed(() => {
+  return ['FB1', 'FB2'].includes(domainStore.selectedSedoAccount) ? 'meta' : 'tiktok'
+})
+
+watch(
+  () => domainStore.selectedSedoAccount,
+  () => {
+    defaultQueryString.value = `?sub1={cf_click_id}&network=${network.value}&site=${network.value}&adtitle=`
+  },
+  { immediate: true }
+)
 
 const generateOfferUrl = (domain, adTitle) => {
   const cleanDomain = domain.trim()
@@ -94,10 +125,10 @@ const submitOffers = async () => {
   isSubmitting.value = true
   results.value = []
 
-  const sedoUsername = import.meta.env.VITE_SEDO_USERNAME
+  const sedoUsername = import.meta.env[`VITE_SEDO_USERNAME_${domainStore.selectedSedoAccount}`]
   const apiUrl = import.meta.env.VITE_CLICKFLARE_API_URL
   const apiKey = import.meta.env.VITE_CLICKFLARE_API_KEY
-  const workspaceId = import.meta.env.VITE_CLICKFLARE_WORKSPACE_ID
+  const workspaceId = workspaceMap[selectedWorkspace.value]
 
   const offers = domainStore.domains.map((d, i) => ({
     domain: d.name,

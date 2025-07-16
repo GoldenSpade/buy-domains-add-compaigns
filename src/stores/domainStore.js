@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 
 export const useDomainStore = defineStore('domain', () => {
   const domains = ref(loadDomainsFromLocalStorage())
-
+  const selectedSedoAccount = ref('TT1')
   // Добавить домен
   function addDomain(name) {
     if (!domains.value.find((d) => d.name === name)) {
@@ -41,5 +41,5 @@ export const useDomainStore = defineStore('domain', () => {
     { deep: true }
   )
 
-  return { domains, addDomain, removeDomain, clearDomains }
+  return { domains, addDomain, removeDomain, clearDomains, selectedSedoAccount }
 })
