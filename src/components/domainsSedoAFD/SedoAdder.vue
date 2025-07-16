@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import axios from 'axios'
 import { useDomainStore } from '@/stores/domainStore'
 
@@ -47,6 +47,21 @@ const { domains } = domainStore
 
 const loading = ref(false)
 const results = ref([])
+
+// восстановление значения при загрузке
+const savedAccount = localStorage.getItem('selectedSedoAccount')
+if (savedAccount) {
+  domainStore.selectedSedoAccount = savedAccount
+}
+
+// сохранение при изменении
+watch(
+  () => domainStore.selectedSedoAccount,
+  (val) => {
+    localStorage.setItem('selectedSedoAccount', val)
+  },
+  { immediate: true }
+)
 
 const submitAll = async () => {
   loading.value = true

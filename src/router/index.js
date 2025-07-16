@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import Home from '@/pages/Home.vue'
-import domainsSedoAFD from '@/pages/domainsSedoAFD.vue'
+import DomainsSedoAFD from '@/pages/DomainsSedoAFD.vue'
 
 const routes = [
   {
@@ -12,8 +12,8 @@ const routes = [
   },
   {
     path: '/domains-sedo-afd',
-    component: domainsSedoAFD,
-    name: 'domainsSedoAFDome',
+    component: DomainsSedoAFD,
+    name: 'DomainsSedoAFD',
     meta: { title: 'Створення кампаній Sedo AFD' },
   },
 ]
