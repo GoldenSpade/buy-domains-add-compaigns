@@ -13,7 +13,7 @@ const routes = [
   {
     path: '/domains-sedo-afd',
     component: DomainsSedoAFD,
-    name: 'DomainsSedoAFD',
+    name: 'domainsSedoAFD',
     meta: { title: 'Створення кампаній Sedo AFD' },
   },
 ]
