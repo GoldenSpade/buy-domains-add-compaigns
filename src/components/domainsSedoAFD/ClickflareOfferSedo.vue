@@ -1,5 +1,5 @@
 <template>
-  <div class="card p-3 bg-light mt-3 col-12">
+  <div class="card p-3 bg-light col-12">
     <h5><i class="bi bi-rocket-takeoff me-2"></i> Створити оффери у ClickFlare</h5>
 
     <div class="border rounded p-3 mb-4 bg-white">
@@ -145,7 +145,7 @@ const submitOffers = async () => {
           name: `${offer.domain} - ${sedoUsername}`,
           url: offer.url,
           direct: true,
-          affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_ID,
+          affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_SEDO_ID,
           keywordBuilderMode: 'free_form',
           payout: {
             type: 'auto',

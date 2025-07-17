@@ -1,5 +1,5 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container-fluid">
       <a class="navbar-brand fw-bold" href="#"> <i class="bi bi-globe2 me-2"></i>Меню </a>
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">

@@ -10,7 +10,7 @@
         </div>
         <div class="col-md-6" :class="{ 'mt-4': isMobile }">
           <DnsManager />
-          <ClickflareOffer />
+          <ClickflareOfferSedo class="mt-3" />
         </div>
       </div>
     </div>
@@ -24,7 +24,7 @@ import DomainChecker from '@/components/domainsSedoAFD/DomainChecker.vue'
 import DnsManager from '@/components/domainsSedoAFD/DnsManager.vue'
 import SedoAdder from '@/components/domainsSedoAFD/SedoAdder.vue'
 import Header from '@/components/Header.vue'
-import ClickflareOffer from '@/components/domainsSedoAFD/ClickflareOffer.vue'
+import ClickflareOfferSedo from '@/components/domainsSedoAFD/ClickflareOfferSedo.vue'
 
 const isMobile = ref(window.innerWidth <= 767)
 

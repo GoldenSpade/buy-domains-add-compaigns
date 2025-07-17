@@ -269,6 +269,178 @@ app.post('/send-to-sedo', async (req, res) => {
   }
 })
 
+// Створення кампаній Tonic
+
+// Отримати список кампаній для форми
+app.get('/tonic/offers', async (req, res) => {
+  const rawSource = req.query.trafficSource
+  const trafficSource = rawSource?.trim?.()
+
+  if (!trafficSource) {
+    return res.status(400).json({ error: 'Missing trafficSource' })
+  }
+
+  let key, secret
+
+  if (trafficSource === 'TikTok') {
+    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+  } else if (trafficSource === 'Facebook') {
+    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+  } else {
+    return res.status(400).json({ error: 'Invalid trafficSource' })
+  }
+
+  try {
+    // Получение JWT
+    const jwtResp = await axios.post(
+      'https://api.publisher.tonic.com/jwt/authenticate',
+      {
+        consumer_key: key,
+        consumer_secret: secret,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+
+    const jwtToken = jwtResp.data.token
+
+    // Получение офферов с JWT
+    const offersResp = await axios.get(
+      'https://api.publisher.tonic.com/privileged/v3/offers/list?output=json',
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    res.json({ offers: offersResp.data }) // это массив
+  } catch (err) {
+    console.error('❌ Ошибка при загрузке офферов:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
+// Отримати список країн для Tonic
+app.get('/tonic/countries', async (req, res) => {
+  const trafficSource = req.query.trafficSource?.trim()
+
+  if (!trafficSource) {
+    return res.status(400).json({ error: 'Missing trafficSource' })
+  }
+
+  let key, secret
+
+  if (trafficSource === 'TikTok') {
+    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+  } else if (trafficSource === 'Facebook') {
+    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+  } else {
+    return res.status(400).json({ error: 'Invalid trafficSource' })
+  }
+
+  try {
+    const jwtResp = await axios.post(
+      'https://api.publisher.tonic.com/jwt/authenticate',
+      {
+        consumer_key: key,
+        consumer_secret: secret,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+
+    const token = jwtResp.data.token
+
+    const countriesResp = await axios.get(
+      'https://api.publisher.tonic.com/privileged/v3/countries/list?output=json',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    res.json({ countries: countriesResp.data })
+  } catch (err) {
+    console.error('❌ Ошибка при загрузке стран:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
+// Створення (відправка) нової кампанії
+app.post('/tonic/create-campaign', async (req, res) => {
+  const {
+    name,
+    trafficSource, // 'TikTok' | 'Facebook'
+    countries,
+    buyer_id,
+    offer_id,
+    flow_id,
+  } = req.body
+
+  if (!name || !trafficSource || !Array.isArray(countries) || !buyer_id || !offer_id || !flow_id) {
+    return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  // Выбор ключа и секрета в зависимости от источника трафика
+  let key, secret
+
+  if (trafficSource === 'TikTok') {
+    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+  } else if (trafficSource === 'Facebook') {
+    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+  } else {
+    return res.status(400).json({ error: 'Invalid trafficSource' })
+  }
+
+  try {
+    // 1. Получение access_token
+    const authResp = await axios.post('https://publisher.tonic.com/oauth/token', {
+      grant_type: 'client_credentials',
+      client_id: key,
+      client_secret: secret,
+    })
+
+    const accessToken = authResp.data.access_token
+
+    // 2. Создание кампании
+    const campaignBody = {
+      campaign: {
+        name,
+        status: 'active',
+        traffic_source: trafficSource.toLowerCase(),
+        countries,
+        buyer_id,
+        flow_id,
+        offer_id,
+      },
+    }
+
+    const createResp = await axios.post('https://publisher.tonic.com/api/campaigns', campaignBody, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    res.json({ success: true, campaign: createResp.data })
+  } catch (err) {
+    console.error('❌ Tonic API error:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
 // 🚀 Запуск сервера
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на ${process.env.VITE_API_BASE_URL || 'http://localhost'}:${PORT}`)

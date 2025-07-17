@@ -7,9 +7,7 @@
         <div class="col-md-6">
           <TonicCampaignForm />
         </div>
-        <div class="col-md-6" :class="{ 'mt-4': isMobile }">
-          <!-- <TonicCampaignForm /> -->
-        </div>
+        <div class="col-md-6" :class="{ 'mt-4': isMobile }">Col 2</div>
       </div>
     </div>
   </div>
