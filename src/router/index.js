@@ -1,13 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import Home from '@/pages/Home.vue'
+import home from '@/pages/home.vue'
 import domainsSedoAFD from '@/pages/domainsSedoAFD.vue'
+import createTonicCampaign from '@/pages/createTonicCampaign.vue'
 
 const routes = [
   {
     path: '/',
-    component: Home,
-    name: 'Home',
+    component: home,
+    name: 'home',
     meta: { title: 'Панель управління | Ласкаво просимо! Оберіть розділ щоб розпочати роботу.' },
   },
   {
@@ -15,6 +16,12 @@ const routes = [
     component: domainsSedoAFD,
     name: 'domainsSedoAFD',
     meta: { title: 'Створення кампаній Sedo AFD' },
+  },
+  {
+    path: '/tonic-campaign', // 🆕
+    component: createTonicCampaign,
+    name: 'createTonicCampaign',
+    meta: { title: 'Створення кампаній Tonic' },
   },
 ]
 

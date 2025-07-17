@@ -2,15 +2,13 @@
   <div>
     <MainMenu />
     <div class="app mb-4 px-3">
-      <Header title="Створення кампаній Sedo AFD" />
+      <Header title="Створення кампаній Tonic" />
       <div class="row">
         <div class="col-md-6">
-          <DomainChecker />
-          <SedoAdder />
+          <TonicCampaignForm />
         </div>
         <div class="col-md-6" :class="{ 'mt-4': isMobile }">
-          <DnsManager />
-          <ClickflareOffer />
+          <!-- <TonicCampaignForm /> -->
         </div>
       </div>
     </div>
@@ -19,12 +17,10 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import MainMenu from '@/components/MainMenu.vue'
-import DomainChecker from '@/components/domainsSedoAFD/DomainChecker.vue'
-import DnsManager from '@/components/domainsSedoAFD/DnsManager.vue'
-import SedoAdder from '@/components/domainsSedoAFD/SedoAdder.vue'
+
 import Header from '@/components/Header.vue'
-import ClickflareOffer from '@/components/domainsSedoAFD/ClickflareOffer.vue'
+import TonicCampaignForm from '@/components/createTonicCampaign/TonicCampaignForm.vue'
+import MainMenu from '@/components/MainMenu.vue'
 
 const isMobile = ref(window.innerWidth <= 767)
 
