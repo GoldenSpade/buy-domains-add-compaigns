@@ -13,11 +13,11 @@
             <i class="bi bi-diagram-3 me-1"></i> Sedo AFD
           </router-link>
         </li>
-        <li class="nav-item">
+        <!-- <li class="nav-item">
           <router-link :to="{ name: 'createTonicCampaign' }" class="nav-link" active-class="active">
             <i class="bi bi-bar-chart-line me-1"></i> Tonic
           </router-link>
-        </li>
+        </li> -->
       </ul>
     </div>
   </nav>
