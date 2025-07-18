@@ -62,7 +62,7 @@
       </select>
     </div>
 
-    <button class="btn btn-primary" @click="submitForm">Створити кампанію</button>
+    <button class="btn btn-primary" @click="submitForm">Створити кампанії</button>
   </div>
 </template>
 
@@ -86,7 +86,7 @@ const isLoadingCountries = ref(false)
 const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
-const CACHE_TTL = 60 * 60 * 1000 // 60 минут
+const CACHE_TTL = 60 * 60 * 1000 // новлення кешу кожні 60 хв.
 
 function getFromCache(key) {
   try {
@@ -130,7 +130,9 @@ const fetchOffers = async () => {
   }
 
   try {
-    const resp = await fetch(`http://localhost:3000/tonic/offers?trafficSource=${source}`)
+    const resp = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/tonic/offers?trafficSource=${source}`
+    )
     const data = await resp.json()
 
     if (resp.ok && Array.isArray(data.offers)) {
@@ -166,7 +168,9 @@ const fetchCountries = async () => {
   }
 
   try {
-    const resp = await fetch(`http://localhost:3000/tonic/countries?trafficSource=${source}`)
+    const resp = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/tonic/countries?trafficSource=${source}`
+    )
     const data = await resp.json()
 
     if (resp.ok && Array.isArray(data.countries)) {
@@ -206,7 +210,7 @@ const removeCountry = (country) => {
 const submitForm = async () => {
   const payload = {
     name: `${form.offer} - ${form.trafficSource}`,
-    trafficSource: form.countries.map(c => c.code),
+    trafficSource: form.countries.map((c) => c.code),
     countries: form.countries,
     buyer_id: form.buyer,
     offer_id: form.offer,
@@ -214,7 +218,7 @@ const submitForm = async () => {
   }
 
   try {
-    const response = await fetch('http://localhost:3000/tonic/create-campaign', {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

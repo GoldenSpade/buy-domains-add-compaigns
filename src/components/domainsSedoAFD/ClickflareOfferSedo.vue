@@ -74,6 +74,11 @@ import { ref, watch, computed } from 'vue'
 import axios from 'axios'
 import { useDomainStore } from '../../stores/domainStore'
 
+const workspaceMap = {
+  Alex: import.meta.env.VITE_WORKSPACE_ALEX,
+  Davyd: import.meta.env.VITE_WORKSPACE_DAVYD,
+}
+
 const domainStore = useDomainStore()
 
 const adTitles = ref([])
@@ -81,11 +86,6 @@ const defaultQueryString = ref('')
 const isSubmitting = ref(false)
 const results = ref([])
 const selectedWorkspace = ref('Alex')
-
-const workspaceMap = {
-  Alex: import.meta.env.VITE_WORKSPACE_ALEX,
-  Davyd: import.meta.env.VITE_WORKSPACE_DAVYD,
-}
 
 selectedWorkspace.value = localStorage.getItem('selectedWorkspace') || 'Alex'
 
@@ -121,14 +121,16 @@ const getDisplayUrl = (domain, adTitle) => {
   return base + query
 }
 
+const sedoAccountMap = {
+  TT1: 'dgtluniontt1',
+  TT2: 'dgtluniontt2',
+  FB1: 'dgtlunionfb1',
+  FB2: 'dgtlunionfb2',
+}
+
 const submitOffers = async () => {
   isSubmitting.value = true
   results.value = []
-
-  const sedoUsername = import.meta.env[`VITE_SEDO_USERNAME_${domainStore.selectedSedoAccount}`]
-  const apiUrl = import.meta.env.VITE_CLICKFLARE_API_URL
-  const apiKey = import.meta.env.VITE_CLICKFLARE_API_KEY
-  const workspaceId = workspaceMap[selectedWorkspace.value]
 
   const offers = domainStore.domains.map((d, i) => ({
     domain: d.name,
@@ -138,28 +140,26 @@ const submitOffers = async () => {
 
   for (const offer of offers) {
     try {
-      const res = await axios.post(
-        apiUrl,
-        {
-          workspace_id: workspaceId,
-          name: `${offer.domain} - ${sedoUsername}`,
-          url: offer.url,
-          direct: true,
-          affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_SEDO_ID,
-          keywordBuilderMode: 'free_form',
-          payout: {
-            type: 'auto',
-          },
-        },
-        {
-          headers: {
-            'api-key': apiKey,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
+      const name = `${offer.domain} - ${
+        sedoAccountMap[domainStore.selectedSedoAccount] || domainStore.selectedSedoAccount
+      }`
 
-      console.log('✅ Успешно:', res.data)
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url: offer.url,
+          workspace_id: workspaceMap[selectedWorkspace.value],
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Не вдалося створити оффер')
+      }
+
       results.value.push({ domain: offer.domain, success: true, message: 'Створено успішно' })
     } catch (err) {
       const msg =

@@ -149,53 +149,6 @@ app.post('/buy-domain', async (req, res) => {
   }
 })
 
-// Установка DNS для доменов
-app.post('/set-dns', async (req, res) => {
-  const { domain, nameservers } = req.body
-
-  if (!domain || !Array.isArray(nameservers) || nameservers.length === 0) {
-    return res.status(400).json({ error: 'Invalid input data' })
-  }
-
-  // 🔍 Разделение домена на SLD и TLD
-  const [sld, ...tldParts] = domain.split('.')
-  const tld = tldParts.join('.')
-
-  if (!sld || !tld) {
-    return res.status(400).json({ error: 'Invalid domain format' })
-  }
-
-  try {
-    const response = await axios.get(NAMECHEAP_API_URL, {
-      params: {
-        ApiUser: NAMECHEAP_API_USER,
-        ApiKey: NAMECHEAP_API_KEY,
-        UserName: NAMECHEAP_API_USER,
-        Command: 'namecheap.domains.dns.setCustom',
-        ClientIp: CLIENT_IP,
-        SLD: sld,
-        TLD: tld,
-        Nameservers: nameservers.join(','),
-      },
-    })
-
-    const parsed = await parseStringPromise(response.data)
-    const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
-
-    if (errors) {
-      const msg = errors[0]?._ || 'Unknown DNS error'
-      console.error('❌ DNS Error:', msg)
-      return res.status(500).json({ error: msg })
-    }
-
-    console.log(`✅ DNS збережено для ${domain}:`, nameservers.join(', '))
-    return res.json({ success: true, domain, nameservers })
-  } catch (err) {
-    console.error('❌ set-dns exception:', err.message)
-    res.status(500).json({ error: 'Server error while setting DNS' })
-  }
-})
-
 // Додавання домену до Sedo.com
 app.post('/send-to-sedo', async (req, res) => {
   const { domain, accountKey = 'TT1' } = req.body
@@ -266,6 +219,111 @@ app.post('/send-to-sedo', async (req, res) => {
 
     console.error('❌ Ошибка при отправке в Sedo:', err.response?.data || err.message)
     return res.status(500).json({ error: err.message || 'Серверна помилка' })
+  }
+})
+
+// Установка DNS для доменов
+app.post('/set-dns', async (req, res) => {
+  const { domain, nameservers } = req.body
+
+  if (!domain || !Array.isArray(nameservers) || nameservers.length === 0) {
+    return res.status(400).json({ error: 'Invalid input data' })
+  }
+
+  // 🔍 Разделение домена на SLD и TLD
+  const [sld, ...tldParts] = domain.split('.')
+  const tld = tldParts.join('.')
+
+  if (!sld || !tld) {
+    return res.status(400).json({ error: 'Invalid domain format' })
+  }
+
+  try {
+    const response = await axios.get(NAMECHEAP_API_URL, {
+      params: {
+        ApiUser: NAMECHEAP_API_USER,
+        ApiKey: NAMECHEAP_API_KEY,
+        UserName: NAMECHEAP_API_USER,
+        Command: 'namecheap.domains.dns.setCustom',
+        ClientIp: CLIENT_IP,
+        SLD: sld,
+        TLD: tld,
+        Nameservers: nameservers.join(','),
+      },
+    })
+
+    const parsed = await parseStringPromise(response.data)
+    const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
+
+    if (errors) {
+      const msg = errors[0]?._ || 'Unknown DNS error'
+      console.error('❌ DNS Error:', msg)
+      return res.status(500).json({ error: msg })
+    }
+
+    console.log(`✅ DNS збережено для ${domain}:`, nameservers.join(', '))
+    return res.json({ success: true, domain, nameservers })
+  } catch (err) {
+    console.error('❌ set-dns exception:', err.message)
+    res.status(500).json({ error: 'Server error while setting DNS' })
+  }
+})
+
+// Створити офер у ClickFlare
+app.post('/clickflare/create-offer', async (req, res) => {
+  const { name, url, workspace_id } = req.body
+  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
+  const AFFILIATE_NETWORK_ID = process.env.VITE_AFFILIATE_NETWORK_SEDO_ID
+
+  if (!name || !url || !workspace_id) {
+    console.warn('⚠️ Не вистачає обовʼязкових полів:', { name, url, workspace_id })
+    return res.status(400).json({ error: 'Missing required fields: name, url, workspace_id' })
+  }
+
+  const payload = {
+    name,
+    url,
+    workspace_id,
+    direct: true,
+    affiliateNetworkID: AFFILIATE_NETWORK_ID,
+    payout: {
+      type: 'manual',
+      payout: 0,
+      currency: 'USD',
+    },
+    keywordBuilderMode: 'free_form',
+  }
+
+  try {
+    const response = await axios.post('https://public-api.clickflare.io/api/offers', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': API_KEY,
+      },
+    })
+
+    const offerId = response.data?.id || response.data?.offer_id
+
+    if (!offerId) {
+      console.warn('⚠️ Успішна відповідь без ID оффера:', response.data)
+    }
+
+    res.json({ success: true, offerId })
+  } catch (error) {
+    const rawData = error?.response?.data
+    const statusCode = error?.response?.status || 500
+
+    const msg =
+      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
+
+    console.error('❌ ClickFlare error:', {
+      message: msg,
+      status: statusCode,
+      data: rawData,
+      fullError: JSON.stringify(error?.response?.data?.data, null, 2), // <-- вот ключ
+    })
+
+    res.status(statusCode).json({ error: msg })
   }
 })
 
