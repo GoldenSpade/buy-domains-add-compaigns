@@ -1,13 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import home from '@/pages/home.vue'
+import Home from '@/pages/Home.vue'
 import domainsSedoAFD from '@/pages/domainsSedoAFD.vue'
 import createTonicCampaign from '@/pages/createTonicCampaign.vue'
 
 const routes = [
   {
     path: '/',
-    component: home,
+    component: Home,
     name: 'home',
     meta: { title: 'Панель управління | Ласкаво просимо! Оберіть розділ щоб розпочати роботу.' },
   },
