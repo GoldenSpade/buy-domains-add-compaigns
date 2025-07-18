@@ -2,10 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 export const useDomainStore = defineStore('domain', () => {
-  // const domains = ref(loadDomainsFromLocalStorage())
-  const domains = ref([
-    { message: '', name: 'sperm-donation-123.click', status: 'pending' },
-  ])
+  const domains = ref(loadDomainsFromLocalStorage())
+
   const selectedSedoAccount = ref('TT1')
   // Добавить домен
   function addDomain(name) {
