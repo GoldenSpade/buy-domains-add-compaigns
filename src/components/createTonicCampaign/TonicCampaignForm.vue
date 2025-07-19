@@ -34,9 +34,9 @@
 
       <select v-model="selectedCountry" class="form-select" @change="addCountry">
         <option disabled value="">
-          {{ isLoadingCountries ? 'Завантаження...' : '' }}
+          {{ isLoadingCountries ? 'Завантаження...' : 'Оберіть країну' }}
         </option>
-        <option v-for="country in countries" :key="country.code" :value="country.code">
+        <option v-for="country in allowedCountries" :key="country.code" :value="country.code">
           {{ country.name }}
         </option>
       </select>
@@ -60,6 +60,47 @@
           {{ source }}
         </option>
       </select>
+
+      <!-- Карточки офферов -->
+      <div class="mt-4" v-if="tonicStore.cards.length">
+        <h5 class="mb-3">
+          <i class="bi bi-card-checklist me-2"></i>
+          Кампанії:
+        </h5>
+
+        <div class="d-flex flex-column gap-3">
+          <div
+            v-for="(card, index) in tonicStore.cards"
+            :key="index"
+            class="position-relative border rounded bg-white p-3 shadow-sm"
+          >
+            <i
+              class="bi bi-x-lg position-absolute top-0 end-0 m-2 text-secondary"
+              role="button"
+              title="Видалити картку"
+              @click="removeCard(card)"
+            ></i>
+
+            <h6 class="mb-2">
+              <i class="bi bi-globe2 me-2"></i>
+              {{ card.offer }}
+            </h6>
+
+            <div class="mb-2">
+              <label class="form-label fw-bold mb-2">Ad title</label>
+              <input type="text" :value="card.adTitle" class="form-control" disabled />
+            </div>
+
+            <div class="small text-muted">
+              {{ card.country }} | {{ card.buyer }} | {{ card.trafficSource }}
+            </div>
+            <div v-if="card.error" class="mt-2 text-danger small border rounded bg-light p-2">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              {{ card.error }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <button class="btn btn-primary" @click="submitForm">Створити кампанії</button>
@@ -68,6 +109,9 @@
 
 <script setup>
 import { reactive, ref, onMounted, watch } from 'vue'
+import { useTonicStore } from '../../stores/tonicStore'
+
+const tonicStore = useTonicStore()
 
 const form = reactive({
   offer: '',
@@ -78,15 +122,14 @@ const form = reactive({
 
 const selectedCountry = ref('')
 const offers = ref([])
-const countries = ref([])
-
+const allowedCountries = ref([])
 const isLoadingOffers = ref(false)
 const isLoadingCountries = ref(false)
 
 const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
-const CACHE_TTL = 60 * 60 * 1000 // новлення кешу кожні 60 хв.
+const CACHE_TTL = 60 * 60 * 1000
 
 function getFromCache(key) {
   try {
@@ -102,10 +145,7 @@ function getFromCache(key) {
 
 function setToCache(key, data) {
   try {
-    const item = {
-      data,
-      timestamp: Date.now(),
-    }
+    const item = { data, timestamp: Date.now() }
     localStorage.setItem(key, JSON.stringify(item))
   } catch (e) {
     console.warn('Cache write error:', e)
@@ -115,7 +155,6 @@ function setToCache(key, data) {
 const fetchOffers = async () => {
   const source = form.trafficSource
   if (!source) return
-
   isLoadingOffers.value = true
   offers.value = []
   form.offer = ''
@@ -134,7 +173,6 @@ const fetchOffers = async () => {
       `${import.meta.env.VITE_API_BASE_URL}/tonic/offers?trafficSource=${source}`
     )
     const data = await resp.json()
-
     if (resp.ok && Array.isArray(data.offers)) {
       const mapped = data.offers.map((o) => ({ id: o.id, name: o.name }))
       offers.value = mapped
@@ -150,97 +188,132 @@ const fetchOffers = async () => {
   }
 }
 
-const fetchCountries = async () => {
-  const source = form.trafficSource
-  if (!source) return
-
-  isLoadingCountries.value = true
-  countries.value = []
-  selectedCountry.value = ''
-
-  const cacheKey = `countries_${source}`
-  const cached = getFromCache(cacheKey)
-  if (cached) {
-    countries.value = cached
-    selectedCountry.value = cached[0]?.code || ''
-    isLoadingCountries.value = false
-    return
-  }
-
-  try {
-    const resp = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/tonic/countries?trafficSource=${source}`
-    )
-    const data = await resp.json()
-
-    if (resp.ok && Array.isArray(data.countries)) {
-      countries.value = data.countries
-      selectedCountry.value = data.countries[0]?.code || ''
-      setToCache(cacheKey, data.countries)
-    } else {
-      console.error('❌ Error loading countries:', data)
-    }
-  } catch (e) {
-    console.error('❌ Fetch error (countries):', e)
-  } finally {
-    isLoadingCountries.value = false
-  }
-}
-
 watch(
-  () => form.trafficSource,
-  () => {
-    fetchOffers()
-    fetchCountries()
+  () => form.offer,
+  async (newOffer) => {
+    form.countries = []
+    allowedCountries.value = []
+    if (!newOffer) return
+
+    isLoadingCountries.value = true
+    try {
+      const offerName = offers.value.find((o) => o.id === newOffer)?.name || ''
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
+          offerName
+        )}&trafficSource=${form.trafficSource}&buyer=${form.buyer}`
+      )
+      const data = await res.json()
+
+      if (res.ok && Array.isArray(data.allowedCountries)) {
+        allowedCountries.value = data.allowedCountries
+      } else {
+        console.warn('⚠️ Не вдалося завантажити список дозволених країн')
+      }
+    } catch (err) {
+      console.error('❌ Fetch error (allowed countries):', err)
+    } finally {
+      isLoadingCountries.value = false
+    }
   }
 )
 
 const addCountry = () => {
-  const selected = countries.value.find((c) => c.code === selectedCountry.value)
-  if (selected && !form.countries.some((c) => c.code === selected.code)) {
-    form.countries.push(selected)
-  }
+  const selected = allowedCountries.value.find((c) => c.code === selectedCountry.value)
+  const offerName = offers.value.find((o) => o.id === form.offer)?.name || ''
+
+  if (!selected || form.countries.some((c) => c.code === selected.code)) return
+
+  form.countries.push(selected)
+
+  tonicStore.addCard({
+    offer: offerName,
+    country: selected.name,
+    buyer: form.buyer,
+    trafficSource: form.trafficSource,
+    adTitle: `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`,
+    resId: '',
+    resUrl: '',
+    error: '',
+  })
 }
 
 const removeCountry = (country) => {
   const index = form.countries.indexOf(country)
   if (index !== -1) form.countries.splice(index, 1)
+
+  tonicStore.cards = tonicStore.cards.filter(
+    (card) =>
+      !(
+        card.country === country.name &&
+        card.offer === (offers.value.find((o) => o.id === form.offer)?.name || '') &&
+        card.buyer === form.buyer &&
+        card.trafficSource === form.trafficSource
+      )
+  )
+}
+
+const removeCard = (cardToRemove) => tonicStore.removeCard(cardToRemove)
+
+const mapCountryToCode = (name) => {
+  const entry = allowedCountries.value.find((c) => c.name === name)
+  return entry?.code || ''
 }
 
 const submitForm = async () => {
-  const payload = {
-    name: `${form.offer} - ${form.trafficSource}`,
-    trafficSource: form.countries.map((c) => c.code),
-    countries: form.countries,
-    buyer_id: form.buyer,
-    offer_id: form.offer,
-    flow_id: 'some-flow-id',
-  }
+  const cards = tonicStore.cards
 
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+  for (const card of cards) {
+    const allowedResp = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
+        card.offer
+      )}&buyer=${card.buyer}&trafficSource=${card.trafficSource}`
+    )
+    const allowedData = await allowedResp.json()
+    const allowedCodes = allowedData?.allowedCountries?.map((c) => c.code) || []
 
-    const result = await response.json()
-
-    if (response.ok) {
-      alert(`✅ Кампанія створена: ${result.campaign?.campaign?.name || 'без імені'}`)
-      console.log(result)
-    } else {
-      console.error('❌ Error:', result)
-      alert(`❌ Помилка: ${result?.error?.message || 'невідома помилка'}`)
+    const countryCode = mapCountryToCode(card.country)
+    if (!allowedCodes.includes(countryCode)) {
+      card.error = `🚫 Країна ${card.country} не дозволена для оффера "${card.offer}"`
+      console.warn(card.error)
+      continue
     }
-  } catch (err) {
-    console.error('❌ Exception:', err)
-    alert('❌ Помилка при відправці запиту')
+
+    const payload = {
+      name: card.adTitle,
+      offer: card.offer,
+      country: countryCode,
+      buyer: card.buyer,
+      trafficSource: card.trafficSource,
+    }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const result = await res.json()
+
+      if (res.ok && result.success && typeof result.data === 'number') {
+        card.resId = result.data
+        card.error = ''
+      } else {
+        const msg =
+          typeof result.data === 'string'
+            ? result.data
+            : result?.error?.[0] || result?.error || '❌ Невідома помилка'
+        card.error = msg
+        console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
+      }
+    } catch (e) {
+      console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
+    }
   }
 }
 
 onMounted(() => {
   fetchOffers()
-  fetchCountries()
 })
 </script>

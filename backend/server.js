@@ -434,68 +434,124 @@ app.get('/tonic/countries', async (req, res) => {
   }
 })
 
-// Створення (відправка) нової кампанії
-app.post('/tonic/create-campaign', async (req, res) => {
-  const {
-    name,
-    trafficSource, // 'TikTok' | 'Facebook'
-    countries,
-    buyer_id,
-    offer_id,
-    flow_id,
-  } = req.body
+// 🔍 Отримати список країн, дозволених для конкретного оффера
+app.get('/tonic/countries/allowed', async (req, res) => {
+  const offer = req.query.offer
+  const trafficSource = req.query.trafficSource
+  const buyer = req.query.buyer
 
-  if (!name || !trafficSource || !Array.isArray(countries) || !buyer_id || !offer_id || !flow_id) {
-    return res.status(400).json({ error: 'Missing required fields' })
-  }
-
-  // Выбор ключа и секрета в зависимости от источника трафика
-  let key, secret
-
-  if (trafficSource === 'TikTok') {
-    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
-  } else if (trafficSource === 'Facebook') {
-    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
-  } else {
-    return res.status(400).json({ error: 'Invalid trafficSource' })
+  if (!offer || !trafficSource || !buyer) {
+    return res.status(400).json({ error: 'Missing offer, buyer or trafficSource' })
   }
 
   try {
-    // 1. Получение access_token
-    const authResp = await axios.post('https://publisher.tonic.com/oauth/token', {
-      grant_type: 'client_credentials',
-      client_id: key,
-      client_secret: secret,
+    const token = await getTonicJwtToken(buyer, trafficSource.toLowerCase())
+
+    const response = await axios.get(
+      `https://api.publisher.tonic.com/privileged/v3/countries/combination?offer=${encodeURIComponent(
+        offer
+      )}&output=json`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    res.json({ allowedCountries: response.data })
+  } catch (err) {
+    console.error('❌ Помилка при перевірці дозволених країн:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
+// 🔐 Функция получения JWT токена по buyer и trafficSource
+async function getTonicJwtToken(buyer, trafficSource) {
+  let key, secret
+
+  if (buyer === 'Alex' && trafficSource === 'tiktok') {
+    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+  } else if (buyer === 'Alex' && trafficSource === 'facebook') {
+    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+  } else {
+    throw new Error(`🔒 Невідома зв'язка buyer/trafficSource: ${buyer}/${trafficSource}`)
+  }
+
+  const response = await axios.post(
+    'https://api.publisher.tonic.com/jwt/authenticate',
+    {
+      consumer_key: key,
+      consumer_secret: secret,
+    },
+    {
+      headers: { 'Content-Type': 'application/json' },
+    }
+  )
+
+  return response.data.token
+}
+
+// 🎯 Створення (відправка) нової кампанії
+app.post('/tonic/create-campaign', async (req, res) => {
+  const { name, offer, country, buyer, trafficSource } = req.body
+
+  // 🛑 Проверяем только то, что действительно нужно
+  if (!name || !offer || !country) {
+    return res.status(400).json({
+      error: 'Missing required fields: name, offer, country',
     })
+  }
 
-    const accessToken = authResp.data.access_token
+  if (!buyer || !trafficSource) {
+    return res.status(400).json({
+      error: 'Missing buyer or trafficSource for token auth',
+    })
+  }
 
-    // 2. Создание кампании
-    const campaignBody = {
-      campaign: {
-        name,
-        status: 'active',
-        traffic_source: trafficSource.toLowerCase(),
-        countries,
-        buyer_id,
-        flow_id,
-        offer_id,
-      },
+  try {
+    const token = await getTonicJwtToken(buyer, trafficSource.toLowerCase())
+
+    const queryParams = new URLSearchParams({
+      name,
+      offer,
+      country,
+      return_type: 'id',
+      imprint: 'yes',
+      headline_id: '1',
+    }).toString()
+
+    const response = await axios.post(
+      `https://api.publisher.tonic.com/privileged/v3/campaign/create?${queryParams}`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    // 📋 Подробный лог
+    console.log('📤 Параметры запроса Tonic:', queryParams)
+    console.log('📩 Ответ Tonic API (RAW):', JSON.stringify(response.data, null, 2))
+
+    if (response.data.success === false || response.data.error) {
+      console.error('Tonic error:', response.data)
+      return res.status(400).json({
+        error: response.data.error || 'Tonic API error',
+      })
     }
 
-    const createResp = await axios.post('https://publisher.tonic.com/api/campaigns', campaignBody, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    res.json({ success: true, campaign: createResp.data })
+    res.json({ success: true, data: response.data })
   } catch (err) {
-    console.error('❌ Tonic API error:', err?.response?.data || err.message)
-    res.status(500).json({ error: err?.response?.data || err.message })
+    const status = err.response?.status || 500
+    const errorData = err.response?.data || err.message
+    console.error(`❌ Ошибка создания кампании (status ${status}):`, errorData)
+
+    res.status(status).json({ error: errorData })
   }
 })
 
