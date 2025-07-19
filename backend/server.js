@@ -383,69 +383,17 @@ app.get('/tonic/offers', async (req, res) => {
   }
 })
 
-// Отримати список країн для Tonic
-app.get('/tonic/countries', async (req, res) => {
-  const trafficSource = req.query.trafficSource?.trim()
-
-  if (!trafficSource) {
-    return res.status(400).json({ error: 'Missing trafficSource' })
-  }
-
-  let key, secret
-
-  if (trafficSource === 'TikTok') {
-    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
-  } else if (trafficSource === 'Facebook') {
-    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
-  } else {
-    return res.status(400).json({ error: 'Invalid trafficSource' })
-  }
-
-  try {
-    const jwtResp = await axios.post(
-      'https://api.publisher.tonic.com/jwt/authenticate',
-      {
-        consumer_key: key,
-        consumer_secret: secret,
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
-
-    const token = jwtResp.data.token
-
-    const countriesResp = await axios.get(
-      'https://api.publisher.tonic.com/privileged/v3/countries/list?output=json',
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-
-    res.json({ countries: countriesResp.data })
-  } catch (err) {
-    console.error('❌ Ошибка при загрузке стран:', err?.response?.data || err.message)
-    res.status(500).json({ error: err?.response?.data || err.message })
-  }
-})
-
 // 🔍 Отримати список країн, дозволених для конкретного оффера
 app.get('/tonic/countries/allowed', async (req, res) => {
   const offer = req.query.offer
   const trafficSource = req.query.trafficSource
-  const buyer = req.query.buyer
 
-  if (!offer || !trafficSource || !buyer) {
-    return res.status(400).json({ error: 'Missing offer, buyer or trafficSource' })
+  if (!offer || !trafficSource) {
+    return res.status(400).json({ error: 'Missing offer or trafficSource' })
   }
 
   try {
-    const token = await getTonicJwtToken(buyer, trafficSource.toLowerCase())
+    const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
     const response = await axios.get(
       `https://api.publisher.tonic.com/privileged/v3/countries/combination?offer=${encodeURIComponent(
@@ -466,18 +414,31 @@ app.get('/tonic/countries/allowed', async (req, res) => {
   }
 })
 
-// 🔐 Функция получения JWT токена по buyer и trafficSource
-async function getTonicJwtToken(buyer, trafficSource) {
-  let key, secret
+// Кеш для збереження jwt-токена
+const tonicTokenCache = {
+  tiktok: { token: '', expiresAt: 0 },
+  facebook: { token: '', expiresAt: 0 },
+}
 
-  if (buyer === 'Alex' && trafficSource === 'tiktok') {
+// 🔐 Функция получения JWT токена по trafficSource
+async function getTonicJwtToken(trafficSource) {
+  const source = trafficSource.toLowerCase()
+
+  // Если в кэше есть валидный токен — вернуть его
+  const cached = tonicTokenCache[source]
+  if (cached?.token && Date.now() < cached.expiresAt) {
+    return cached.token
+  }
+
+  let key, secret
+  if (source === 'tiktok') {
     key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
     secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
-  } else if (buyer === 'Alex' && trafficSource === 'facebook') {
+  } else if (source === 'facebook') {
     key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
     secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
   } else {
-    throw new Error(`🔒 Невідома зв'язка buyer/trafficSource: ${buyer}/${trafficSource}`)
+    throw new Error(`🔒 Невідомий trafficSource: ${trafficSource}`)
   }
 
   const response = await axios.post(
@@ -491,12 +452,19 @@ async function getTonicJwtToken(buyer, trafficSource) {
     }
   )
 
-  return response.data.token
+  const token = response.data.token
+  const expiresInMs = 90 * 60 * 1000 // 90 минут
+  tonicTokenCache[source] = {
+    token,
+    expiresAt: Date.now() + expiresInMs - 60 * 1000, // с запасом в 1 минуту
+  }
+
+  return token
 }
 
 // 🎯 Створення (відправка) нової кампанії
 app.post('/tonic/create-campaign', async (req, res) => {
-  const { name, offer, country, buyer, trafficSource } = req.body
+  const { name, offer, country, trafficSource } = req.body
 
   // 🛑 Проверяем только то, что действительно нужно
   if (!name || !offer || !country) {
@@ -505,14 +473,14 @@ app.post('/tonic/create-campaign', async (req, res) => {
     })
   }
 
-  if (!buyer || !trafficSource) {
+  if (!trafficSource) {
     return res.status(400).json({
-      error: 'Missing buyer or trafficSource for token auth',
+      error: 'Missing trafficSource for token auth',
     })
   }
 
   try {
-    const token = await getTonicJwtToken(buyer, trafficSource.toLowerCase())
+    const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
     const queryParams = new URLSearchParams({
       name,
@@ -552,6 +520,41 @@ app.post('/tonic/create-campaign', async (req, res) => {
     console.error(`❌ Ошибка создания кампании (status ${status}):`, errorData)
 
     res.status(status).json({ error: errorData })
+  }
+})
+
+// Отримати список наших кампаній
+app.get('/tonic/find-campaign', async (req, res) => {
+  const { name, trafficSource } = req.query
+  if (!name || !trafficSource) return res.status(400).json({ error: 'Missing params' })
+
+  try {
+    const token = await getTonicJwtToken(trafficSource.toLowerCase())
+
+    const resp = await axios.get(
+      'https://api.publisher.tonic.com/privileged/v3/campaign/list?output=json',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    const found = resp.data.find((c) => c.name === name)
+
+    if (found) {
+      return res.json({
+        success: true,
+        id: found.id,
+        link: found.link || found.target,
+        status: found.status || null,
+      })
+    } else {
+      return res.status(404).json({ error: 'Campaign not found' })
+    }
+  } catch (err) {
+    res.status(500).json({ error: err?.message || 'Server error' })
   }
 })
 

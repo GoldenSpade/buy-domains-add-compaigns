@@ -91,6 +91,27 @@
               <input type="text" :value="card.adTitle" class="form-control" disabled />
             </div>
 
+            <div
+              v-if="card.resId && card.resUrl"
+              class="alert alert-success mt-2 d-flex align-items-center gap-2 p-2 small"
+            >
+              <i class="bi bi-check-circle-fill text-success"></i>
+              Кампанія вже існує. Отримано ID та URL.
+            </div>
+            <!-- Card status -->
+            <div v-if="card.status" class="mt-2 small text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              Статус: <span class="fw-semibold">{{ card.status }}</span>
+            </div>
+
+            <!-- 🔗 ID и URL -->
+            <div v-if="card.resId || card.resUrl" class="mt-1 small">
+              <div v-if="card.resId">🆔 ID: {{ card.resId }}</div>
+              <div v-if="card.resUrl">
+                🔗 <a :href="'https://' + card.resUrl" target="_blank">{{ card.resUrl }}</a>
+              </div>
+            </div>
+
             <div class="small text-muted">
               {{ card.country }} | {{ card.buyer }} | {{ card.trafficSource }}
             </div>
@@ -104,6 +125,15 @@
     </div>
 
     <button class="btn btn-primary" @click="submitForm">Створити кампанії</button>
+
+    <button
+      v-if="tonicStore.cards.length"
+      class="btn btn-outline-danger mt-2"
+      @click="clearAllCards"
+    >
+      <i class="bi bi-trash3 me-1"></i>
+      Видалити список кампаній
+    </button>
   </div>
 </template>
 
@@ -234,6 +264,7 @@ const addCountry = () => {
     adTitle: `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`,
     resId: '',
     resUrl: '',
+    status: '',
     error: '',
   })
 }
@@ -304,13 +335,52 @@ const submitForm = async () => {
           typeof result.data === 'string'
             ? result.data
             : result?.error?.[0] || result?.error || '❌ Невідома помилка'
+
         card.error = msg
         console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
+
+        // 🧠 Проверка на "name already in use"
+        if (msg.toLowerCase().includes('already in use')) {
+          try {
+            const query = new URLSearchParams({
+              name: payload.name,
+              trafficSource: payload.trafficSource,
+            })
+
+            const findRes = await fetch(
+              `${import.meta.env.VITE_API_BASE_URL}/tonic/find-campaign?${query}`
+            )
+            const findData = await findRes.json()
+
+            if (findData.success) {
+              card.resId = findData.id
+              card.resUrl = findData.link
+              card.error = '' // убрать сообщение об ошибке
+              console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
+            }
+          } catch (e) {
+            console.warn('⚠️ Не вдалося знайти кампанію по імені:', e)
+          }
+        }
       }
     } catch (e) {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
     }
   }
+}
+
+const clearAllCards = () => {
+  tonicStore.clearCards()
+
+  form.offer = ''
+  form.countries = []
+  form.buyer = 'Alex'
+  form.trafficSource = 'TikTok'
+  selectedCountry.value = ''
+  offers.value = []
+  allowedCountries.value = []
+
+  fetchOffers()
 }
 
 onMounted(() => {

@@ -44,10 +44,7 @@ export const useTonicStore = defineStore('tonic', () => {
     )
   }
 
-  // 🧠 Следим за изменениями и сохраняем
   watch(cards, saveToLocalStorage, { deep: true })
-  console.log(cards.value);
-  
 
   return {
     cards,
