@@ -98,10 +98,17 @@
               <i class="bi bi-check-circle-fill text-success"></i>
               Кампанія вже існує. Отримано ID та URL.
             </div>
+
             <!-- Card status -->
             <div v-if="card.status" class="mt-2 small text-muted">
               <i class="bi bi-info-circle me-1"></i>
-              Статус: <span class="fw-semibold">{{ card.status }}</span>
+              Статус:
+              <span class="fw-semibold text-success">{{ card.status }}</span>
+            </div>
+
+            <div v-else class="mt-2 small text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              Статус: <span class="fw-semibold">stopped</span>
             </div>
 
             <!-- 🔗 ID и URL -->
@@ -355,8 +362,29 @@ const submitForm = async () => {
             if (findData.success) {
               card.resId = findData.id
               card.resUrl = findData.link
-              card.error = '' // убрать сообщение об ошибке
+              card.error = ''
               console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
+
+              try {
+                const statusQuery = new URLSearchParams({
+                  trafficSource: card.trafficSource,
+                  name: payload.name,
+                })
+
+                const statusResp = await fetch(
+                  `${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${statusQuery}`
+                )
+                const statusData = await statusResp.json()
+
+                if (statusData.success) {
+                  card.status = statusData.status || 'unknown'
+                  if (statusData.link) {
+                    card.resUrl = statusData.link
+                  }
+                }
+              } catch (e) {
+                console.warn(`⚠️ Не вдалося отримати статус кампанії: ${payload.name}`, e)
+              }
             }
           } catch (e) {
             console.warn('⚠️ Не вдалося знайти кампанію по імені:', e)
