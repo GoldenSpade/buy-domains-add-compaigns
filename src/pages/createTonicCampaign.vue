@@ -2,12 +2,14 @@
   <div>
     <MainMenu />
     <div class="app mb-4 px-3">
-      <Header title="Створення кампаній Tonic" />
+      <Header title="Створення кампаній Tonic та додавання до ClickFlare" />
       <div class="row">
         <div class="col-md-6">
           <TonicCampaignForm />
         </div>
-        <div class="col-md-6" :class="{ 'mt-4': isMobile }">Col 2</div>
+        <div class="col-md-6" :class="{ 'mt-4': isMobile }">
+          <ClickflareOfferTonic />
+        </div>
       </div>
     </div>
   </div>
@@ -16,9 +18,10 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
+import MainMenu from '@/components/MainMenu.vue'
 import Header from '@/components/Header.vue'
 import TonicCampaignForm from '@/components/createTonicCampaign/TonicCampaignForm.vue'
-import MainMenu from '@/components/MainMenu.vue'
+import ClickflareOfferTonic from '@/components/createTonicCampaign/ClickflareOfferTonic.vue'
 
 const isMobile = ref(window.innerWidth <= 767)
 

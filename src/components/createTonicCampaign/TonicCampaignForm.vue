@@ -132,7 +132,13 @@
       </div>
     </div>
 
-    <button class="btn btn-primary" @click="submitForm">Створити кампанії</button>
+    <button
+      class="btn btn-primary"
+      :class="{ disabled: tonicStore.cards.length === 0 }"
+      @click="submitForm"
+    >
+      Створити кампанії
+    </button>
 
     <button
       v-if="tonicStore.cards.length"
@@ -274,6 +280,8 @@ const addCountry = () => {
     resUrl: '',
     status: '',
     error: '',
+    clickflareId: '',
+    clickFlareError: '',
   })
 }
 
@@ -427,6 +435,12 @@ const updateCardStatusByName = async (card) => {
     if (data.success) {
       card.status = data.status || 'unknown'
       if (data.link) card.resUrl = data.link
+
+      // 💥 Обнуляем, если статус stopped
+      if (card.status === 'stopped') {
+        card.resId = ''
+        card.resUrl = ''
+      }
     } else {
       card.status = 'not found'
     }

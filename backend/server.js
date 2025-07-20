@@ -271,9 +271,12 @@ app.post('/set-dns', async (req, res) => {
 
 // Створити офер у ClickFlare
 app.post('/clickflare/create-offer', async (req, res) => {
-  const { name, url, workspace_id } = req.body
+  const { name, url, workspace_id, affiliateNetworkID: clientAffiliateNetworkID } = req.body
   const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
-  const AFFILIATE_NETWORK_ID = process.env.VITE_AFFILIATE_NETWORK_SEDO_ID
+
+  // ✅ fallback: если не передано в body — используем по умолчанию SEDO
+  const AFFILIATE_NETWORK_ID =
+    clientAffiliateNetworkID || process.env.VITE_AFFILIATE_NETWORK_SEDO_ID
 
   if (!name || !url || !workspace_id) {
     console.warn('⚠️ Не вистачає обовʼязкових полів:', { name, url, workspace_id })
@@ -302,7 +305,7 @@ app.post('/clickflare/create-offer', async (req, res) => {
       },
     })
 
-    const offerId = response.data?.id || response.data?.offer_id
+    const offerId = response.data?._id || response.data?.id || response.data?.offer_id
 
     if (!offerId) {
       console.warn('⚠️ Успішна відповідь без ID оффера:', response.data)
@@ -320,7 +323,7 @@ app.post('/clickflare/create-offer', async (req, res) => {
       message: msg,
       status: statusCode,
       data: rawData,
-      fullError: JSON.stringify(error?.response?.data?.data, null, 2), // <-- вот ключ
+      fullError: JSON.stringify(error?.response?.data?.data, null, 2),
     })
 
     res.status(statusCode).json({ error: msg })
