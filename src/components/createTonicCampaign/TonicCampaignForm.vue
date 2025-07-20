@@ -103,12 +103,13 @@
             <div v-if="card.status" class="mt-2 small text-muted">
               <i class="bi bi-info-circle me-1"></i>
               Статус:
-              <span class="fw-semibold text-success">{{ card.status }}</span>
+              <span class="fw-semibold text-muted">{{ card.status }}</span>
             </div>
 
             <div v-else class="mt-2 small text-muted">
-              <i class="bi bi-info-circle me-1"></i>
-              Статус: <span class="fw-semibold">stopped</span>
+              <i class="bi bi-hourglass-split me-1"></i>
+              Статус:
+              <span class="fw-semibold text-muted">очікується</span>
             </div>
 
             <!-- 🔗 ID и URL -->
@@ -395,6 +396,8 @@ const submitForm = async () => {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
     }
   }
+  //Добавляем обновление статусов всех карточек после создания
+  await updateAllCardStatuses()
 }
 
 const clearAllCards = () => {
@@ -409,6 +412,34 @@ const clearAllCards = () => {
   allowedCountries.value = []
 
   fetchOffers()
+}
+
+const updateCardStatusByName = async (card) => {
+  try {
+    const query = new URLSearchParams({
+      name: card.adTitle,
+      trafficSource: card.trafficSource,
+    })
+
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${query}`)
+    const data = await res.json()
+
+    if (data.success) {
+      card.status = data.status || 'unknown'
+      if (data.link) card.resUrl = data.link
+    } else {
+      card.status = 'not found'
+    }
+  } catch (err) {
+    console.error(`❌ Status check error for ${card.adTitle}:`, err)
+    card.status = 'error'
+  }
+}
+
+const updateAllCardStatuses = async () => {
+  for (const card of tonicStore.cards) {
+    await updateCardStatusByName(card)
+  }
 }
 
 onMounted(() => {

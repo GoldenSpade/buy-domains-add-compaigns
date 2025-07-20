@@ -558,28 +558,25 @@ app.get('/tonic/find-campaign', async (req, res) => {
   }
 })
 
-// Отримати статус кампанії по ID або name
+// Отримати статус кампанії по name
 app.get('/tonic/campaign-status', async (req, res) => {
-  const { id, name, trafficSource } = req.query
+  const { name, trafficSource } = req.query
 
-  if (!trafficSource || (!id && !name)) {
-    return res.status(400).json({ error: 'Missing id/name or trafficSource' })
+  if (!name || !trafficSource) {
+    return res.status(400).json({ error: 'Missing name or trafficSource' })
   }
 
   try {
     const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
-    const query = new URLSearchParams()
-    if (id) query.append('id', id)
-    if (name) query.append('name', name)
-
     const response = await axios.get(
-      `https://api.publisher.tonic.com/privileged/v3/campaign/status?${query.toString()}`,
+      `https://api.publisher.tonic.com/privileged/v3/campaign/status`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        params: { name },
       }
     )
 
@@ -587,11 +584,12 @@ app.get('/tonic/campaign-status', async (req, res) => {
 
     return res.json({
       success: true,
-      status: data.status || 'unknown',
-      link: data?.[0]?.link || '',
+      status: data?.status || 'unknown',
+      link: data?.link || '',
     })
   } catch (err) {
-    const code = err?.response?.status
+    const code = err?.response?.status || 500
+
     if (code === 404) {
       return res.status(200).json({
         success: true,
