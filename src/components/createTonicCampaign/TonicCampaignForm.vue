@@ -23,12 +23,12 @@
       <label class="form-label">Обрати країну</label>
       <div class="d-flex gap-2 flex-wrap mb-2">
         <span
-          v-for="country in form.countries"
-          :key="country.code"
+          v-for="countryName in uniqueCountryNames"
+          :key="countryName"
           class="badge rounded-pill text-bg-success d-flex align-items-center"
         >
-          {{ country.name }}
-          <i class="bi bi-x ms-2" role="button" @click="removeCountry(country)"></i>
+          {{ countryName }}
+          <i class="bi bi-x ms-2" role="button" @click="removeCountryByName(countryName)"></i>
         </span>
       </div>
 
@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, watch } from 'vue'
+import { reactive, ref, onMounted, watch, computed } from 'vue'
 import { useTonicStore } from '../../stores/tonicStore'
 
 const tonicStore = useTonicStore()
@@ -283,6 +283,24 @@ const addCountry = () => {
     clickflareId: '',
     clickFlareError: '',
   })
+}
+
+const uniqueCountryNames = computed(() => {
+  const names = tonicStore.cards.map((card) => card.country)
+  return [...new Set(names)]
+})
+
+const removeCountryByName = (countryName) => {
+  // Удаляем все карточки с этой страной
+  tonicStore.cards = tonicStore.cards.filter(
+    (card) =>
+      !(
+        card.country === countryName &&
+        card.offer === (offers.value.find((o) => o.id === form.offer)?.name || '') &&
+        card.buyer === form.buyer &&
+        card.trafficSource === form.trafficSource
+      )
+  )
 }
 
 const removeCountry = (country) => {
