@@ -15,6 +15,7 @@ const PORT = 3000
 app.use(cors())
 app.use(express.json())
 
+// --------------------------------- Namecheap start---------------------------------
 // 🔐 Настройки API Namecheap
 const NAMECHEAP_API_USER = process.env.NAMECHEAP_API_USER
 const NAMECHEAP_API_KEY = process.env.NAMECHEAP_API_KEY
@@ -149,6 +150,53 @@ app.post('/buy-domain', async (req, res) => {
   }
 })
 
+// Установка DNS для доменов
+app.post('/set-dns', async (req, res) => {
+  const { domain, nameservers } = req.body
+
+  if (!domain || !Array.isArray(nameservers) || nameservers.length === 0) {
+    return res.status(400).json({ error: 'Invalid input data' })
+  }
+
+  // 🔍 Разделение домена на SLD и TLD
+  const [sld, ...tldParts] = domain.split('.')
+  const tld = tldParts.join('.')
+
+  if (!sld || !tld) {
+    return res.status(400).json({ error: 'Invalid domain format' })
+  }
+
+  try {
+    const response = await axios.get(NAMECHEAP_API_URL, {
+      params: {
+        ApiUser: NAMECHEAP_API_USER,
+        ApiKey: NAMECHEAP_API_KEY,
+        UserName: NAMECHEAP_API_USER,
+        Command: 'namecheap.domains.dns.setCustom',
+        ClientIp: CLIENT_IP,
+        SLD: sld,
+        TLD: tld,
+        Nameservers: nameservers.join(','),
+      },
+    })
+
+    const parsed = await parseStringPromise(response.data)
+    const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
+
+    if (errors) {
+      const msg = errors[0]?._ || 'Unknown DNS error'
+      console.error('❌ DNS Error:', msg)
+      return res.status(500).json({ error: msg })
+    }
+
+    console.log(`✅ DNS збережено для ${domain}:`, nameservers.join(', '))
+    return res.json({ success: true, domain, nameservers })
+  } catch (err) {
+    console.error('❌ set-dns exception:', err.message)
+    res.status(500).json({ error: 'Server error while setting DNS' })
+  }
+})
+
 // Додавання домену до Sedo.com
 app.post('/send-to-sedo', async (req, res) => {
   const { domain, accountKey = 'TT1' } = req.body
@@ -221,54 +269,9 @@ app.post('/send-to-sedo', async (req, res) => {
     return res.status(500).json({ error: err.message || 'Серверна помилка' })
   }
 })
+// --------------------------------- Namecheap end---------------------------------
 
-// Установка DNS для доменов
-app.post('/set-dns', async (req, res) => {
-  const { domain, nameservers } = req.body
-
-  if (!domain || !Array.isArray(nameservers) || nameservers.length === 0) {
-    return res.status(400).json({ error: 'Invalid input data' })
-  }
-
-  // 🔍 Разделение домена на SLD и TLD
-  const [sld, ...tldParts] = domain.split('.')
-  const tld = tldParts.join('.')
-
-  if (!sld || !tld) {
-    return res.status(400).json({ error: 'Invalid domain format' })
-  }
-
-  try {
-    const response = await axios.get(NAMECHEAP_API_URL, {
-      params: {
-        ApiUser: NAMECHEAP_API_USER,
-        ApiKey: NAMECHEAP_API_KEY,
-        UserName: NAMECHEAP_API_USER,
-        Command: 'namecheap.domains.dns.setCustom',
-        ClientIp: CLIENT_IP,
-        SLD: sld,
-        TLD: tld,
-        Nameservers: nameservers.join(','),
-      },
-    })
-
-    const parsed = await parseStringPromise(response.data)
-    const errors = parsed?.ApiResponse?.Errors?.[0]?.Error
-
-    if (errors) {
-      const msg = errors[0]?._ || 'Unknown DNS error'
-      console.error('❌ DNS Error:', msg)
-      return res.status(500).json({ error: msg })
-    }
-
-    console.log(`✅ DNS збережено для ${domain}:`, nameservers.join(', '))
-    return res.json({ success: true, domain, nameservers })
-  } catch (err) {
-    console.error('❌ set-dns exception:', err.message)
-    res.status(500).json({ error: 'Server error while setting DNS' })
-  }
-})
-
+// --------------------------------- ClickFlare start---------------------------------
 // Створити офер у ClickFlare
 app.post('/clickflare/create-offer', async (req, res) => {
   const { name, url, workspace_id, affiliateNetworkID: clientAffiliateNetworkID } = req.body
@@ -329,9 +332,9 @@ app.post('/clickflare/create-offer', async (req, res) => {
     res.status(statusCode).json({ error: msg })
   }
 })
+// --------------------------------- ClickFlare end---------------------------------
 
-// Створення кампаній Tonic
-
+// --------------------------------- Tonik start---------------------------------
 // Отримати список кампаній для форми
 app.get('/tonic/offers', async (req, res) => {
   const rawSource = req.query.trafficSource
@@ -604,6 +607,7 @@ app.get('/tonic/campaign-status', async (req, res) => {
     return res.status(500).json({ error: 'Не вдалося отримати статус кампанії' })
   }
 })
+// --------------------------------- Tonik end---------------------------------
 
 // 🚀 Запуск сервера
 app.listen(PORT, () => {
