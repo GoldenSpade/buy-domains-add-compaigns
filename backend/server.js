@@ -287,7 +287,7 @@ app.post('/clickflare/create-offer', async (req, res) => {
     name,
     url,
     workspace_id,
-    direct: true,
+    direct: typeof req.body.direct === 'boolean' ? req.body.direct : false,
     affiliateNetworkID: AFFILIATE_NETWORK_ID,
     payout: {
       type: 'manual',

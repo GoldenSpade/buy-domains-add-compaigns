@@ -151,6 +151,7 @@ const submitOffers = async () => {
           name,
           url: offer.url,
           workspace_id: workspaceMap[selectedWorkspace.value],
+          direct: false,
         }),
       })
 

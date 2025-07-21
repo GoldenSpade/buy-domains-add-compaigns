@@ -125,7 +125,7 @@ const submitAll = async () => {
         url,
         workspace_id: workspaceMap[card.buyer],
         affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
-        direct: true,
+        direct: false,
         payout: {
           type: 'manual',
           payout: 0,
