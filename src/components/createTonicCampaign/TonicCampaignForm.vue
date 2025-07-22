@@ -36,7 +36,7 @@
       <Multiselect
         v-model="selectedCountry"
         :options="allowedCountries"
-        :noOptionsText="'Список порожній'"
+        noOptionsText="Список порожній"
         :track-by="'code'"
         :label="'name'"
         placeholder="Оберіть країну"
@@ -96,8 +96,8 @@
             </h6>
 
             <div class="mb-2">
-              <label class="form-label fw-bold mb-2">Ad title</label>
-              <input type="text" :value="card.adTitle" class="form-control" disabled />
+              <label class="form-label fw-bold mb-2">Campaign name</label>
+              <input type="text" v-model="card.adTitle" class="form-control" />
             </div>
 
             <div
@@ -106,19 +106,6 @@
             >
               <i class="bi bi-check-circle-fill text-success"></i>
               Кампанія вже існує. Отримано ID та URL.
-            </div>
-
-            <!-- Card status -->
-            <div v-if="card.status" class="mt-2 small text-muted">
-              <i class="bi bi-info-circle me-1"></i>
-              Статус:
-              <span class="fw-semibold text-muted">{{ card.status }}</span>
-            </div>
-
-            <div v-else class="mt-2 small text-muted">
-              <i class="bi bi-hourglass-split me-1"></i>
-              Статус:
-              <span class="fw-semibold text-muted">очікується</span>
             </div>
 
             <!-- 🔗 ID и URL -->
@@ -136,13 +123,68 @@
               <i class="bi bi-exclamation-triangle me-1"></i>
               {{ card.error }}
             </div>
+            <!-- ClickFlare статус -->
+            <div class="small mt-2">
+              <span
+                v-if="card.clickflareId"
+                class="badge bg-success text-white px-2 py-1"
+                style="font-size: 12px"
+              >
+                Успішно завантажено до ClickFlare
+              </span>
+            </div>
+            <div v-if="card.clickFlareError" class="text-danger small mt-1">
+              {{ card.clickFlareError }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- timer -->
+    <div class="mb-3" v-if="true">
+      <label class="form-label">Перевірка статусів Tonik</label>
+      <div class="border rounded bg-light-subtle p-3 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center">
+          <!-- Слева — часы -->
+          <div class="fw-bold timer-time-display text-dark-emphasis">
+            {{ timerMinutesDisplay }}:{{ timerSecondsDisplay }}
+          </div>
+
+          <!-- Справа — ввод минут -->
+          <div class="d-flex align-items-center gap-2">
+            <input
+              class="form-control text-center px-0"
+              type="number"
+              min="1"
+              max="60"
+              v-model="customTimerMinutes"
+            />
+
+            <span class="text-muted small">хвилин</span>
+
+            <button
+              class="btn btn-outline-secondary btn-sm d-flex align-items-center"
+              @click="pauseTimer"
+              :disabled="!timerInterval"
+            >
+              <i :class="timerPaused ? 'bi-play-fill' : 'bi-pause-fill'"></i>
+            </button>
+
+            <button
+              class="btn btn-outline-secondary btn-sm d-flex align-items-center ms-1"
+              @click="stopTimer"
+              :disabled="!timerInterval"
+            >
+              <i class="bi bi-stop-fill"></i>
+            </button>
           </div>
         </div>
       </div>
     </div>
 
     <button
-      class="btn btn-primary"
+      class="btn btn-primary mt-4"
       :class="{ disabled: tonicStore.cards.length === 0 }"
       @click="submitForm"
     >
@@ -166,6 +208,7 @@ import { useTonicStore } from '../../stores/tonicStore'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 
+//-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
 
 const form = reactive({
@@ -186,7 +229,7 @@ const isLoadingCountries = ref(false)
 const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
-const CACHE_TTL = 1000
+const CACHE_TTL = 60 * 60 * 1000
 
 function getFromCache(key) {
   try {
@@ -311,7 +354,6 @@ const addCountry = () => {
     adTitle: `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`,
     resId: '',
     resUrl: '',
-    status: '',
     error: '',
     clickflareId: '',
     clickFlareError: '',
@@ -323,6 +365,14 @@ const addCountry = () => {
 const uniqueCountryNames = computed(() => {
   const names = tonicStore.cards.map((card) => card.country)
   return [...new Set(names)]
+})
+// -- timer
+const timerMinutesDisplay = computed(() => {
+  return timerInterval.value ? String(timerMinutes.value).padStart(2, '0') : '00'
+})
+
+const timerSecondsDisplay = computed(() => {
+  return timerInterval.value ? String(timerSeconds.value).padStart(2, '0') : '00'
 })
 
 const removeCountryByName = (countryName) => {
@@ -363,7 +413,46 @@ const mapCountryToCode = (name) => {
   return entry?.code || ''
 }
 
+const preloadAllowedCountries = async () => {
+  const uniqueCombos = new Map()
+
+  // Собираем уникальные комбинации offer+buyer+trafficSource
+  for (const card of tonicStore.cards) {
+    const key = `${card.offer}__${card.buyer}__${card.trafficSource}`
+    if (!uniqueCombos.has(key)) {
+      uniqueCombos.set(key, {
+        offer: card.offer,
+        buyer: card.buyer,
+        trafficSource: card.trafficSource,
+      })
+    }
+  }
+
+  // Загружаем по каждой комбинации разрешенные страны
+  for (const { offer, buyer, trafficSource } of uniqueCombos.values()) {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
+          offer
+        )}&buyer=${buyer}&trafficSource=${trafficSource}`
+      )
+      const data = await res.json()
+
+      if (res.ok && Array.isArray(data.allowedCountries)) {
+        allowedCountries.value = data.allowedCountries
+      } else {
+        console.warn(`⚠️ Не вдалося завантажити країни для "${offer}"`)
+      }
+    } catch (err) {
+      console.error(`❌ Fetch error (allowed countries for "${offer}"):`, err)
+    }
+  }
+}
+let isTimerStarted = false
+
 const submitForm = async () => {
+  await preloadAllowedCountries()
+
   const cards = tonicStore.cards
 
   for (const card of cards) {
@@ -430,26 +519,7 @@ const submitForm = async () => {
               card.error = ''
               console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
 
-              try {
-                const statusQuery = new URLSearchParams({
-                  trafficSource: card.trafficSource,
-                  name: payload.name,
-                })
-
-                const statusResp = await fetch(
-                  `${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${statusQuery}`
-                )
-                const statusData = await statusResp.json()
-
-                if (statusData.success) {
-                  card.status = statusData.status || 'unknown'
-                  if (statusData.link) {
-                    card.resUrl = statusData.link
-                  }
-                }
-              } catch (e) {
-                console.warn(`⚠️ Не вдалося отримати статус кампанії: ${payload.name}`, e)
-              }
+              await submitCardToClickFlare(card)
             }
           } catch (e) {
             console.warn('⚠️ Не вдалося знайти кампанію по імені:', e)
@@ -460,8 +530,12 @@ const submitForm = async () => {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
     }
   }
-  //Добавляем обновление статусов всех карточек после создания
-  await updateAllCardStatuses()
+
+  if (!isTimerStarted) {
+    if (!timerInterval.value) {
+      startTimer()
+    }
+  }
 }
 
 const clearAllCards = () => {
@@ -478,43 +552,151 @@ const clearAllCards = () => {
   fetchOffers()
 }
 
-const updateCardStatusByName = async (card) => {
-  try {
-    const query = new URLSearchParams({
-      name: card.adTitle,
-      trafficSource: card.trafficSource,
-    })
-
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${query}`)
-    const data = await res.json()
-
-    if (data.success) {
-      card.status = data.status || 'unknown'
-      if (data.link) card.resUrl = data.link
-
-      // 💥 Обнуляем, если статус stopped
-      if (card.status === 'stopped') {
-        card.resId = ''
-        card.resUrl = ''
-      }
-    } else {
-      card.status = 'not found'
-    }
-  } catch (err) {
-    console.error(`❌ Status check error for ${card.adTitle}:`, err)
-    card.status = 'error'
-  }
-}
-
-const updateAllCardStatuses = async () => {
-  for (const card of tonicStore.cards) {
-    await updateCardStatusByName(card)
-  }
-}
-
 onMounted(() => {
   fetchOffers()
 })
+
+//-------------------------ClickFlare-------------------------
+const isSubmittingOffers = ref(false)
+
+const workspaceMap = {
+  Alex: import.meta.env.VITE_WORKSPACE_ALEX,
+  Davyd: import.meta.env.VITE_WORKSPACE_DAVYD,
+}
+
+const generateOfferUrl = (card) => {
+  const baseUrl = `https://${card.resUrl?.trim()}`
+  const adTitleEncoded = encodeURIComponent(card.offer.trim()) // 🔁 ВАЖНО: здесь не adTitle, а именно offer
+  const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
+
+  const isFacebook = adTitleSuffix === 'facebook'
+  const isTiktok = adTitleSuffix === 'tiktok'
+
+  const facebookTemplate =
+    'network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=REPLACE+WITH+ADTITLE'
+
+  const tiktokTemplate =
+    'network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=REPLACE+WITH+ADTITLE'
+
+  const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
+
+  if (!baseUrl || !selectedQuery) return '❌ Некоректний URL'
+
+  const finalQuery = selectedQuery.replace('REPLACE+WITH+ADTITLE', adTitleEncoded)
+
+  return `${baseUrl}?${finalQuery}`
+}
+
+const submitCardToClickFlare = async (card) => {
+  if (!card.resId || !card.resUrl || card.clickflareId) return
+
+  try {
+    const name = `${card.resId}_${card.adTitle}`
+    const url = generateOfferUrl(card)
+
+    const payload = {
+      name,
+      url,
+      workspace_id: workspaceMap[card.buyer],
+      affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
+      direct: false,
+      payout: {
+        type: 'manual',
+        payout: 0,
+        currency: 'USD',
+      },
+      keywordBuilderMode: 'free_form',
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    const result = await response.json()
+
+    if (result?.success && result.offerId) {
+      card.clickflareId = result.offerId
+      card.clickFlareError = ''
+    } else {
+      throw new Error(result?.error || 'Невідома помилка від ClickFlare')
+    }
+  } catch (err) {
+    const raw = err?.response?.data || err
+    const message = raw?.message || raw?.data?.[0]?.message || err.message || 'Невідома помилка'
+    card.clickFlareError = message
+  }
+}
+
+//-------------------------timer-------------------------
+
+const showTimer = ref(false)
+const timerMinutes = ref(10)
+const timerSeconds = ref(0)
+let timerInterval = ref(null)
+const timerPaused = ref(false)
+const customTimerMinutes = ref(10)
+
+function startTimer() {
+  showTimer.value = true
+  timerMinutes.value = customTimerMinutes.value || 10
+  timerSeconds.value = 0
+  timerPaused.value = false
+
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
+  }
+
+  timerInterval.value = setInterval(async () => {
+    if (timerPaused.value) return
+
+    if (timerMinutes.value === 0 && timerSeconds.value === 0) {
+      clearInterval(timerInterval.value)
+      timerInterval.value = null
+      showTimer.value = false
+      timerPaused.value = false
+
+      await submitForm()
+      return
+    }
+
+    if (timerSeconds.value === 0) {
+      timerMinutes.value -= 1
+      timerSeconds.value = 59
+    } else {
+      timerSeconds.value -= 1
+    }
+  }, 1000)
+}
+
+function pauseTimer() {
+  if (!timerInterval.value) return
+
+  if (!timerPaused.value) {
+    // Ставим на паузу
+    timerPaused.value = true
+  } else {
+    // Перезапускаем с новым временем
+    const newMinutes = parseInt(customTimerMinutes.value)
+    if (!isNaN(newMinutes) && newMinutes > 0) {
+      timerMinutes.value = newMinutes
+      timerSeconds.value = 0
+    }
+    timerPaused.value = false
+  }
+}
+
+function stopTimer() {
+  clearInterval(timerInterval.value)
+  timerInterval.value = null
+  showTimer.value = false
+  timerMinutes.value = 0
+  timerSeconds.value = 0
+  timerPaused.value = false
+  isTimerStarted = false
+}
 </script>
 
 <style>

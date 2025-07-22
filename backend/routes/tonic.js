@@ -203,54 +203,12 @@ router.get('/tonic/find-campaign', async (req, res) => {
         success: true,
         id: found.id,
         link: found.link || found.target,
-        status: found.status || null,
       })
     } else {
       return res.status(404).json({ error: 'Campaign not found' })
     }
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Server error' })
-  }
-})
-
-// 📊 Статус кампании
-router.get('/tonic/campaign-status', async (req, res) => {
-  const { name, trafficSource } = req.query
-
-  if (!name || !trafficSource) {
-    return res.status(400).json({ error: 'Missing name or trafficSource' })
-  }
-
-  try {
-    const token = await getTonicJwtToken(trafficSource.toLowerCase())
-
-    const response = await axios.get(
-      `https://api.publisher.tonic.com/privileged/v3/campaign/status`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        params: { name },
-      }
-    )
-
-    const data = response.data
-
-    return res.json({
-      success: true,
-      status: data?.status || 'unknown',
-      link: data?.link || '',
-    })
-  } catch (err) {
-    const code = err?.response?.status || 500
-
-    if (code === 404) {
-      return res.status(200).json({ success: true, status: 'inactive' })
-    }
-
-    console.error('❌ Статус кампанії (помилка):', err?.message || err)
-    return res.status(500).json({ error: 'Не вдалося отримати статус кампанії' })
   }
 })
 

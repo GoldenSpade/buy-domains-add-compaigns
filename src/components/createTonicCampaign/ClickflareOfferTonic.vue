@@ -83,7 +83,7 @@ const getBadgeClass = (status) => {
 const generateOfferUrl = (card) => {
   const baseUrl = `https://${card.resUrl?.trim()}`
 
-  const adTitleEncoded = encodeURIComponent(card.adTitle.trim())
+  const adTitleEncoded = encodeURIComponent(card.offer.trim()) // 🔁 заменили на offer
   const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
 
   const isFacebook = adTitleSuffix === 'facebook'
