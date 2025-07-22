@@ -5,6 +5,16 @@
       Створення кампаній Tonic
     </h4>
 
+    <!-- Источник трафика -->
+    <div class="mb-4">
+      <label class="form-label">Джерело трафіку</label>
+      <select v-model="form.trafficSource" class="form-select">
+        <option v-for="source in trafficSources" :key="source" :value="source">
+          {{ source }}
+        </option>
+      </select>
+    </div>
+
     <!-- Офферы -->
     <div class="mb-3">
       <label class="form-label">Обрати оффер</label>
@@ -20,13 +30,23 @@
       />
     </div>
 
+    <!-- Байер -->
+    <div class="mb-3">
+      <label class="form-label">Обрати байера</label>
+      <select v-model="form.buyer" class="form-select">
+        <option v-for="buyer in buyers" :key="buyer" :value="buyer">
+          {{ buyer }}
+        </option>
+      </select>
+    </div>
+
     <!-- Страны -->
     <div class="mb-3">
       <label class="form-label">Обрати країну</label>
       <div class="d-flex gap-2 flex-wrap mb-2">
         <span
-          v-for="countryName in uniqueCountryNames"
-          :key="countryName"
+          v-for="(countryName, index) in countryNames"
+          :key="index"
           class="badge rounded-pill text-bg-success d-flex align-items-center"
         >
           {{ countryName }}
@@ -49,26 +69,6 @@
           <div class="px-2 py-1 text-muted small">Список порожній</div>
         </template>
       </Multiselect>
-    </div>
-
-    <!-- Байер -->
-    <div class="mb-3">
-      <label class="form-label">Обрати байера</label>
-      <select v-model="form.buyer" class="form-select">
-        <option v-for="buyer in buyers" :key="buyer" :value="buyer">
-          {{ buyer }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Источник трафика -->
-    <div class="mb-4">
-      <label class="form-label">Джерело трафіку</label>
-      <select v-model="form.trafficSource" class="form-select">
-        <option v-for="source in trafficSources" :key="source" :value="source">
-          {{ source }}
-        </option>
-      </select>
 
       <!-- Карточки офферов -->
       <div class="mt-4" v-if="tonicStore.cards.length">
@@ -142,7 +142,7 @@
     </div>
 
     <!-- timer -->
-    <div class="mb-3" v-if="true">
+    <div class="mb-3">
       <label class="form-label">Перевірка статусів Tonik</label>
       <div class="border rounded bg-light-subtle p-3 shadow-sm">
         <div class="d-flex justify-content-between align-items-center">
@@ -362,10 +362,10 @@ const addCountry = () => {
   selectedCountry.value = '' // очищаем после выбора
 }
 
-const uniqueCountryNames = computed(() => {
-  const names = tonicStore.cards.map((card) => card.country)
-  return [...new Set(names)]
+const countryNames = computed(() => {
+  return tonicStore.cards.map((card) => card.country)
 })
+
 // -- timer
 const timerMinutesDisplay = computed(() => {
   return timerInterval.value ? String(timerMinutes.value).padStart(2, '0') : '00'
