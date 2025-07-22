@@ -8,14 +8,16 @@
     <!-- Офферы -->
     <div class="mb-3">
       <label class="form-label">Обрати оффер</label>
-      <select v-model="form.offer" class="form-select">
-        <option disabled value="">
-          {{ isLoadingOffers ? 'Завантаження...' : '' }}
-        </option>
-        <option v-for="offer in offers" :key="offer.id" :value="offer.id">
-          {{ offer.name }}
-        </option>
-      </select>
+      <Multiselect
+        v-model="form.offer"
+        :options="offers"
+        :track-by="'id'"
+        :label="'name'"
+        placeholder="Оберіть оффер"
+        :searchable="true"
+        :close-on-select="true"
+        :allow-empty="false"
+      />
     </div>
 
     <!-- Страны -->
@@ -28,18 +30,25 @@
           class="badge rounded-pill text-bg-success d-flex align-items-center"
         >
           {{ countryName }}
-          <i class="bi bi-x ms-2" role="button" @click="removeCountryByName(countryName)"></i>
         </span>
       </div>
 
-      <select v-model="selectedCountry" class="form-select" @change="addCountry">
-        <option disabled value="">
-          {{ isLoadingCountries ? 'Завантаження...' : 'Оберіть країну' }}
-        </option>
-        <option v-for="country in allowedCountries" :key="country.code" :value="country.code">
-          {{ country.name }}
-        </option>
-      </select>
+      <Multiselect
+        v-model="selectedCountry"
+        :options="allowedCountries"
+        :noOptionsText="'Список порожній'"
+        :track-by="'code'"
+        :label="'name'"
+        placeholder="Оберіть країну"
+        :searchable="true"
+        :close-on-select="true"
+        :allow-empty="false"
+        @select="addCountry"
+      >
+        <template #noOptions>
+          <div class="px-2 py-1 text-muted small">Список порожній</div>
+        </template>
+      </Multiselect>
     </div>
 
     <!-- Байер -->
@@ -152,17 +161,21 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, watch, computed } from 'vue'
+import { reactive, ref, onMounted, watch, computed, toRef } from 'vue'
 import { useTonicStore } from '../../stores/tonicStore'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.min.css'
 
 const tonicStore = useTonicStore()
 
 const form = reactive({
-  offer: '',
+  offer: null,
   countries: [],
   buyer: 'Alex',
   trafficSource: 'TikTok',
 })
+
+const offer = toRef(form, 'offer')
 
 const selectedCountry = ref('')
 const offers = ref([])
@@ -173,7 +186,7 @@ const isLoadingCountries = ref(false)
 const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
-const CACHE_TTL = 60 * 60 * 1000
+const CACHE_TTL = 1000
 
 function getFromCache(key) {
   try {
@@ -200,14 +213,15 @@ const fetchOffers = async () => {
   const source = form.trafficSource
   if (!source) return
   isLoadingOffers.value = true
+
+  // Сначала сбрасываем значение до загрузки
+  form.offer = null
   offers.value = []
-  form.offer = ''
 
   const cacheKey = `offers_${source}`
   const cached = getFromCache(cacheKey)
   if (cached) {
     offers.value = cached
-    form.offer = cached[0]?.id || ''
     isLoadingOffers.value = false
     return
   }
@@ -219,9 +233,9 @@ const fetchOffers = async () => {
     const data = await resp.json()
     if (resp.ok && Array.isArray(data.offers)) {
       const mapped = data.offers.map((o) => ({ id: o.id, name: o.name }))
-      offers.value = mapped
-      form.offer = mapped[0]?.id || ''
       setToCache(cacheKey, mapped)
+      offers.value = mapped
+      // form.offer уже null — не трогаем
     } else {
       console.error('❌ Error loading offers:', data)
     }
@@ -235,18 +249,22 @@ const fetchOffers = async () => {
 watch(
   () => form.offer,
   async (newOffer) => {
-    form.countries = []
     allowedCountries.value = []
-    if (!newOffer) return
+
+    if (!newOffer || !newOffer.name) return
+
+    const offerName = newOffer.name
+    console.log('▶️ Выбран оффер:', offerName)
 
     isLoadingCountries.value = true
+
     try {
-      const offerName = offers.value.find((o) => o.id === newOffer)?.name || ''
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
           offerName
         )}&trafficSource=${form.trafficSource}&buyer=${form.buyer}`
       )
+
       const data = await res.json()
 
       if (res.ok && Array.isArray(data.allowedCountries)) {
@@ -262,9 +280,24 @@ watch(
   }
 )
 
+watch(
+  () => form.trafficSource,
+  async (newSource) => {
+    console.log('🔄 Сменился источник трафика:', newSource)
+
+    form.offer = null // сброс оффера
+    form.countries = [] // сброс выбранных стран
+    selectedCountry.value = '' // сброс текущей выбранной страны
+    offers.value = [] // очистка списка офферов
+    allowedCountries.value = [] // очистка списка стран
+
+    await fetchOffers() // загрузка офферов под новый трафик
+  }
+)
+
 const addCountry = () => {
-  const selected = allowedCountries.value.find((c) => c.code === selectedCountry.value)
-  const offerName = offers.value.find((o) => o.id === form.offer)?.name || ''
+  const selected = selectedCountry.value
+  const offerName = form.offer?.name || ''
 
   if (!selected || form.countries.some((c) => c.code === selected.code)) return
 
@@ -283,6 +316,8 @@ const addCountry = () => {
     clickflareId: '',
     clickFlareError: '',
   })
+
+  selectedCountry.value = '' // очищаем после выбора
 }
 
 const uniqueCountryNames = computed(() => {
@@ -291,16 +326,19 @@ const uniqueCountryNames = computed(() => {
 })
 
 const removeCountryByName = (countryName) => {
-  // Удаляем все карточки с этой страной
+  const offerName = form.offer?.name || ''
+
   tonicStore.cards = tonicStore.cards.filter(
     (card) =>
       !(
         card.country === countryName &&
-        card.offer === (offers.value.find((o) => o.id === form.offer)?.name || '') &&
+        card.offer === offerName &&
         card.buyer === form.buyer &&
         card.trafficSource === form.trafficSource
       )
   )
+
+  form.countries = form.countries.filter((c) => c.name !== countryName)
 }
 
 const removeCountry = (country) => {
@@ -429,7 +467,7 @@ const submitForm = async () => {
 const clearAllCards = () => {
   tonicStore.clearCards()
 
-  form.offer = ''
+  form.offer = null
   form.countries = []
   form.buyer = 'Alex'
   form.trafficSource = 'TikTok'
@@ -478,3 +516,23 @@ onMounted(() => {
   fetchOffers()
 })
 </script>
+
+<style>
+.multiselect__option {
+  padding: 8px 12px;
+  transition: background-color 0.15s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.multiselect__option--highlight {
+  background-color: #0d6efd !important;
+  color: #fff !important;
+  cursor: pointer;
+}
+
+.multiselect__option--highlight::after {
+  content: none !important;
+}
+</style>
