@@ -126,6 +126,21 @@
               <div v-if="card.resUrl">
                 🔗 <a :href="'https://' + card.resUrl" target="_blank">{{ card.resUrl }}</a>
               </div>
+              <div v-if="card.status" class="mt-1 small">
+                🛰️ Статус кампанії:
+                <span
+                  class="badge"
+                  :class="{
+                    'bg-success': card.status === 'active',
+                    'bg-warning': card.status === 'paused',
+                    'bg-warning': card.status === 'pending',
+                    'bg-secondary': card.status === 'inactive',
+                    'bg-danger': card.status === 'error' || card.status === 'unknown',
+                  }"
+                >
+                  {{ card.status }}
+                </span>
+              </div>
             </div>
 
             <div class="small text-muted">
@@ -263,6 +278,28 @@ function setToCache(key, data) {
   }
 }
 
+const fetchCampaignStatus = async (card) => {
+  try {
+    const query = new URLSearchParams({
+      name: card.adTitle,
+      trafficSource: card.trafficSource,
+    })
+
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${query}`)
+
+    const data = await res.json()
+
+    if (res.ok && data.success) {
+      card.status = data.status || 'unknown'
+    } else {
+      card.status = 'error'
+    }
+  } catch (e) {
+    console.warn(`⚠️ Не вдалося отримати статус для ${card.adTitle}:`, e)
+    card.status = 'error'
+  }
+}
+
 const fetchOffers = async () => {
   const source = form.trafficSource
   if (!source) return
@@ -367,6 +404,7 @@ const addCountry = () => {
     error: '',
     clickflareId: '',
     clickFlareError: '',
+    status: '',
   })
 
   selectedCountry.value = ''
@@ -516,6 +554,7 @@ const submitForm = async () => {
     } catch (e) {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
     }
+    await fetchCampaignStatus(card)
   }
 
   if (!isTimerStarted) {
@@ -525,8 +564,12 @@ const submitForm = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchOffers()
+
+  for (const card of tonicStore.cards) {
+    await fetchCampaignStatus(card)
+  }
 
   if (!form.offer && tonicStore.cards.length > 0) {
     const firstCard = tonicStore.cards[0]
@@ -640,6 +683,12 @@ function startTimer() {
       timerPaused.value = false
 
       await submitForm()
+
+      // 🔁 Обновляем статус у всех карточек после отправки
+      for (const card of tonicStore.cards) {
+        await fetchCampaignStatus(card)
+      }
+
       return
     }
 
