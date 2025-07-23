@@ -7,9 +7,6 @@
         <div class="col-md-6">
           <TonicCampaignForm />
         </div>
-        <!-- <div class="col-md-6" :class="{ 'mt-4': isMobile }">
-          <ClickflareOfferTonic />
-        </div> -->
       </div>
     </div>
   </div>
@@ -21,7 +18,6 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import MainMenu from '@/components/MainMenu.vue'
 import Header from '@/components/Header.vue'
 import TonicCampaignForm from '@/components/createTonicCampaign/TonicCampaignForm.vue'
-import ClickflareOfferTonic from '@/components/createTonicCampaign/ClickflareOfferTonic.vue'
 
 const isMobile = ref(window.innerWidth <= 767)
 
