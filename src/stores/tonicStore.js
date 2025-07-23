@@ -16,13 +16,6 @@ export const useTonicStore = defineStore('tonic', () => {
     }
   }
 
-  const saveToLocalStorage = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards.value))
-    } catch (e) {
-      console.warn('⚠️ Не вдалося зберегти в localStorage:', e)
-    }
-  }
 
   const addCard = (card) => {
     cards.value.push(card)
@@ -43,8 +36,6 @@ export const useTonicStore = defineStore('tonic', () => {
         )
     )
   }
-
-  watch(cards, saveToLocalStorage, { deep: true })
 
   return {
     cards,

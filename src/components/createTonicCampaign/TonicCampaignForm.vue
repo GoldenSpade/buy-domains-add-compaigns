@@ -104,7 +104,12 @@
 
             <div class="mb-2">
               <label class="form-label fw-bold mb-2">Campaign name</label>
-              <input type="text" v-model="card.adTitle" class="form-control" />
+              <input
+                type="text"
+                v-model="card.adTitle"
+                class="form-control"
+                @input="resetCardState(card)"
+              />
             </div>
 
             <div
@@ -191,20 +196,11 @@
     </div>
 
     <button
-      class="btn btn-primary mt-4"
+      class="btn btn-primary mt-3"
       :class="{ disabled: tonicStore.cards.length === 0 }"
       @click="submitForm"
     >
       Створити кампанії
-    </button>
-
-    <button
-      v-if="tonicStore.cards.length"
-      class="btn btn-outline-danger mt-2"
-      @click="clearAllCards"
-    >
-      <i class="bi bi-trash3 me-1"></i>
-      Видалити список кампаній
     </button>
   </div>
 </template>
@@ -237,6 +233,14 @@ const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
 const CACHE_TTL = 60 * 60 * 1000
+
+const resetCardState = (card) => {
+  card.clickFlareError = ''
+  card.clickflareId = ''
+  card.error = ''
+  card.resId = ''
+  card.resUrl = ''
+}
 
 function getFromCache(key) {
   try {
@@ -521,20 +525,6 @@ const submitForm = async () => {
   }
 }
 
-const clearAllCards = () => {
-  tonicStore.clearCards()
-
-  form.offer = null
-  form.countries = []
-  form.buyer = 'Alex'
-  form.trafficSource = 'TikTok'
-  selectedCountry.value = ''
-  offers.value = []
-  allowedCountries.value = []
-
-  fetchOffers()
-}
-
 onMounted(() => {
   fetchOffers()
 
@@ -623,11 +613,11 @@ const submitCardToClickFlare = async (card) => {
 //-------------------------timer-------------------------
 
 const showTimer = ref(false)
-const timerMinutes = ref(10)
+const timerMinutes = ref(1)
 const timerSeconds = ref(0)
 let timerInterval = ref(null)
 const timerPaused = ref(false)
-const customTimerMinutes = ref(10)
+const customTimerMinutes = ref(1)
 
 function startTimer() {
   showTimer.value = true
