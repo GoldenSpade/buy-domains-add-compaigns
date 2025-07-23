@@ -45,11 +45,18 @@
       <label class="form-label">Обрати країну</label>
       <div class="d-flex gap-2 flex-wrap mb-2">
         <span
-          v-for="(countryName, index) in countryNames"
-          :key="index"
+          v-for="country in selectedCountries"
+          :key="country.id"
           class="badge rounded-pill text-bg-success d-flex align-items-center"
+          style="gap: 6px; padding-right: 8px"
         >
-          {{ countryName }}
+          {{ country.name }}
+          <i
+            class="bi bi-x-circle-fill ms-1"
+            style="cursor: pointer; font-size: 0.9em"
+            title="Видалити"
+            @click="removeCountry(country)"
+          ></i>
         </span>
       </div>
 
@@ -207,13 +214,13 @@ import { reactive, ref, onMounted, watch, computed, toRef } from 'vue'
 import { useTonicStore } from '../../stores/tonicStore'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
+import { nanoid } from 'nanoid'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
 
 const form = reactive({
   offer: null,
-  countries: [],
   buyer: 'Alex',
   trafficSource: 'TikTok',
 })
@@ -342,11 +349,10 @@ const addCountry = () => {
   const selected = selectedCountry.value
   const offerName = form.offer?.name || ''
 
-  if (!selected || form.countries.some((c) => c.code === selected.code)) return
-
-  form.countries.push(selected)
+  if (!selected) return
 
   tonicStore.addCard({
+    __id: nanoid(),
     offer: offerName,
     country: selected.name,
     buyer: form.buyer,
@@ -359,11 +365,15 @@ const addCountry = () => {
     clickFlareError: '',
   })
 
-  selectedCountry.value = '' // очищаем после выбора
+  selectedCountry.value = ''
 }
 
-const countryNames = computed(() => {
-  return tonicStore.cards.map((card) => card.country)
+const selectedCountries = computed(() => {
+  return tonicStore.cards.map((card) => ({
+    id: card.__id,
+    name: card.country,
+    code: allowedCountries.value.find((c) => c.name === card.country)?.code || '',
+  }))
 })
 
 // -- timer
@@ -375,35 +385,8 @@ const timerSecondsDisplay = computed(() => {
   return timerInterval.value ? String(timerSeconds.value).padStart(2, '0') : '00'
 })
 
-const removeCountryByName = (countryName) => {
-  const offerName = form.offer?.name || ''
-
-  tonicStore.cards = tonicStore.cards.filter(
-    (card) =>
-      !(
-        card.country === countryName &&
-        card.offer === offerName &&
-        card.buyer === form.buyer &&
-        card.trafficSource === form.trafficSource
-      )
-  )
-
-  form.countries = form.countries.filter((c) => c.name !== countryName)
-}
-
 const removeCountry = (country) => {
-  const index = form.countries.indexOf(country)
-  if (index !== -1) form.countries.splice(index, 1)
-
-  tonicStore.cards = tonicStore.cards.filter(
-    (card) =>
-      !(
-        card.country === country.name &&
-        card.offer === (offers.value.find((o) => o.id === form.offer)?.name || '') &&
-        card.buyer === form.buyer &&
-        card.trafficSource === form.trafficSource
-      )
-  )
+  tonicStore.cards = tonicStore.cards.filter((card) => card.__id !== country.id)
 }
 
 const removeCard = (cardToRemove) => tonicStore.removeCard(cardToRemove)
@@ -554,6 +537,14 @@ const clearAllCards = () => {
 
 onMounted(() => {
   fetchOffers()
+
+  if (!form.offer && tonicStore.cards.length > 0) {
+    const firstCard = tonicStore.cards[0]
+    const matchedOffer = offers.value.find((o) => o.name === firstCard.offer)
+    if (matchedOffer) {
+      form.offer = matchedOffer
+    }
+  }
 })
 
 //-------------------------ClickFlare-------------------------
