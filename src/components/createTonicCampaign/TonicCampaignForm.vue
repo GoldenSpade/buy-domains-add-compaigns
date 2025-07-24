@@ -163,7 +163,7 @@
 
               <span
                 v-else-if="card.clickflareId === 'existing'"
-                class="badge bg-danger text-white px-2 py-1"
+                class="badge bg-success text-white px-2 py-1"
                 style="font-size: 12px"
               >
                 Оффер вже існує в ClickFlare
