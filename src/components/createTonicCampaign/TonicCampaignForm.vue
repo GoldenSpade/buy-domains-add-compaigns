@@ -300,6 +300,38 @@ const fetchCampaignStatus = async (card) => {
   }
 }
 
+const addCountry = () => {
+  const selected = selectedCountry.value
+  const offerName = form.offer?.name || ''
+
+  if (!selected) return
+
+  tonicStore.addCard({
+    __id: nanoid(),
+    offer: offerName,
+    country: selected.name,
+    buyer: form.buyer,
+    trafficSource: form.trafficSource,
+    adTitle: `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`,
+    resId: '',
+    resUrl: '',
+    error: '',
+    clickflareId: '',
+    clickFlareError: '',
+    status: '',
+  })
+
+  selectedCountry.value = ''
+}
+
+const selectedCountries = computed(() => {
+  return tonicStore.cards.map((card) => ({
+    id: card.__id,
+    name: card.country,
+    code: allowedCountries.value.find((c) => c.name === card.country)?.code || '',
+  }))
+})
+
 const fetchOffers = async () => {
   const source = form.trafficSource
   if (!source) return
@@ -385,38 +417,6 @@ watch(
     await fetchOffers() // загрузка офферов под новый трафик
   }
 )
-
-const addCountry = () => {
-  const selected = selectedCountry.value
-  const offerName = form.offer?.name || ''
-
-  if (!selected) return
-
-  tonicStore.addCard({
-    __id: nanoid(),
-    offer: offerName,
-    country: selected.name,
-    buyer: form.buyer,
-    trafficSource: form.trafficSource,
-    adTitle: `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`,
-    resId: '',
-    resUrl: '',
-    error: '',
-    clickflareId: '',
-    clickFlareError: '',
-    status: '',
-  })
-
-  selectedCountry.value = ''
-}
-
-const selectedCountries = computed(() => {
-  return tonicStore.cards.map((card) => ({
-    id: card.__id,
-    name: card.country,
-    code: allowedCountries.value.find((c) => c.name === card.country)?.code || '',
-  }))
-})
 
 // -- timer
 const timerMinutesDisplay = computed(() => {
