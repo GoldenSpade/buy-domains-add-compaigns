@@ -117,42 +117,87 @@
               class="alert alert-success mt-2 d-flex align-items-center gap-2 p-2 small"
             >
               <i class="bi bi-check-circle-fill text-success"></i>
-              Кампанія вже існує. Отримано ID та URL.
+              Кампанія вже існує у Tonik. Отримано ID та URL.
             </div>
 
             <!-- 🔗 ID и URL -->
             <div v-if="card.resId || card.resUrl" class="mt-1 small">
-              <div v-if="card.resId">🆔 ID: {{ card.resId }}</div>
+              <div v-if="card.resId" class="d-flex align-items-center gap-2">
+                🆔 ID: {{ card.resId }}
+
+                <!-- ChatGPT статус індикатор -->
+                <span v-if="card.isGeneratingTitle" class="badge bg-warning text-dark">
+                  <i class="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>
+                  Генерую...
+                </span>
+
+                <span v-else-if="card.chatGptStatus === 'success'" class="badge bg-success">
+                  <i class="bi bi-robot me-1"></i>
+                  ChatGPT ✓
+                </span>
+
+                <span v-else-if="card.chatGptStatus === 'error'" class="badge bg-danger">
+                  <i class="bi bi-robot me-1"></i>
+                  ChatGPT ✗
+                </span>
+
+                <span v-else-if="card.chatGptStatus === 'pending'" class="badge bg-secondary">
+                  <i class="bi bi-robot me-1"></i>
+                  Очікує
+                </span>
+
+                <!-- Кнопка для генерації заголовка -->
+                <button
+                  v-if="card.chatGptStatus !== 'success' && !card.isGeneratingTitle"
+                  @click="generateChatGptTitle(card)"
+                  class="btn btn-sm btn-outline-primary ms-1"
+                  style="font-size: 10px; padding: 2px 6px"
+                >
+                  <i class="bi bi-robot"></i>
+                </button>
+              </div>
+
               <div v-if="card.resUrl">
                 🔗 <a :href="'https://' + card.resUrl" target="_blank">{{ card.resUrl }}</a>
               </div>
-              <div v-if="card.status" class="mt-1 small">
-                🛰️ Статус кампанії:
-                <span
-                  class="badge"
-                  :class="{
-                    'bg-success': card.status === 'active',
-                    'bg-warning': card.status === 'paused',
-                    'bg-warning': card.status === 'pending',
-                    'bg-secondary': card.status === 'inactive',
-                    'bg-danger': card.status === 'error' || card.status === 'unknown',
-                  }"
-                >
-                  {{ card.status }}
-                </span>
+            </div>
+            <!-- Помилка ChatGPT -->
+            <div v-if="card.chatGptError" class="mt-1">
+              <div class="bg-danger bg-opacity-10 p-2 rounded text-danger small">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <span class="fw-bold">ChatGpt Error:</span> {{ card.chatGptError }}
               </div>
             </div>
 
-            <div class="small text-muted">
-              {{ card.country }} | {{ card.buyer }} | {{ card.trafficSource }}
+            <!-- Показуємо чи використовується ChatGPT AdTitle -->
+            <div v-if="card.chatGptTitleEncoded" class="small text-success mt-3">
+              <i class="bi bi-check-circle me-1"></i>
+              Використовується ChatGPT AdTitle
             </div>
-            <div v-if="card.error" class="mt-2 text-danger small border rounded bg-light p-2">
-              <i class="bi bi-exclamation-triangle me-1"></i>
-              {{ card.error }}
+
+            <!-- Відображення згенерованого ChatGPT заголовка -->
+            <div v-if="card.chatGptTitle" class="mt-1">
+              🤖 <strong>ChatGPT AdTitle:</strong>
+              <div class="bg-success bg-opacity-10 p-2 rounded mt-1">
+                <span class="fw-bold text-success">{{ card.chatGptTitle }}</span>
+              </div>
+            </div>
+
+            <!-- ClickFlare URL з ChatGPT заголовком -->
+            <div v-if="card.clickflareUrl" class="mt-3">
+              🎯 <strong>ClickFlare URL:</strong>
+              <div
+                class="text-break small bg-light p-2 rounded"
+                style="font-family: monospace; word-break: break-all"
+              >
+                <a :href="card.clickflareUrl" target="_blank" class="text-decoration-none">
+                  {{ card.clickflareUrl }}
+                </a>
+              </div>
             </div>
 
             <!-- ClickFlare статус -->
-            <div class="small mt-2">
+            <div class="small mt-1">
               <span
                 v-if="card.clickflareId && card.clickflareId !== 'existing'"
                 class="badge bg-success text-white px-2 py-1"
@@ -179,6 +224,14 @@
             </div>
             <div v-if="card.clickFlareError" class="text-danger small mt-1">
               {{ card.clickFlareError }}
+            </div>
+
+            <div class="small text-muted mt-3">
+              {{ card.country }} | {{ card.buyer }} | {{ card.trafficSource }}
+            </div>
+            <div v-if="card.error" class="mt-2 text-danger small border rounded bg-light p-2">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              {{ card.error }}
             </div>
           </div>
         </div>
@@ -227,13 +280,23 @@
       </div>
     </div>
 
-    <button
-      class="btn btn-primary mt-3"
-      :class="{ disabled: tonicStore.cards.length === 0 }"
-      @click="submitForm"
-    >
-      Створити кампанії
-    </button>
+    <div class="mt-3">
+      <button
+        @click="generateAllChatGptTitles"
+        class="btn btn-primary w-100"
+        :disabled="tonicStore.cards.length === 0 || tonicStore.cards.some((card) => card.isGeneratingTitle)"
+      >
+        🤖 Згенерувати всі ChatGPT AdTitle
+      </button>
+
+      <button
+        class="btn btn-primary w-100 mt-2"
+ :class="{ disabled: tonicStore.cards.length === 0 }"
+        @click="submitForm"
+      >
+       🚀 Створити кампанії
+      </button>
+    </div>
   </div>
 </template>
 
@@ -269,6 +332,7 @@ const CACHE_TTL = 60 * 60 * 1000
 const resetCardState = (card) => {
   card.clickFlareError = ''
   card.clickflareId = ''
+  card.clickflareUrl = ''
   card.error = ''
   card.resId = ''
   card.resUrl = ''
@@ -323,7 +387,7 @@ const addCountry = () => {
 
   if (!selected) return
 
-  tonicStore.addCard({
+  const newCard = {
     __id: nanoid(),
     offer: offerName,
     country: selected.name,
@@ -335,10 +399,102 @@ const addCountry = () => {
     error: '',
     clickflareId: '',
     clickFlareError: '',
+    clickflareUrl: '',
     status: '',
-  })
+    // Додаємо нові поля для ChatGPT
+    chatGptTitle: '', // Згенерований заголовок від ChatGPT
+    chatGptTitleEncoded: '', // Закодований заголовок для URL
+    chatGptStatus: 'pending', // pending, success, error
+    chatGptError: '', // Повідомлення про помилку
+    isGeneratingTitle: false, // Індикатор завантаження
+  }
 
+  tonicStore.addCard(newCard)
   selectedCountry.value = ''
+}
+
+// Функція для генерації ChatGPT заголовка
+const generateChatGptTitle = async (card) => {
+  if (card.isGeneratingTitle) return
+
+  card.isGeneratingTitle = true
+  card.chatGptStatus = 'pending'
+  card.chatGptError = ''
+
+  try {
+    console.log(`🤖 Генеруємо ChatGPT заголовок для: ${card.offer}`)
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/chatgpt/generate-adtitle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        offer: card.offer,
+        country: card.country,
+        trafficSource: card.trafficSource,
+      }),
+    })
+
+    const result = await response.json()
+
+    if (response.ok && result.success) {
+      card.chatGptTitle = result.data.originalTitle
+      card.chatGptTitleEncoded = result.data.encodedTitle
+      card.chatGptStatus = 'success'
+      card.chatGptError = ''
+
+      // Оновлюємо URL з новим adtitle ОДРАЗУ ПІСЛЯ ГЕНЕРАЦІЇ
+      if (card.resUrl) {
+        card.clickflareUrl = generateOfferUrl(card)
+        console.log(`🔄 URL оновлено з ChatGPT заголовком: ${card.clickflareUrl}`)
+      }
+
+      console.log(`✅ ChatGPT заголовок створено: "${card.chatGptTitle}"`)
+    } else {
+      throw new Error(result.error || 'Невідома помилка')
+    }
+  } catch (error) {
+    console.error(`❌ Помилка генерації ChatGPT заголовка:`, error)
+    card.chatGptStatus = 'error'
+    card.chatGptError = error.message || 'Помилка при генерації заголовка'
+  } finally {
+    card.isGeneratingTitle = false
+  }
+}
+
+const generateAllChatGptTitles = async () => {
+  console.log('🤖 Запускаємо масову генерацію ChatGPT заголовків...')
+
+  for (const card of tonicStore.cards) {
+    if (card.chatGptStatus !== 'success' && !card.isGeneratingTitle) {
+      await generateChatGptTitle(card)
+      // Додаємо невелику затримку між запитами
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  }
+}
+
+// Оновлена функція генерації URL з ChatGPT заголовком
+const generateOfferUrlWithChatGpt = (card) => {
+  const baseUrl = `https://${card.resUrl?.trim()}`
+  const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
+
+  const isFacebook = adTitleSuffix === 'facebook'
+  const isTiktok = adTitleSuffix === 'tiktok'
+
+  // Використовуємо ChatGPT заголовок якщо він є, інакше fallback на оригінальний
+  const adTitleToUse = card.chatGptTitleEncoded || encodeURIComponent(card.offer.trim())
+
+  const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
+
+  const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
+
+  const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
+
+  if (!baseUrl || !selectedQuery) return '❌ Некоректний URL'
+
+  return `${baseUrl}?${selectedQuery}`
 }
 
 const selectedCountries = computed(() => {
@@ -533,6 +689,11 @@ const submitForm = async () => {
       if (res.ok && result.success && typeof result.data === 'number') {
         card.resId = result.data
         card.error = ''
+
+        // ВИПРАВЛЕННЯ: Генеруємо URL одразу після отримання resId
+        if (card.resUrl) {
+          card.clickflareUrl = generateOfferUrl(card)
+        }
       } else {
         const msg =
           typeof result.data === 'string'
@@ -542,7 +703,7 @@ const submitForm = async () => {
         card.error = msg
         console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
 
-        // 🧠 Проверка на "name already in use"
+        // Перевірка на "name already in use"
         if (msg.toLowerCase().includes('already in use')) {
           try {
             const query = new URLSearchParams({
@@ -559,6 +720,10 @@ const submitForm = async () => {
               card.resId = findData.id
               card.resUrl = findData.link
               card.error = ''
+
+              // ВИПРАВЛЕННЯ: Генеруємо URL для існуючої кампанії
+              card.clickflareUrl = generateOfferUrl(card)
+
               console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
 
               await submitCardToClickFlare(card)
@@ -606,36 +771,42 @@ const workspaceMap = {
 }
 
 const generateOfferUrl = (card) => {
+  // Якщо є ChatGPT заголовок, використовуємо його
+  if (card.chatGptTitleEncoded) {
+    return generateOfferUrlWithChatGpt(card)
+  }
+
+  // Інакше використовуємо оригінальну логіку
   const baseUrl = `https://${card.resUrl?.trim()}`
-  const adTitleEncoded = encodeURIComponent(card.offer.trim()) // 🔁 ВАЖНО: здесь не adTitle, а именно offer
+  const adTitleEncoded = encodeURIComponent(card.offer.trim())
   const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
 
   const isFacebook = adTitleSuffix === 'facebook'
   const isTiktok = adTitleSuffix === 'tiktok'
 
-  const facebookTemplate =
-    'network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=REPLACE+WITH+ADTITLE'
+  const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleEncoded}`
 
-  const tiktokTemplate =
-    'network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=REPLACE+WITH+ADTITLE'
+  const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleEncoded}`
 
   const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
 
   if (!baseUrl || !selectedQuery) return '❌ Некоректний URL'
 
-  const finalQuery = selectedQuery.replace('REPLACE+WITH+ADTITLE', adTitleEncoded)
-
-  return `${baseUrl}?${finalQuery}`
+  return `${baseUrl}?${selectedQuery}`
 }
 
 const submitCardToClickFlare = async (card) => {
   if (!card.resId || !card.resUrl || card.clickflareId) return
 
   try {
+    // Генеруємо URL та зберігаємо його в картці
+    const clickflareUrl = generateOfferUrl(card)
+    card.clickflareUrl = clickflareUrl
+
     const name = `${card.resId}_${card.adTitle}`
     const workspace_id = workspaceMap[card.buyer]
 
-    // 🔍 Спочатку перевіряємо чи існує оффер з такою назвою
+    // Перевіряємо наявність оффера
     console.log(`🔍 Перевіряємо наявність оффера: ${name}`)
 
     const checkResponse = await fetch(
@@ -651,7 +822,6 @@ const submitCardToClickFlare = async (card) => {
     const checkResult = await checkResponse.json()
 
     if (checkResult.success && Array.isArray(checkResult.offers)) {
-      // Перевіряємо чи є оффер з точно такою же назвою
       const existingOffer = checkResult.offers.find((offer) => offer.name === name)
 
       if (existingOffer) {
@@ -660,18 +830,16 @@ const submitCardToClickFlare = async (card) => {
         )
         card.clickflareId = 'existing'
         card.clickFlareError = ''
-        return // Виходимо з функції, не створюємо новий оффер
+        return
       }
     }
 
-    // 🆕 Якщо оффер не знайдено - створюємо новий
+    // Створюємо новий оффер
     console.log(`✅ Оффер "${name}" не знайдено. Створюємо новий...`)
-
-    const url = generateOfferUrl(card)
 
     const payload = {
       name,
-      url,
+      url: clickflareUrl, // Використовуємо збережений URL
       workspace_id,
       affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
       direct: false,
@@ -702,7 +870,7 @@ const submitCardToClickFlare = async (card) => {
     const raw = err?.response?.data || err
     const message = raw?.message || raw?.data?.[0]?.message || err.message || 'Невідома помилка'
     card.clickFlareError = message
-    card.clickflareId = '' // Очищуємо ID при помилці
+    card.clickflareId = ''
     console.error(`❌ Помилка при роботі з ClickFlare для ${card.adTitle}:`, message)
   }
 }
