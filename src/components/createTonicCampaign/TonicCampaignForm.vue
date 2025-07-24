@@ -2,7 +2,7 @@
   <div class="card p-4 bg-light">
     <h4 class="mb-3">
       <i class="bi bi-broadcast me-2"></i>
-      Створення кампаній Tonic
+      Створення кампаній Tonic AFD
     </h4>
 
     <!-- Источник трафика -->
