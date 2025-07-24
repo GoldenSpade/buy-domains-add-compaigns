@@ -1,4 +1,3 @@
-// routes/clickflare.js
 import express from 'express'
 import axios from 'axios'
 import dotenv from 'dotenv'
@@ -6,6 +5,52 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const router = express.Router()
+
+// 📋 Отримати список всіх офферів з ClickFlare
+router.get('/clickflare/offers', async (req, res) => {
+  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
+  const { workspace_id, search, page = 1, pageSize = 100 } = req.query
+
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    })
+
+    if (search) {
+      params.append('search', search)
+    }
+
+    const response = await axios.get(`https://public-api.clickflare.io/api/offers?${params}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': API_KEY,
+      },
+    })
+
+    // Фільтруємо по workspace_id якщо передано
+    let offers = response.data || []
+    if (workspace_id) {
+      offers = offers.filter((offer) => offer.workspace_id === workspace_id)
+    }
+
+    res.json({ success: true, offers })
+  } catch (error) {
+    const rawData = error?.response?.data
+    const statusCode = error?.response?.status || 500
+
+    const msg =
+      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
+
+    console.error('❌ ClickFlare GET offers error:', {
+      message: msg,
+      status: statusCode,
+      data: rawData,
+    })
+
+    res.status(statusCode).json({ error: msg })
+  }
+})
 
 // 🎯 Створити офер у ClickFlare
 router.post('/clickflare/create-offer', async (req, res) => {

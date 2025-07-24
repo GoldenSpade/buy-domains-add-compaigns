@@ -150,14 +150,31 @@
               <i class="bi bi-exclamation-triangle me-1"></i>
               {{ card.error }}
             </div>
+
             <!-- ClickFlare статус -->
             <div class="small mt-2">
               <span
-                v-if="card.clickflareId"
+                v-if="card.clickflareId && card.clickflareId !== 'existing'"
                 class="badge bg-success text-white px-2 py-1"
                 style="font-size: 12px"
               >
-                Успішно завантажено до ClickFlare
+                Новий оффер створено у ClickFlare
+              </span>
+
+              <span
+                v-else-if="card.clickflareId === 'existing'"
+                class="badge bg-danger text-white px-2 py-1"
+                style="font-size: 12px"
+              >
+                Оффер вже існує в ClickFlare
+              </span>
+
+              <span
+                v-else-if="card.clickFlareError"
+                class="badge bg-danger text-white px-2 py-1"
+                style="font-size: 12px"
+              >
+                Вже було завантажено у ClickFlare
               </span>
             </div>
             <div v-if="card.clickFlareError" class="text-danger small mt-1">
@@ -616,12 +633,46 @@ const submitCardToClickFlare = async (card) => {
 
   try {
     const name = `${card.resId}_${card.adTitle}`
+    const workspace_id = workspaceMap[card.buyer]
+
+    // 🔍 Спочатку перевіряємо чи існує оффер з такою назвою
+    console.log(`🔍 Перевіряємо наявність оффера: ${name}`)
+
+    const checkResponse = await fetch(
+      `${
+        import.meta.env.VITE_API_BASE_URL
+      }/clickflare/offers?workspace_id=${workspace_id}&search=${encodeURIComponent(name)}`
+    )
+
+    if (!checkResponse.ok) {
+      throw new Error('Не вдалося перевірити список офферів')
+    }
+
+    const checkResult = await checkResponse.json()
+
+    if (checkResult.success && Array.isArray(checkResult.offers)) {
+      // Перевіряємо чи є оффер з точно такою же назвою
+      const existingOffer = checkResult.offers.find((offer) => offer.name === name)
+
+      if (existingOffer) {
+        console.log(
+          `ℹ️ Оффер "${name}" вже існує в ClickFlare з ID: ${existingOffer.id || existingOffer._id}`
+        )
+        card.clickflareId = 'existing'
+        card.clickFlareError = ''
+        return // Виходимо з функції, не створюємо новий оффер
+      }
+    }
+
+    // 🆕 Якщо оффер не знайдено - створюємо новий
+    console.log(`✅ Оффер "${name}" не знайдено. Створюємо новий...`)
+
     const url = generateOfferUrl(card)
 
     const payload = {
       name,
       url,
-      workspace_id: workspaceMap[card.buyer],
+      workspace_id,
       affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
       direct: false,
       payout: {
@@ -643,6 +694,7 @@ const submitCardToClickFlare = async (card) => {
     if (result?.success && result.offerId) {
       card.clickflareId = result.offerId
       card.clickFlareError = ''
+      console.log(`🎉 Новий оффер створено з ID: ${result.offerId}`)
     } else {
       throw new Error(result?.error || 'Невідома помилка від ClickFlare')
     }
@@ -650,9 +702,10 @@ const submitCardToClickFlare = async (card) => {
     const raw = err?.response?.data || err
     const message = raw?.message || raw?.data?.[0]?.message || err.message || 'Невідома помилка'
     card.clickFlareError = message
+    card.clickflareId = '' // Очищуємо ID при помилці
+    console.error(`❌ Помилка при роботі з ClickFlare для ${card.adTitle}:`, message)
   }
 }
-
 //-------------------------timer-------------------------
 
 const showTimer = ref(false)
