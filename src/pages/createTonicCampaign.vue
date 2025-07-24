@@ -2,7 +2,7 @@
   <div>
     <MainMenu />
     <div class="app mb-4 px-3">
-      <Header title="Створення кампаній Tonic та додавання до ClickFlare" />
+      <Header title="Створення кампаній Tonic AFD" />
       <div class="row justify-content-center">
         <div class="col-md-6">
           <TonicCampaignForm />

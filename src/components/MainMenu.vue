@@ -15,7 +15,7 @@
         </li>
         <li class="nav-item">
           <router-link :to="{ name: 'createTonicCampaign' }" class="nav-link" active-class="active">
-            <i class="bi bi-bar-chart-line me-1"></i> Tonic
+            <i class="bi bi-bar-chart-line me-1"></i>Tonic AFD
           </router-link>
         </li>
       </ul>
