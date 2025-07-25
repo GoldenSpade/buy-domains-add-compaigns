@@ -132,29 +132,16 @@
                 </span>
 
                 <span v-else-if="card.chatGptStatus === 'success'" class="badge bg-success">
-                  <i class="bi bi-robot me-1"></i>
-                  ChatGPT ✓
+                  ChatGpt ✓
                 </span>
 
                 <span v-else-if="card.chatGptStatus === 'error'" class="badge bg-danger">
-                  <i class="bi bi-robot me-1"></i>
-                  ChatGPT ✗
+                  ChatGpt ✗
                 </span>
 
                 <span v-else-if="card.chatGptStatus === 'pending'" class="badge bg-secondary">
-                  <i class="bi bi-robot me-1"></i>
-                  Очікує
+                  ChatGpt очікує
                 </span>
-
-                <!-- Кнопка для генерації заголовка -->
-                <button
-                  v-if="card.chatGptStatus !== 'success' && !card.isGeneratingTitle"
-                  @click="generateChatGptTitle(card)"
-                  class="btn btn-sm btn-outline-primary ms-1"
-                  style="font-size: 10px; padding: 2px 6px"
-                >
-                  <i class="bi bi-robot"></i>
-                </button>
               </div>
 
               <div v-if="card.resUrl">
@@ -285,13 +272,13 @@
               <i :class="timerPaused ? 'bi-play-fill' : 'bi-pause-fill'"></i>
             </button>
 
-            <button
+            <!-- <button
               class="btn btn-outline-secondary btn-sm d-flex align-items-center ms-1"
               @click="stopTimer"
               :disabled="!timerInterval"
             >
               <i class="bi bi-stop-fill"></i>
-            </button>
+            </button> -->
           </div>
         </div>
       </div>
@@ -761,7 +748,7 @@ const submitForm = async () => {
             } else {
               // 404 або інша помилка - кампанія не знайдена
               console.warn(`⚠️ Кампанія "${payload.name}" не знайдена в списку (404)`)
-              card.error = `Кампанія з такою назвою вже існує у Tonik. Очікуйте зміну статусу, якщо ви щойно створили кампанію `
+              card.error = `Кампанія з такою назвою вже існує у Tonik. Очікуйте зміну статусу, якщо ви щойно створили кампанію.`
             }
           } catch (e) {
             console.warn('⚠️ Не вдалося знайти кампанію по імені:', e)
@@ -1013,15 +1000,15 @@ function pauseTimer() {
   }
 }
 
-function stopTimer() {
-  clearInterval(timerInterval.value)
-  timerInterval.value = null
-  showTimer.value = false
-  timerMinutes.value = 0
-  timerSeconds.value = 0
-  timerPaused.value = false
-  isTimerStarted = false
-}
+// function stopTimer() {
+//   clearInterval(timerInterval.value)
+//   timerInterval.value = null
+//   showTimer.value = false
+//   timerMinutes.value = 0
+//   timerSeconds.value = 0
+//   timerPaused.value = false
+//   isTimerStarted = false
+// }
 </script>
 
 <style>
