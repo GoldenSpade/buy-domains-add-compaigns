@@ -200,22 +200,59 @@
               </div>
             </div>
 
+            <!-- ClickFlare Campaign Info -->
+            <div v-if="card.clickflareCampaignId || card.clickflareCampaignUrl" class="mt-3">
+              <div class="bg-success bg-opacity-10 p-2 rounded">
+                <div class="fw-bold mb-1">🎯 ClickFlare Campaign</div>
+
+                <div v-if="card.clickflareCampaignId" class="small">
+                  <strong>Campaign ID:</strong> {{ card.clickflareCampaignId }}
+                </div>
+
+                <div v-if="card.clickflareCampaignUrl" class="small">
+                  <strong>Campaign URL:</strong>
+                  <div
+                    class="text-break small bg-light p-1 rounded mt-1"
+                    style="font-family: monospace"
+                  >
+                    <a
+                      :href="card.clickflareCampaignUrl"
+                      target="_blank"
+                      class="text-decoration-none"
+                    >
+                      {{ card.clickflareCampaignUrl }}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- ClickFlare статус -->
             <div class="small mt-1">
               <span
-                v-if="card.clickflareId && card.clickflareId !== 'existing'"
+                v-if="
+                  card.clickflareId && card.clickflareCampaignId && card.clickflareId !== 'existing'
+                "
                 class="badge bg-success text-white px-2 py-1"
                 style="font-size: 12px"
               >
-                Новий оффер створено у ClickFlare
+                🎉 Новий офер + кампанія створені у ClickFlare
               </span>
 
               <span
                 v-else-if="card.clickflareId === 'existing'"
-                class="badge bg-success text-white px-2 py-1"
+                class="badge bg-info text-white px-2 py-1"
                 style="font-size: 12px"
               >
-                Оффер вже існує у ClickFlare
+                ℹ️ Кампанія вже існує у ClickFlare
+              </span>
+
+              <span
+                v-else-if="card.clickflareId && !card.clickflareCampaignId"
+                class="badge bg-warning text-dark px-2 py-1"
+                style="font-size: 12px"
+              >
+                ⚠️ Тільки офер створено (без кампанії)
               </span>
 
               <span
@@ -223,7 +260,7 @@
                 class="badge bg-danger text-white px-2 py-1"
                 style="font-size: 12px"
               >
-                Вже було завантажено у ClickFlare
+                ❌ Помилка створення в ClickFlare
               </span>
             </div>
             <div v-if="card.clickFlareError" class="text-danger small mt-1">
@@ -271,14 +308,6 @@
             >
               <i :class="timerPaused ? 'bi-play-fill' : 'bi-pause-fill'"></i>
             </button>
-
-            <!-- <button
-              class="btn btn-outline-secondary btn-sm d-flex align-items-center ms-1"
-              @click="stopTimer"
-              :disabled="!timerInterval"
-            >
-              <i class="bi bi-stop-fill"></i>
-            </button> -->
           </div>
         </div>
       </div>
@@ -328,6 +357,8 @@ const CACHE_TTL = 60 * 60 * 1000
 const resetCardState = (card) => {
   card.clickFlareError = ''
   card.clickflareId = ''
+  card.clickflareCampaignId = ''
+  card.clickflareCampaignUrl = ''
   card.clickflareUrl = ''
   card.error = ''
   card.resId = ''
@@ -411,15 +442,17 @@ const addCountry = () => {
     resUrl: '',
     error: '',
     clickflareId: '',
+    clickflareCampaignId: '',
+    clickflareCampaignUrl: '',
     clickFlareError: '',
     clickflareUrl: '',
     status: '',
-    // Додаємо нові поля для ChatGPT
-    chatGptTitle: '', // Згенерований заголовок від ChatGPT
-    chatGptTitleEncoded: '', // Закодований заголовок для URL
-    chatGptStatus: 'pending', // pending, success, error
-    chatGptError: '', // Повідомлення про помилку
-    isGeneratingTitle: false, // Індикатор завантаження
+    // ChatGPT поля
+    chatGptTitle: '',
+    chatGptTitleEncoded: '',
+    chatGptStatus: 'pending',
+    chatGptError: '',
+    isGeneratingTitle: false,
   }
 
   tonicStore.addCard(newCard)
@@ -682,7 +715,9 @@ const submitForm = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload),
       })
 
@@ -860,70 +895,88 @@ const submitCardToClickFlare = async (card) => {
   if (!card.resId || !card.resUrl || card.clickflareId) return
 
   try {
+    console.log(`🚀 Створюємо офер + кампанію для ${card.adTitle}`)
+
     // Генеруємо URL та зберігаємо його в картці
     const clickflareUrl = generateOfferUrl(card)
     card.clickflareUrl = clickflareUrl
 
-    const name = `${card.resId}_${card.adTitle}`
     const workspace_id = workspaceMap[card.buyer]
+    const offerName = `${card.resId}_${card.adTitle}`
+    const campaignName = `Campaign_${card.resId}_${card.adTitle}`
 
-    // Перевіряємо наявність оффера
-    console.log(`🔍 Перевіряємо наявність оффера: ${name}`)
+    // Перевіряємо чи вже існує кампанія
+    console.log(`🔍 Перевіряємо наявність кампанії: ${campaignName}`)
 
-    const checkResponse = await fetch(
+    const checkCampaignResponse = await fetch(
       `${
         import.meta.env.VITE_API_BASE_URL
-      }/clickflare/offers?workspace_id=${workspace_id}&search=${encodeURIComponent(name)}`
+      }/clickflare/campaigns?workspace_id=${workspace_id}&search=${encodeURIComponent(
+        campaignName
+      )}`
     )
 
-    if (!checkResponse.ok) {
-      throw new Error('Не вдалося перевірити список офферів')
-    }
+    if (checkCampaignResponse.ok) {
+      const checkResult = await checkCampaignResponse.json()
 
-    const checkResult = await checkResponse.json()
-
-    if (checkResult.success && Array.isArray(checkResult.offers)) {
-      const existingOffer = checkResult.offers.find((offer) => offer.name === name)
-
-      if (existingOffer) {
-        console.log(
-          `ℹ️ Оффер "${name}" вже існує в ClickFlare з ID: ${existingOffer.id || existingOffer._id}`
+      if (checkResult.success && Array.isArray(checkResult.campaigns)) {
+        const existingCampaign = checkResult.campaigns.find(
+          (campaign) => campaign.name === campaignName
         )
-        card.clickflareId = 'existing'
-        card.clickFlareError = ''
-        return
+
+        if (existingCampaign) {
+          console.log(
+            `ℹ️ Кампанія "${campaignName}" вже існує з ID: ${
+              existingCampaign.id || existingCampaign._id
+            }`
+          )
+          card.clickflareId = 'existing'
+          card.clickflareCampaignId = existingCampaign.id || existingCampaign._id
+          card.clickflareCampaignUrl = existingCampaign.url
+          card.clickFlareError = ''
+          return
+        }
       }
     }
 
-    // Створюємо новий оффер
-    console.log(`✅ Оффер "${name}" не знайдено. Створюємо новий...`)
+    // Створюємо офер + кампанію одним запитом
+    console.log(`✅ Кампанія не знайдена. Створюємо нову...`)
 
     const payload = {
-      name,
-      url: clickflareUrl, // Використовуємо збережений URL
+      offerName,
+      offerUrl: clickflareUrl,
+      campaignName,
       workspace_id,
+      buyer: card.buyer,
       affiliateNetworkID: import.meta.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
-      direct: false,
-      payout: {
-        type: 'manual',
-        payout: 0,
-        currency: 'USD',
-      },
-      keywordBuilderMode: 'free_form',
+      trafficSource: card.trafficSource,
+      country: card.country,
+      cost: 0,
+      cost_type: 'cpc',
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer-and-campaign`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    )
 
     const result = await response.json()
 
-    if (result?.success && result.offerId) {
-      card.clickflareId = result.offerId
+    if (result?.success) {
+      card.clickflareId = result.offer.id
+      card.clickflareCampaignId = result.campaign.id
+      card.clickflareCampaignUrl = result.campaign.url
       card.clickFlareError = ''
-      console.log(`🎉 Новий оффер створено з ID: ${result.offerId}`)
+
+      console.log(`🎉 Офер + Flow + кампанія створені:`)
+      console.log(`   Офер ID: ${result.offer.id}`)
+      console.log(`   Flow ID: ${result.flow.id}`)
+      console.log(`   Кампанія ID: ${result.campaign.id}`)
+      console.log(`   Кампанія URL: ${result.campaign.url}`)
     } else {
       throw new Error(result?.error || 'Невідома помилка від ClickFlare')
     }
@@ -932,7 +985,9 @@ const submitCardToClickFlare = async (card) => {
     const message = raw?.message || raw?.data?.[0]?.message || err.message || 'Невідома помилка'
     card.clickFlareError = message
     card.clickflareId = ''
-    console.error(`❌ Помилка при роботі з ClickFlare для ${card.adTitle}:`, message)
+    card.clickflareCampaignId = ''
+    card.clickflareCampaignUrl = ''
+    console.error(`❌ Помилка при створенні офера + кампанії для ${card.adTitle}:`, message)
   }
 }
 //-------------------------timer-------------------------
@@ -999,16 +1054,6 @@ function pauseTimer() {
     timerPaused.value = false
   }
 }
-
-// function stopTimer() {
-//   clearInterval(timerInterval.value)
-//   timerInterval.value = null
-//   showTimer.value = false
-//   timerMinutes.value = 0
-//   timerSeconds.value = 0
-//   timerPaused.value = false
-//   isTimerStarted = false
-// }
 </script>
 
 <style>
