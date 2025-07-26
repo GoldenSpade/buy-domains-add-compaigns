@@ -71,7 +71,6 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import axios from 'axios'
 import { useDomainStore } from '../../stores/domainStore'
 
 const workspaceMap = {

@@ -189,46 +189,16 @@
 
             <!-- ClickFlare URL з ChatGPT заголовком -->
             <div v-if="card.clickflareUrl" class="mt-3">
-              🎯 <strong>ClickFlare URL:</strong>
-              <div
-                class="text-break small bg-light p-2 rounded"
-                style="font-family: monospace; word-break: break-all"
-              >
-                <a :href="card.clickflareUrl" target="_blank" class="text-decoration-none">
-                  {{ card.clickflareUrl }}
-                </a>
-              </div>
+              <UrlAccordion :url="card.clickflareUrl" title="🎯 ClickFlare URL" />
             </div>
 
             <!-- ClickFlare Campaign Info -->
-            <div v-if="card.clickflareCampaignId || card.clickflareCampaignUrl" class="mt-3">
-              <div class="bg-success bg-opacity-10 p-2 rounded">
-                <div class="fw-bold mb-1">🎯 ClickFlare Campaign</div>
-
-                <div v-if="card.clickflareCampaignId" class="small">
-                  <strong>Campaign ID:</strong> {{ card.clickflareCampaignId }}
-                </div>
-
-                <div v-if="card.clickflareCampaignUrl" class="small">
-                  <strong>Campaign URL:</strong>
-                  <div
-                    class="text-break small bg-light p-1 rounded mt-1"
-                    style="font-family: monospace"
-                  >
-                    <a
-                      :href="card.clickflareCampaignUrl"
-                      target="_blank"
-                      class="text-decoration-none"
-                    >
-                      {{ card.clickflareCampaignUrl }}
-                    </a>
-                  </div>
-                </div>
-              </div>
+            <div v-if="card.clickflareCampaignUrl" class="mt-2">
+              <UrlAccordion :url="card.clickflareCampaignUrl" title="📊 Campaign URL" />
             </div>
 
             <!-- ClickFlare статус -->
-            <div class="small mt-1">
+            <div class="small mt-3">
               <span
                 v-if="
                   card.clickflareId && card.clickflareCampaignId && card.clickflareId !== 'existing'
@@ -236,15 +206,15 @@
                 class="badge bg-success text-white px-2 py-1"
                 style="font-size: 12px"
               >
-                🎉 Новий офер + кампанія створені у ClickFlare
+                🎉 Новий оффер + кампанія створені у ClickFlare
               </span>
 
               <span
                 v-else-if="card.clickflareId === 'existing'"
-                class="badge bg-info text-white px-2 py-1"
+                class="badge bg-warning text-dark px-2 py-1"
                 style="font-size: 12px"
               >
-                ℹ️ Кампанія вже існує у ClickFlare
+                Кампанія вже існує у ClickFlare
               </span>
 
               <span
@@ -331,6 +301,7 @@ import { useTonicStore } from '../../stores/tonicStore'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
+import UrlAccordion from './UrlAccordion.vue'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
@@ -459,51 +430,113 @@ const addCountry = () => {
   selectedCountry.value = ''
 }
 
+// Функція для обробки Campaign URL з ChatGPT заголовком
+const processCampaignUrl = (card) => {
+  if (!card.clickflareCampaignUrl) {
+    console.log(`⚠️ Немає campaign URL для обробки: ${card.offer}`)
+    return
+  }
+
+  let updatedUrl = card.clickflareCampaignUrl
+
+  console.log(`🔄 Початок обробки Campaign URL для: ${card.offer}`)
+  console.log(`   Original URL: ${updatedUrl}`)
+
+  // Перевіряємо чи є MANUAL_REPLACE в URL
+  if (updatedUrl.includes('MANUAL_REPLACE')) {
+    console.log(`🔧 Знайдено MANUAL_REPLACE, замінюємо...`)
+
+    // ✅ КЛЮЧОВЕ ВИПРАВЛЕННЯ: Використовуємо ChatGPT заголовок
+    const titleToUse = card.chatGptTitleEncoded || encodeURIComponent(card.offer.trim())
+
+    console.log(`📝 Заголовок для заміни:`)
+    console.log(`   ChatGPT Title: "${card.chatGptTitle || 'Немає'}"`)
+    console.log(`   ChatGPT Encoded: "${card.chatGptTitleEncoded || 'Немає'}"`)
+    console.log(`   Title to use: "${titleToUse}"`)
+
+    // Визначаємо тип трафіку з adTitle
+    const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
+    const isFacebook = adTitleSuffix === 'facebook'
+    const isTiktok = adTitleSuffix === 'tiktok'
+
+    console.log(`🎯 Traffic type: ${isFacebook ? 'Facebook' : isTiktok ? 'TikTok' : 'Unknown'}`)
+
+    // ✅ ПРОСТО ЗАМІНЮЄМО MANUAL_REPLACE НА CHATGPT ЗАГОЛОВОК
+    // Без додаткових параметрів - вони вже є в базовому URL
+    updatedUrl = updatedUrl.replace('MANUAL_REPLACE', titleToUse)
+
+    // Оновлюємо URL в картці
+    card.clickflareCampaignUrl = updatedUrl
+
+    console.log(`✅ Campaign URL успішно оновлено:`)
+    console.log(`   Before: ...title=MANUAL_REPLACE`)
+    console.log(`   After:  ...title=${titleToUse}`)
+    console.log(`   Full URL: ${updatedUrl}`)
+  } else {
+    console.log(`ℹ️ MANUAL_REPLACE не знайдено в URL, пропускаємо обробку`)
+  }
+}
+
 // Функція для генерації ChatGPT заголовка
 const generateChatGptTitle = async (card) => {
-  if (card.isGeneratingTitle) return
+  if (card.isGeneratingTitle) {
+    console.log(`⏸️ Генерація вже в процесі для: ${card.offer}`)
+    return
+  }
 
   card.isGeneratingTitle = true
   card.chatGptStatus = 'pending'
   card.chatGptError = ''
 
   try {
-    console.log(`🤖 Генеруємо ChatGPT заголовок для: ${card.offer}`)
+    console.log(`🤖 Відправляємо запит до ChatGPT для: ${card.offer}`)
+    console.log(`   Country: ${card.country}`)
+    console.log(`   Traffic Source: ${card.trafficSource}`)
+
+    const requestBody = {
+      offer: card.offer,
+      country: card.country,
+      trafficSource: card.trafficSource,
+    }
+
+    console.log(`📤 Тіло запиту:`, requestBody)
 
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/chatgpt/generate-adtitle`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        offer: card.offer,
-        country: card.country,
-        trafficSource: card.trafficSource,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
-    const result = await response.json()
+    console.log(`📥 Статус відповіді ChatGPT: ${response.status} ${response.statusText}`)
 
-    if (response.ok && result.success) {
+    const result = await response.json()
+    console.log(`📥 Повна відповідь ChatGPT:`, result)
+
+    if (response.ok && result.success && result.data) {
       card.chatGptTitle = result.data.originalTitle
       card.chatGptTitleEncoded = result.data.encodedTitle
       card.chatGptStatus = 'success'
       card.chatGptError = ''
 
-      // Оновлюємо URL з новим adtitle ОДРАЗУ ПІСЛЯ ГЕНЕРАЦІЇ
-      if (card.resUrl) {
-        card.clickflareUrl = generateOfferUrl(card)
-        console.log(`🔄 URL оновлено з ChatGPT заголовком: ${card.clickflareUrl}`)
-      }
+      console.log(`✅ ChatGPT заголовок успішно створено:`)
+      console.log(`   Original: "${card.chatGptTitle}"`)
+      console.log(`   Encoded: "${card.chatGptTitleEncoded}"`)
 
-      console.log(`✅ ChatGPT заголовок створено: "${card.chatGptTitle}"`)
+      // НЕ генеруємо URL тут - це буде зроблено в submitCardToClickFlare
     } else {
-      throw new Error(result.error || 'Невідома помилка')
+      const errorMsg = result?.error || `HTTP ${response.status}: ${response.statusText}`
+      throw new Error(errorMsg)
     }
   } catch (error) {
-    console.error(`❌ Помилка генерації ChatGPT заголовка:`, error)
+    console.error(`❌ Повна помилка генерації ChatGPT:`, error)
     card.chatGptStatus = 'error'
-    card.chatGptError = error.message || 'Помилка при генерації заголовка'
+    card.chatGptError = error.message || 'Невідома помилка ChatGPT API'
+
+    console.error(`❌ Деталі помилки:`)
+    console.error(`   Card: ${card.offer}`)
+    console.error(`   Error: ${card.chatGptError}`)
   } finally {
     card.isGeneratingTitle = false
   }
@@ -511,24 +544,32 @@ const generateChatGptTitle = async (card) => {
 
 // Оновлена функція генерації URL з ChatGPT заголовком
 const generateOfferUrlWithChatGpt = (card) => {
-  const baseUrl = `https://${card.resUrl?.trim()}`
-  const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
+  // ✅ Ця функція тепер не потрібна - логіка об'єднана в generateOfferUrl
+  return generateOfferUrl(card)
+}
 
-  const isFacebook = adTitleSuffix === 'facebook'
-  const isTiktok = adTitleSuffix === 'tiktok'
+// Функція для оновлення всіх URL з ChatGPT заголовками
+const updateAllUrlsWithChatGpt = () => {
+  const cards = tonicStore.cards
 
-  // Використовуємо ChatGPT заголовок якщо він є, інакше fallback на оригінальний
-  const adTitleToUse = card.chatGptTitleEncoded || encodeURIComponent(card.offer.trim())
+  for (const card of cards) {
+    if (card.chatGptStatus === 'success') {
+      // Оновлюємо ClickFlare URL
+      if (card.resUrl) {
+        const oldClickflareUrl = card.clickflareUrl
+        card.clickflareUrl = generateOfferUrl(card)
 
-  const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
+        if (oldClickflareUrl !== card.clickflareUrl) {
+          console.log(`🔄 ClickFlare URL оновлено для: ${card.offer}`)
+        }
+      }
 
-  const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
-
-  const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
-
-  if (!baseUrl || !selectedQuery) return '❌ Некоректний URL'
-
-  return `${baseUrl}?${selectedQuery}`
+      // Оновлюємо Campaign URL
+      if (card.clickflareCampaignUrl) {
+        processCampaignUrl(card)
+      }
+    }
+  }
 }
 
 const selectedCountries = computed(() => {
@@ -565,7 +606,6 @@ const fetchOffers = async () => {
       const mapped = data.offers.map((o) => ({ id: o.id, name: o.name }))
       setToCache(cacheKey, mapped)
       offers.value = mapped
-      // form.offer уже null — не трогаем
     } else {
       console.error('❌ Error loading offers:', data)
     }
@@ -680,6 +720,7 @@ const preloadAllowedCountries = async () => {
     }
   }
 }
+
 let isTimerStarted = false
 
 const submitForm = async () => {
@@ -687,7 +728,7 @@ const submitForm = async () => {
 
   const cards = tonicStore.cards
 
-  // 🎯 КРОК 1: Створюємо кампанії Tonic як зазвичай
+  // 🎯 КРОК 1: Створюємо кампанії Tonic
   for (const card of cards) {
     const allowedResp = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
@@ -715,9 +756,7 @@ const submitForm = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -727,28 +766,16 @@ const submitForm = async () => {
         card.resId = result.data
         card.error = ''
 
-        // Генеруємо URL одразу після отримання resId
-        if (card.resUrl) {
-          card.clickflareUrl = generateOfferUrl(card)
-        }
-
-        // ✅ Завантажуємо статус для нової кампанії
+        // ✅ Завантажуємо статус для отримання resUrl
         await fetchCampaignStatus(card)
 
-        // 🎯 Відправляємо у ClickFlare якщо є resUrl
-        if (card.resUrl) {
-          await submitCardToClickFlare(card)
-        }
+        console.log(`✅ Кампанія створена. ID: ${card.resId}, URL: ${card.resUrl}`)
       } else {
+        // Обробка існуючих кампаній
         const msg =
           typeof result.data === 'string'
             ? result.data
             : result?.error?.[0] || result?.error || '❌ Невідома помилка'
-
-        card.error = msg
-        console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
-
-        // Виправити блок "name already in use" в submitForm:
 
         if (msg.toLowerCase().includes('already in use')) {
           try {
@@ -763,80 +790,76 @@ const submitForm = async () => {
 
             if (findRes.ok) {
               const findData = await findRes.json()
-
               if (findData.success) {
                 card.resId = findData.id
-                // ✅ ВИПРАВЛЕННЯ: Завжди встановлюємо resUrl з find-campaign
                 card.resUrl = findData.link || findData.target || ''
                 card.error = ''
 
-                // Генеруємо URL для існуючої кампанії
-                if (card.resUrl) {
-                  card.clickflareUrl = generateOfferUrl(card)
-                }
+                console.log(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
 
-                console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
-
-                // ✅ Завантажуємо статус для нової кампанії
+                // ✅ Завантажуємо статус
                 await fetchCampaignStatus(card)
-
-                // 🎯 Відправляємо у ClickFlare якщо є resUrl
-                if (card.resUrl) {
-                  await submitCardToClickFlare(card)
-                }
               }
-            } else {
-              // 404 або інша помилка - кампанія не знайдена
-              console.warn(`⚠️ Кампанія "${payload.name}" не знайдена в списку (404)`)
-              card.error = `Кампанія з такою назвою вже існує у Tonik. Очікуйте зміну статусу, якщо ви щойно створили кампанію.`
             }
           } catch (e) {
-            console.warn('⚠️ Не вдалося знайти кампанію по імені:', e)
+            console.warn('⚠️ Не вдалося знайти існуючу кампанію:', e)
             card.error = `⚠️ Помилка пошуку існуючої кампанії: ${e.message}`
           }
+        } else {
+          card.error = msg
+          console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
         }
       }
     } catch (e) {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
+      card.error = `Помилка створення кампанії: ${e.message}`
     }
   }
 
-  // 🤖 КРОК 2: Генеруємо ChatGPT заголовки ТІЛЬКИ для нових офферів
-  console.log('🤖 Перевіряємо які картки потребують ChatGPT генерації...')
+  // 🤖 КРОК 2: ОБОВ'ЯЗКОВО генеруємо ChatGPT заголовки для ВСІХ карток з resId та resUrl
+  console.log('🤖 Початок генерації ChatGPT заголовків...')
 
-  const cardsNeedingChatGpt = cards.filter((card) => {
-    return (
-      card.resId &&
-      card.resUrl &&
-      card.chatGptStatus !== 'success' &&
-      card.clickflareId !== 'existing' &&
-      !card.isGeneratingTitle
-    )
-  })
+  const cardsWithTonicData = cards.filter((card) => card.resId && card.resUrl && !card.error)
+  console.log(`📊 Знайдено ${cardsWithTonicData.length} карток для ChatGPT генерації`)
 
-  console.log(`📊 Знайдено ${cardsNeedingChatGpt.length} карток для ChatGPT генерації`)
+  if (cardsWithTonicData.length > 0) {
+    console.log('🤖 Генеруємо ChatGPT заголовки для всіх карток...')
 
-  if (cardsNeedingChatGpt.length > 0) {
-    console.log('🤖 Запускаємо генерацію ChatGPT заголовків для нових офферів...')
+    // Генеруємо ChatGPT заголовки послідовно
+    for (const card of cardsWithTonicData) {
+      if (card.chatGptStatus !== 'success') {
+        console.log(`🤖 Генеруємо ChatGPT для: ${card.offer}`)
+        await generateChatGptTitle(card)
 
-    for (const card of cardsNeedingChatGpt) {
-      await generateChatGptTitle(card)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Пауза між запитами
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+      }
     }
 
     console.log('✅ Генерація ChatGPT заголовків завершена')
 
-    // 🔄 КРОК 3: Оновлюємо URL з новими ChatGPT заголовками
-    for (const card of cardsNeedingChatGpt) {
-      if (card.chatGptStatus === 'success' && card.resUrl) {
-        card.clickflareUrl = generateOfferUrl(card)
-        console.log(`🔄 URL оновлено з ChatGPT заголовком для: ${card.offer}`)
+    // 🔄 КРОК 3: Чекаємо завершення всіх ChatGPT запитів і створюємо ClickFlare офери
+    console.log('🎯 Початок створення ClickFlare офферів...')
+
+    for (const card of cardsWithTonicData) {
+      if (card.resId && card.resUrl && !card.clickflareId) {
+        console.log(`🎯 Створюємо ClickFlare офер для: ${card.offer}`)
+        await submitCardToClickFlare(card)
+
+        // Пауза між запитами до ClickFlare
+        await new Promise((resolve) => setTimeout(resolve, 500))
       }
     }
-  } else {
-    console.log('ℹ️ Всі оффери вже існують в ClickFlare або не потребують ChatGPT генерації')
+
+    console.log('✅ Створення ClickFlare офферів завершено')
   }
 
+  // 🔄 КРОК 4: Фінальне оновлення всіх URL
+  setTimeout(() => {
+    updateAllUrlsWithChatGpt()
+  }, 2000)
+
+  // Запускаємо таймер
   if (!isTimerStarted) {
     if (!timerInterval.value) {
       startTimer()
@@ -876,84 +899,68 @@ const workspaceMap = {
 }
 
 const generateOfferUrl = (card) => {
-  // Якщо є ChatGPT заголовок, використовуємо його
-  if (card.chatGptTitleEncoded) {
-    return generateOfferUrlWithChatGpt(card)
-  }
-
-  // Інакше використовуємо оригінальну логіку
   const baseUrl = `https://${card.resUrl?.trim()}`
-  const adTitleEncoded = encodeURIComponent(card.offer.trim())
   const adTitleSuffix = card.adTitle.trim().split(' ').at(-1).toLowerCase()
 
   const isFacebook = adTitleSuffix === 'facebook'
   const isTiktok = adTitleSuffix === 'tiktok'
 
-  const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleEncoded}`
+  // ✅ ВИПРАВЛЕННЯ: Використовуємо ChatGPT заголовок якщо він є, інакше fallback
+  const adTitleToUse = card.chatGptTitleEncoded || encodeURIComponent(card.offer.trim())
 
-  const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleEncoded}`
+  console.log(`🔍 Генерація URL для ${card.offer}:`)
+  console.log(`   Base URL: ${baseUrl}`)
+  console.log(`   Traffic: ${isFacebook ? 'Facebook' : isTiktok ? 'TikTok' : 'Unknown'}`)
+  console.log(`   ChatGPT Title: ${card.chatGptTitle || 'Немає'}`)
+  console.log(`   Encoded Title: ${adTitleToUse}`)
+
+  // Шаблони з правильними фігурними дужками
+  const facebookTemplate = `network=facebook&site=direct&subid1={{trackingField6}}&subid2={{trackingField5}}&subid3={{trackingField3}}|{{trackingField2}}|{{trackingField1}}&subid4={{cf_click_id}}&click_id={{external_id}}&adtitle=${adTitleToUse}`
+
+  const tiktokTemplate = `network=tiktok&site=direct&subid1={{trackingField3}}&subid2={{trackingField5}}&subid3={{trackingField8}}|{{trackingField6}}|{{trackingField4}}&subid4={{cf_click_id}}&click_id={{external_id}}&adtitle=${adTitleToUse}`
 
   const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
 
-  if (!baseUrl || !selectedQuery) return '❌ Некоректний URL'
+  if (!baseUrl || !selectedQuery) {
+    console.warn("❌ Неможливо згенерувати URL - відсутні обов'язкові дані")
+    return '❌ Некоректний URL'
+  }
 
-  return `${baseUrl}?${selectedQuery}`
+  const finalUrl = `${baseUrl}?${selectedQuery}`
+  console.log(`✅ Згенерований URL: ${finalUrl}`)
+
+  return finalUrl
 }
 
 const submitCardToClickFlare = async (card) => {
-  if (!card.resId || !card.resUrl || card.clickflareId) return
+  if (!card.resId || !card.resUrl || card.clickflareId) {
+    console.log(
+      `⏸️ Пропускаємо ClickFlare для ${card.adTitle} - немає потрібних даних або вже створено`
+    )
+    return
+  }
 
   try {
-    console.log(`🚀 Створюємо офер + кампанію для ${card.adTitle}`)
-
-    // Генеруємо URL та зберігаємо його в картці
-    const clickflareUrl = generateOfferUrl(card)
-    card.clickflareUrl = clickflareUrl
+    console.log(`🚀 Створюємо ClickFlare офер + кампанію для: ${card.adTitle}`)
+    console.log(`   resId: ${card.resId}`)
+    console.log(`   resUrl: ${card.resUrl}`)
+    console.log(`   ChatGPT Status: ${card.chatGptStatus}`)
+    console.log(`   ChatGPT Title: ${card.chatGptTitle || 'Немає'}`)
 
     const workspace_id = workspaceMap[card.buyer]
     const offerName = `${card.resId}_${card.adTitle}`
     const campaignName = `${card.resId}_${card.adTitle}`
 
-    // Перевіряємо чи вже існує кампанія
-    console.log(`🔍 Перевіряємо наявність кампанії: ${campaignName}`)
+    // ✅ КЛЮЧОВЕ ВИПРАВЛЕННЯ: Генеруємо URL з ChatGPT заголовком (якщо є)
+    const offerUrl = generateOfferUrl(card)
+    card.clickflareUrl = offerUrl
 
-    const checkCampaignResponse = await fetch(
-      `${
-        import.meta.env.VITE_API_BASE_URL
-      }/clickflare/campaigns?workspace_id=${workspace_id}&search=${encodeURIComponent(
-        campaignName
-      )}`
-    )
-
-    if (checkCampaignResponse.ok) {
-      const checkResult = await checkCampaignResponse.json()
-
-      if (checkResult.success && Array.isArray(checkResult.campaigns)) {
-        const existingCampaign = checkResult.campaigns.find(
-          (campaign) => campaign.name === campaignName
-        )
-
-        if (existingCampaign) {
-          console.log(
-            `ℹ️ Кампанія "${campaignName}" вже існує з ID: ${
-              existingCampaign.id || existingCampaign._id
-            }`
-          )
-          card.clickflareId = 'existing'
-          card.clickflareCampaignId = existingCampaign.id || existingCampaign._id
-          card.clickflareCampaignUrl = existingCampaign.url
-          card.clickFlareError = ''
-          return
-        }
-      }
-    }
-
-    // Створюємо офер + кампанію одним запитом
-    console.log(`✅ Кампанія не знайдена. Створюємо нову...`)
+    console.log(`🔗 Згенерований URL для ClickFlare:`)
+    console.log(`   ${offerUrl}`)
 
     const payload = {
       offerName,
-      offerUrl: clickflareUrl,
+      offerUrl,
       campaignName,
       workspace_id,
       buyer: card.buyer,
@@ -963,6 +970,13 @@ const submitCardToClickFlare = async (card) => {
       cost: 0,
       cost_type: 'cpc',
     }
+
+    console.log(`📤 Відправляємо в ClickFlare:`, {
+      offerName,
+      campaignName,
+      workspace_id,
+      offerUrl: offerUrl.substring(0, 100) + '...',
+    })
 
     const response = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer-and-campaign`,
@@ -974,68 +988,68 @@ const submitCardToClickFlare = async (card) => {
     )
 
     const result = await response.json()
+    console.log(`📥 ClickFlare повна відповідь:`, result)
 
     if (result?.success) {
       card.clickflareId = result.offer.id
       card.clickflareCampaignId = result.campaign.id
+
+      // ✅ ВИПРАВЛЕННЯ: Використовуємо campaign.url з відповіді
       card.clickflareCampaignUrl = result.campaign.url
       card.clickFlareError = ''
 
-      console.log(`🎉 Офер + Flow + кампанія створені:`)
-      console.log(`   Офер ID: ${result.offer.id}`)
-      console.log(`   Flow ID: ${result.flow.id}`)
-      console.log(`   Кампанія ID: ${result.campaign.id}`)
-      console.log(`   Кампанія URL: ${result.campaign.url}`)
+      console.log(`✅ ClickFlare успішно створено:`)
+      console.log(`   Offer ID: ${result.offer.id}`)
+      console.log(`   Campaign ID: ${result.campaign.id}`)
+      console.log(`   Campaign URL (raw): ${result.campaign.url}`)
 
-      // 🔧 Додаткова перевірка та виправлення прив'язки офера
-      try {
-        console.log(`🔍 Перевіряємо прив'язку офера для кампанії ${card.clickflareCampaignId}`)
+      // ✅ КЛЮЧОВА ЧАСТИНА: Обробляємо Campaign URL ОДРАЗУ після отримання
+      if (card.clickflareCampaignUrl) {
+        console.log(`🔧 Обробляємо Campaign URL з MANUAL_REPLACE...`)
 
-        const verifyResponse = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/clickflare/verify-and-fix-offer-link`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              campaignId: card.clickflareCampaignId,
-              offerId: card.clickflareId,
-            }),
-          }
-        )
+        const originalCampaignUrl = card.clickflareCampaignUrl
+        processCampaignUrl(card) // Замінюємо MANUAL_REPLACE на ChatGPT заголовок
 
-        const verifyResult = await verifyResponse.json()
-
-        if (verifyResult?.success) {
-          if (verifyResult.wasFixed) {
-            console.log(
-              `✅ Прив'язка офера була виправлена для кампанії ${card.clickflareCampaignId}`
-            )
-          } else if (verifyResult.alreadyLinked) {
-            console.log(
-              `✅ Офер вже був правильно прив'язаний до кампанії ${card.clickflareCampaignId}`
-            )
-          }
+        if (originalCampaignUrl !== card.clickflareCampaignUrl) {
+          console.log(`🔄 Campaign URL успішно оброблено:`)
+          console.log(`   До обробки:  ${originalCampaignUrl}`)
+          console.log(`   Після обробки: ${card.clickflareCampaignUrl}`)
         } else {
-          console.warn(`⚠️ Не вдалося перевірити прив'язку офера:`, verifyResult?.error)
+          console.log(`ℹ️ Campaign URL не змінився (можливо, MANUAL_REPLACE вже був замінений)`)
         }
-      } catch (verifyError) {
-        console.warn(`⚠️ Помилка перевірки прив'язки офера:`, verifyError)
       }
+
+      if (result.alreadyExisted) {
+        console.log(`ℹ️ Офер та кампанія вже існували у ClickFlare`)
+        card.clickflareId = 'existing'
+      }
+
+      // Викликаємо дебаг функцію
+      debugCardUrls(card)
     } else {
-      throw new Error(result?.error || 'Невідома помилка від ClickFlare')
+      throw new Error(result?.error || 'Невідома помилка від ClickFlare API')
     }
   } catch (err) {
-    const raw = err?.response?.data || err
-    const message = raw?.message || raw?.data?.[0]?.message || err.message || 'Невідома помилка'
+    const message = err.message || 'Невідома помилка'
     card.clickFlareError = message
     card.clickflareId = ''
     card.clickflareCampaignId = ''
     card.clickflareCampaignUrl = ''
-    console.error(`❌ Помилка при створенні офера + кампанії для ${card.adTitle}:`, message)
+    console.error(`❌ Помилка створення в ClickFlare для ${card.adTitle}:`, message)
   }
 }
-//-------------------------timer-------------------------
+// ===== ДОДАТКОВА ФУНКЦІЯ ДЛЯ ДЕБАГУ =====
+const debugCardUrls = (card) => {
+  console.log(`🔍 Дебаг URL для картки: ${card.adTitle}`)
+  console.log(`   resUrl: ${card.resUrl}`)
+  console.log(`   chatGptTitle: ${card.chatGptTitle || 'Немає'}`)
+  console.log(`   chatGptTitleEncoded: ${card.chatGptTitleEncoded || 'Немає'}`)
+  console.log(`   chatGptStatus: ${card.chatGptStatus}`)
+  console.log(`   clickflareUrl: ${card.clickflareUrl || 'Немає'}`)
+  console.log(`   clickflareCampaignUrl: ${card.clickflareCampaignUrl || 'Немає'}`)
+}
 
+//-------------------------timer-------------------------
 const showTimer = ref(false)
 const timerMinutes = ref(1)
 const timerSeconds = ref(0)
@@ -1071,9 +1085,6 @@ function startTimer() {
         await fetchCampaignStatus(card)
 
         // 🎯 Відправляємо у ClickFlare якщо є resUrl
-        if (card.resUrl) {
-          await submitCardToClickFlare(card)
-        }
         if (card.resUrl) {
           await submitCardToClickFlare(card)
         }

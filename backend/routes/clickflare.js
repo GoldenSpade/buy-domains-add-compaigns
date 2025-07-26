@@ -6,104 +6,7 @@ dotenv.config()
 
 const router = express.Router()
 
-const workspaceMap = {
-  Alex: process.env.VITE_WORKSPACE_ALEX,
-  Davyd: process.env.VITE_WORKSPACE_DAVYD,
-}
-
-// 📋 Отримати список всіх офферів з ClickFlare
-router.get('/clickflare/offers', async (req, res) => {
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
-  const { workspace_id, search, page = 1, pageSize = 100 } = req.query
-
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    })
-
-    if (search) {
-      params.append('search', search)
-    }
-
-    const response = await axios.get(`https://public-api.clickflare.io/api/offers?${params}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': API_KEY,
-      },
-    })
-
-    // Фільтруємо по workspace_id якщо передано
-    let offers = response.data || []
-    if (workspace_id) {
-      offers = offers.filter((offer) => offer.workspace_id === workspace_id)
-    }
-
-    res.json({ success: true, offers })
-  } catch (error) {
-    const rawData = error?.response?.data
-    const statusCode = error?.response?.status || 500
-
-    const msg =
-      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
-
-    console.error('❌ ClickFlare GET offers error:', {
-      message: msg,
-      status: statusCode,
-      data: rawData,
-    })
-
-    res.status(statusCode).json({ error: msg })
-  }
-})
-
-// 📋 Отримати список кампаній з ClickFlare
-router.get('/clickflare/campaigns', async (req, res) => {
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
-  const { workspace_id, search, page = 1, pageSize = 100 } = req.query
-
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    })
-
-    if (search) {
-      params.append('search', search)
-    }
-
-    const response = await axios.get(`https://public-api.clickflare.io/api/campaigns?${params}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': API_KEY,
-      },
-    })
-
-    // Фільтруємо по workspace_id якщо передано
-    let campaigns = response.data || []
-    if (workspace_id) {
-      campaigns = campaigns.filter((campaign) => campaign.workspace_id === workspace_id)
-    }
-
-    res.json({ success: true, campaigns })
-  } catch (error) {
-    const rawData = error?.response?.data
-    const statusCode = error?.response?.status || 500
-
-    const msg =
-      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
-
-    console.error('❌ ClickFlare GET campaigns error:', {
-      message: msg,
-      status: statusCode,
-      data: rawData,
-    })
-
-    res.status(statusCode).json({ error: msg })
-  }
-})
-
-// 🎯 Створити офер у ClickFlare
+// 🎯 Створити офер у ClickFlare (ClickflareOfferSedo & TonicCampaignForm)
 router.post('/clickflare/create-offer', async (req, res) => {
   const { name, url, workspace_id, affiliateNetworkID: clientAffiliateNetworkID } = req.body
   const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
@@ -164,7 +67,7 @@ router.post('/clickflare/create-offer', async (req, res) => {
   }
 })
 
-// 🔄 ВИПРАВЛЕНИЙ комбінований метод: створити офер + кампанію з flow
+// 🔄 Комбінований метод: створити офер + кампанію з flow (TonicCampaignForm)
 router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
   const {
     offerName,
@@ -198,28 +101,27 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       country,
     })
 
-    // 1️⃣ Створюємо офер
-    console.log('1️⃣ Створюємо офер:', offerName)
+    // 🔍 ВИПРАВЛЕНИЙ КРОК 0: Перевіряємо чи вже існують офер та кампанія
+    console.log('🔍 Перевіряємо наявність існуючих офера та кампанії...')
 
-    const offerPayload = {
-      name: offerName,
-      url: offerUrl,
-      workspace_id,
-      direct: false,
-      affiliateNetworkID: affiliateNetworkID || process.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
-      payout: {
-        type: 'manual',
-        payout: 0,
-        currency: 'USD',
+    // Перевіряємо офер - використовуємо базовий ендпоінт
+    const checkOfferResponse = await axios.get(`https://public-api.clickflare.io/api/offers`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': API_KEY,
       },
-      keywordBuilderMode: 'free_form',
+    })
+
+    let existingOffer = null
+    if (checkOfferResponse.data && Array.isArray(checkOfferResponse.data)) {
+      existingOffer = checkOfferResponse.data.find(
+        (offer) => offer.name === offerName && offer.workspace_id === workspace_id
+      )
     }
 
-    console.log('📤 Offer payload:', JSON.stringify(offerPayload, null, 2))
-
-    const offerResponse = await axios.post(
-      'https://public-api.clickflare.io/api/offers',
-      offerPayload,
+    // Перевіряємо кампанію - використовуємо правильний ендпоінт /api/campaigns/list
+    const checkCampaignResponse = await axios.get(
+      `https://public-api.clickflare.io/api/campaigns/list?pageSize=5000`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -228,120 +130,205 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       }
     )
 
-    const offerId = offerResponse.data?._id || offerResponse.data?.id
-
-    if (!offerId) {
-      throw new Error('Не вдалося отримати ID створеного офера')
+    let existingCampaign = null
+    if (checkCampaignResponse.data && Array.isArray(checkCampaignResponse.data)) {
+      existingCampaign = checkCampaignResponse.data.find(
+        (campaign) => campaign.name === campaignName && campaign.workspace_id === workspace_id
+      )
     }
 
-    console.log('✅ Офер створено з ID:', offerId)
+    // Якщо обидва вже існують - повертаємо їх
+    if (existingOffer && existingCampaign) {
+      console.log(`ℹ️ Офер "${offerName}" вже існує з ID: ${existingOffer._id || existingOffer.id}`)
+      console.log(
+        `ℹ️ Кампанія "${campaignName}" вже існує з ID: ${
+          existingCampaign._id || existingCampaign.id
+        }`
+      )
 
-    // 2️⃣ Створюємо кампанію з вбудованим flow
-    console.log('2️⃣ Створюємо кампанію з flow:', campaignName)
-
-    const trafficSourceMap = {
-      TikTok: process.env.VITE_TIKTOK_TRAFFIC_SOURCE_ID || '684bf93e5f67710012addf85',
-      Facebook: process.env.VITE_FACEBOOK_TRAFFIC_SOURCE_ID || '684bf954359cb30012ff1586',
-    }
-
-    const selectedTrafficSourceId = trafficSourceMap[trafficSource]
-    console.log(`🎯 Traffic Source: ${trafficSource} -> ID: ${selectedTrafficSourceId}`)
-
-    if (!selectedTrafficSourceId) {
-      throw new Error(`Невідомий traffic source: ${trafficSource}`)
-    }
-
-    // ✅ Payload з вбудованим flow
-    const campaignPayload = {
-      name: campaignName,
-      workspace_id,
-      tracking_type: 'redirect',
-      traffic_source_id: selectedTrafficSourceId,
-      cost,
-      cost_type,
-      disable_postbacks: false,
-      notes: `Auto-created campaign for Tonic offer - ${trafficSource}`,
-      // ✅ Додаємо вбудований flow з офером
-      flow: {
-        internal: true,
-        flow: {
-          name: `Flow for ${campaignName}`,
-          transition: '302',
-          workspace_id: workspace_id,
+      return res.json({
+        success: true,
+        offer: {
+          id: existingOffer._id || existingOffer.id,
+          data: existingOffer,
         },
-        paths: {
-          defaultPaths: {
-            paths: [
-              {
-                name: 'Default Path',
-                destination: 'offers_only',
-                enabled: true,
-                transition: '302',
-                weight: 100,
-                offers_only: {
-                  offers: [
-                    {
-                      id: offerId,
-                      weight: 100,
-                    },
-                  ],
+        campaign: {
+          id: existingCampaign._id || existingCampaign.id,
+          url: existingCampaign.url,
+          data: existingCampaign,
+        },
+        flow: {
+          id: existingCampaign.flow_id || existingCampaign.flow?._id,
+        },
+        message: 'Офер та кампанія вже існують.',
+        alreadyExisted: true,
+      })
+    }
+
+    let offerId
+
+    // 1️⃣ Створюємо або використовуємо існуючий офер
+    if (existingOffer) {
+      console.log(`ℹ️ Використовуємо існуючий офер з ID: ${existingOffer._id || existingOffer.id}`)
+      offerId = existingOffer._id || existingOffer.id
+    } else {
+      console.log('1️⃣ Створюємо новий офер:', offerName)
+
+      const offerPayload = {
+        name: offerName,
+        url: offerUrl,
+        workspace_id,
+        direct: false,
+        affiliateNetworkID: affiliateNetworkID || process.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
+        payout: {
+          type: 'manual',
+          payout: 0,
+          currency: 'USD',
+        },
+        keywordBuilderMode: 'free_form',
+      }
+
+      console.log('📤 Offer payload:', JSON.stringify(offerPayload, null, 2))
+
+      const offerResponse = await axios.post(
+        'https://public-api.clickflare.io/api/offers',
+        offerPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': API_KEY,
+          },
+        }
+      )
+
+      offerId = offerResponse.data?._id || offerResponse.data?.id
+
+      if (!offerId) {
+        throw new Error('Не вдалося отримати ID створеного офера')
+      }
+
+      console.log('✅ Новий офер створено з ID:', offerId)
+    }
+
+    let campaignResponse
+
+    // 2️⃣ Створюємо або використовуємо існуючу кампанію
+    if (existingCampaign) {
+      console.log(
+        `ℹ️ Використовуємо існуючу кампанію з ID: ${existingCampaign._id || existingCampaign.id}`
+      )
+      campaignResponse = { data: existingCampaign }
+    } else {
+      console.log('2️⃣ Створюємо нову кампанію з flow:', campaignName)
+
+      const trafficSourceMap = {
+        TikTok: process.env.VITE_TIKTOK_TRAFFIC_SOURCE_ID || '684bf93e5f67710012addf85',
+        Facebook: process.env.VITE_FACEBOOK_TRAFFIC_SOURCE_ID || '684bf954359cb30012ff1586',
+      }
+
+      const selectedTrafficSourceId = trafficSourceMap[trafficSource]
+      console.log(`🎯 Traffic Source: ${trafficSource} -> ID: ${selectedTrafficSourceId}`)
+
+      if (!selectedTrafficSourceId) {
+        throw new Error(`Невідомий traffic source: ${trafficSource}`)
+      }
+
+      // ✅ Payload з вбудованим flow
+      const campaignPayload = {
+        name: campaignName,
+        workspace_id,
+        tracking_type: 'redirect',
+        traffic_source_id: selectedTrafficSourceId,
+        cost,
+        cost_type,
+        disable_postbacks: false,
+        notes: `Auto-created campaign for Tonic offer - ${trafficSource}`,
+        // ✅ Додаємо вбудований flow з офером
+        flow: {
+          internal: true,
+          flow: {
+            name: `Flow for ${campaignName}`,
+            transition: '302',
+            workspace_id: workspace_id,
+          },
+          paths: {
+            defaultPaths: {
+              paths: [
+                {
+                  name: 'Default Path',
+                  destination: 'offers_only',
+                  enabled: true,
+                  transition: '302',
+                  weight: 100,
+                  offers_only: {
+                    offers: [
+                      {
+                        id: offerId,
+                        weight: 100,
+                      },
+                    ],
+                  },
                 },
-              },
-            ],
+              ],
+            },
           },
         },
-      },
-    }
-
-    console.log('🔍 Деталі payload для кампанії:')
-    console.log(`   workspace_id: ${workspace_id}`)
-    console.log(`   traffic_source_id: ${selectedTrafficSourceId}`)
-    console.log(`   buyer: ${buyer}`)
-    console.log(`   country: ${country}`)
-    console.log(`   offerId в flow: ${offerId}`)
-
-    // Додаємо країну тільки якщо вона передана
-    if (country && country !== null && country !== 'null') {
-      campaignPayload.country = country
-    }
-
-    console.log('📤 Campaign payload:', JSON.stringify(campaignPayload, null, 2))
-
-    const campaignResponse = await axios.post(
-      'https://public-api.clickflare.io/api/campaigns',
-      campaignPayload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': API_KEY,
-        },
       }
-    )
+
+      console.log('🔍 Деталі payload для кампанії:')
+      console.log(`   workspace_id: ${workspace_id}`)
+      console.log(`   traffic_source_id: ${selectedTrafficSourceId}`)
+      console.log(`   buyer: ${buyer}`)
+      console.log(`   country: ${country}`)
+      console.log(`   offerId в flow: ${offerId}`)
+
+      // Додаємо країну тільки якщо вона передана
+      if (country && country !== null && country !== 'null') {
+        campaignPayload.country = country
+      }
+
+      console.log('📤 Campaign payload:', JSON.stringify(campaignPayload, null, 2))
+
+      campaignResponse = await axios.post(
+        'https://public-api.clickflare.io/api/campaigns',
+        campaignPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': API_KEY,
+          },
+        }
+      )
+
+      console.log('✅ Нова кампанія створена')
+    }
 
     const campaignId = campaignResponse.data?._id || campaignResponse.data?.id
     const campaignUrl = campaignResponse.data?.url
     const flowId = campaignResponse.data?.flow?._id || campaignResponse.data?.flow_id
 
-    console.log('✅ Кампанія створена з ID:', campaignId)
-    console.log('✅ Flow створений з ID:', flowId)
+    console.log('✅ Кампанія ID:', campaignId)
+    console.log('✅ Flow ID:', flowId)
 
-    // 🔍 Перевіряємо чи офер справді прив'язаний
-    const createdFlow = campaignResponse.data?.flow
-    if (createdFlow?.paths?.defaultPaths?.paths?.[0]?.offers_only?.offers) {
-      const linkedOffers = createdFlow.paths.defaultPaths.paths[0].offers_only.offers
-      console.log(
-        "🔗 Прив'язані офери в flow:",
-        linkedOffers.map((o) => o.id)
-      )
+    // 🔍 Перевіряємо чи офер справді прив'язаний (тільки для нових кампаній)
+    if (!existingCampaign) {
+      const createdFlow = campaignResponse.data?.flow
+      if (createdFlow?.paths?.defaultPaths?.paths?.[0]?.offers_only?.offers) {
+        const linkedOffers = createdFlow.paths.defaultPaths.paths[0].offers_only.offers
+        console.log(
+          "🔗 Прив'язані офери в flow:",
+          linkedOffers.map((o) => o.id)
+        )
 
-      const isOfferLinked = linkedOffers.some((o) => o.id === offerId)
-      console.log(`🎯 Офер ${offerId} прив'язаний: ${isOfferLinked ? '✅ ТАК' : '❌ НІ'}`)
+        const isOfferLinked = linkedOffers.some((o) => o.id === offerId)
+        console.log(`🎯 Офер ${offerId} прив'язаний: ${isOfferLinked ? '✅ ТАК' : '❌ НІ'}`)
 
-      if (!isOfferLinked) {
-        console.warn("⚠️ УВАГА: Офер НЕ прив'язаний до кампанії!")
+        if (!isOfferLinked) {
+          console.warn("⚠️ УВАГА: Офер НЕ прив'язаний до кампанії!")
+        }
+      } else {
+        console.warn('⚠️ УВАГА: Flow не містить офери або має неправильну структуру!')
       }
-    } else {
-      console.warn('⚠️ УВАГА: Flow не містить офери або має неправильну структуру!')
     }
 
     console.log('📊 Повна відповідь кампанії:', JSON.stringify(campaignResponse.data, null, 2))
@@ -350,7 +337,7 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       success: true,
       offer: {
         id: offerId,
-        data: offerResponse.data,
+        data: existingOffer || campaignResponse.data, // Повертаємо дані існуючого або нового офера
       },
       campaign: {
         id: campaignId,
@@ -360,7 +347,12 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       flow: {
         id: flowId,
       },
-      message: "Офер, flow та кампанія успішно створені та прив'язані.",
+      message:
+        existingCampaign || existingOffer
+          ? 'Частково використані існуючі компоненти, частково створені нові.'
+          : "Офер, flow та кампанія успішно створені та прив'язані.",
+      wasCreated: !existingCampaign && !existingOffer,
+      wasPartiallyExisting: !!(existingCampaign || existingOffer),
     })
   } catch (error) {
     const rawData = error?.response?.data
@@ -374,215 +366,6 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       status: statusCode,
       data: rawData,
       stack: error.stack,
-    })
-
-    res.status(statusCode).json({ error: msg, details: rawData })
-  }
-})
-
-// 🔧 ДОДАТКОВИЙ метод для перевірки та виправлення прив'язки офера
-router.post('/clickflare/verify-and-fix-offer-link', async (req, res) => {
-  const { campaignId, offerId } = req.body
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
-
-  if (!campaignId || !offerId) {
-    return res.status(400).json({
-      error: 'Missing required fields: campaignId, offerId',
-    })
-  }
-
-  try {
-    console.log(`🔍 Перевіряємо прив'язку офера ${offerId} до кампанії ${campaignId}`)
-
-    // Отримуємо поточну кампанію
-    const getCampaignResponse = await axios.get(
-      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': API_KEY,
-        },
-      }
-    )
-
-    const currentCampaign = getCampaignResponse.data
-
-    // Перевіряємо чи офер вже прив'язаний
-    const linkedOffers =
-      currentCampaign?.flow?.paths?.defaultPaths?.paths?.[0]?.offers_only?.offers || []
-    const isOfferLinked = linkedOffers.some((o) => o.id === offerId)
-
-    console.log(
-      `🎯 Поточні прив'язані офери:`,
-      linkedOffers.map((o) => o.id)
-    )
-    console.log(`🔗 Офер ${offerId} прив'язаний: ${isOfferLinked ? '✅ ТАК' : '❌ НІ'}`)
-
-    if (isOfferLinked) {
-      return res.json({
-        success: true,
-        message: "Офер вже прив'язаний до кампанії",
-        alreadyLinked: true,
-      })
-    }
-
-    // Якщо офер не прив'язаний - виправляємо це
-    console.log(`🔧 Прив'язуємо офер ${offerId} до кампанії ${campaignId}`)
-
-    const updatePayload = {
-      ...currentCampaign,
-      flow: {
-        ...currentCampaign.flow,
-        paths: {
-          defaultPaths: {
-            paths: [
-              {
-                name: 'Default Path',
-                destination: 'offers_only',
-                enabled: true,
-                transition: '302',
-                weight: 100,
-                offers_only: {
-                  offers: [
-                    {
-                      id: offerId,
-                      weight: 100,
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        },
-      },
-    }
-
-    const updateResponse = await axios.put(
-      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
-      updatePayload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': API_KEY,
-        },
-      }
-    )
-
-    console.log("✅ Офер успішно прив'язано до кампанії")
-
-    res.json({
-      success: true,
-      data: updateResponse.data,
-      message: "Офер успішно прив'язано до кампанії",
-      wasFixed: true,
-    })
-  } catch (error) {
-    const rawData = error?.response?.data
-    const statusCode = error?.response?.status || 500
-
-    const msg =
-      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
-
-    console.error('❌ ClickFlare verify and fix offer link error:', {
-      message: msg,
-      status: statusCode,
-      data: rawData,
-    })
-
-    res.status(statusCode).json({ error: msg, details: rawData })
-  }
-})
-
-// 🔗 Прив'язати офер до кампанії через flow
-router.post('/clickflare/link-offer-to-campaign', async (req, res) => {
-  const { campaignId, offerId } = req.body
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
-
-  if (!campaignId || !offerId) {
-    return res.status(400).json({
-      error: 'Missing required fields: campaignId, offerId',
-    })
-  }
-
-  try {
-    console.log(`🔗 Прив'язуємо офер ${offerId} до кампанії ${campaignId}`)
-
-    // Спочатку отримуємо поточну кампанію
-    const getCampaignResponse = await axios.get(
-      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': API_KEY,
-        },
-      }
-    )
-
-    const currentCampaign = getCampaignResponse.data
-
-    // Оновлюємо flow кампанії з новим офером
-    const updatePayload = {
-      ...currentCampaign,
-      flow: {
-        internal: true,
-        flow: {
-          name: `Flow for ${currentCampaign.name}`,
-          transition: '302',
-          workspace_id: currentCampaign.workspace_id,
-        },
-        paths: {
-          defaultPaths: {
-            paths: [
-              {
-                name: 'Default Path',
-                destination: 'offers_only',
-                enabled: true,
-                transition: '302',
-                weight: 100,
-                offers_only: {
-                  offers: [
-                    {
-                      id: offerId,
-                      weight: 100,
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        },
-      },
-    }
-
-    const updateResponse = await axios.put(
-      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
-      updatePayload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': API_KEY,
-        },
-      }
-    )
-
-    console.log("✅ Офер успішно прив'язано до кампанії")
-
-    res.json({
-      success: true,
-      data: updateResponse.data,
-      message: "Офер успішно прив'язано до кампанії",
-    })
-  } catch (error) {
-    const rawData = error?.response?.data
-    const statusCode = error?.response?.status || 500
-
-    const msg =
-      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
-
-    console.error('❌ ClickFlare link offer to campaign error:', {
-      message: msg,
-      status: statusCode,
-      data: rawData,
     })
 
     res.status(statusCode).json({ error: msg, details: rawData })
