@@ -734,6 +734,11 @@ const submitForm = async () => {
 
         // ✅ Завантажуємо статус для нової кампанії
         await fetchCampaignStatus(card)
+
+        // 🎯 Відправляємо у ClickFlare якщо є resUrl
+        if (card.resUrl) {
+          await submitCardToClickFlare(card)
+        }
       } else {
         const msg =
           typeof result.data === 'string'
@@ -772,10 +777,10 @@ const submitForm = async () => {
 
                 console.info(`ℹ️ Кампанія вже існує. ID: ${findData.id}, URL: ${findData.link}`)
 
-                // ✅ Завантажуємо статус для існуючої кампанії
+                // ✅ Завантажуємо статус для нової кампанії
                 await fetchCampaignStatus(card)
 
-                // Тільки якщо є resUrl - відправляємо в ClickFlare
+                // 🎯 Відправляємо у ClickFlare якщо є resUrl
                 if (card.resUrl) {
                   await submitCardToClickFlare(card)
                 }
@@ -794,9 +799,6 @@ const submitForm = async () => {
     } catch (e) {
       console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
     }
-
-    // ❌ ВИДАЛИТИ ЦЕЙ РЯДОК - дублює виклик статусу
-    // await fetchCampaignStatus(card)
   }
 
   // 🤖 КРОК 2: Генеруємо ChatGPT заголовки ТІЛЬКИ для нових офферів
@@ -846,6 +848,13 @@ onMounted(async () => {
   fetchOffers()
 
   for (const card of tonicStore.cards) {
+    // ✅ Завантажуємо статус для нової кампанії
+    await fetchCampaignStatus(card)
+
+    // 🎯 Відправляємо у ClickFlare якщо є resUrl
+    if (card.resUrl) {
+      await submitCardToClickFlare(card)
+    }
     await fetchCampaignStatus(card)
   }
 
@@ -903,7 +912,7 @@ const submitCardToClickFlare = async (card) => {
 
     const workspace_id = workspaceMap[card.buyer]
     const offerName = `${card.resId}_${card.adTitle}`
-    const campaignName = `Campaign_${card.resId}_${card.adTitle}`
+    const campaignName = `${card.resId}_${card.adTitle}`
 
     // Перевіряємо чи вже існує кампанія
     console.log(`🔍 Перевіряємо наявність кампанії: ${campaignName}`)
@@ -977,6 +986,41 @@ const submitCardToClickFlare = async (card) => {
       console.log(`   Flow ID: ${result.flow.id}`)
       console.log(`   Кампанія ID: ${result.campaign.id}`)
       console.log(`   Кампанія URL: ${result.campaign.url}`)
+
+      // 🔧 Додаткова перевірка та виправлення прив'язки офера
+      try {
+        console.log(`🔍 Перевіряємо прив'язку офера для кампанії ${card.clickflareCampaignId}`)
+
+        const verifyResponse = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/clickflare/verify-and-fix-offer-link`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: card.clickflareCampaignId,
+              offerId: card.clickflareId,
+            }),
+          }
+        )
+
+        const verifyResult = await verifyResponse.json()
+
+        if (verifyResult?.success) {
+          if (verifyResult.wasFixed) {
+            console.log(
+              `✅ Прив'язка офера була виправлена для кампанії ${card.clickflareCampaignId}`
+            )
+          } else if (verifyResult.alreadyLinked) {
+            console.log(
+              `✅ Офер вже був правильно прив'язаний до кампанії ${card.clickflareCampaignId}`
+            )
+          }
+        } else {
+          console.warn(`⚠️ Не вдалося перевірити прив'язку офера:`, verifyResult?.error)
+        }
+      } catch (verifyError) {
+        console.warn(`⚠️ Помилка перевірки прив'язки офера:`, verifyError)
+      }
     } else {
       throw new Error(result?.error || 'Невідома помилка від ClickFlare')
     }
@@ -1023,7 +1067,16 @@ function startTimer() {
 
       // 🔁 Обновляем статус у всех карточек после отправки
       for (const card of tonicStore.cards) {
+        // ✅ Завантажуємо статус для нової кампанії
         await fetchCampaignStatus(card)
+
+        // 🎯 Відправляємо у ClickFlare якщо є resUrl
+        if (card.resUrl) {
+          await submitCardToClickFlare(card)
+        }
+        if (card.resUrl) {
+          await submitCardToClickFlare(card)
+        }
       }
 
       return

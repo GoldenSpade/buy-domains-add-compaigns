@@ -244,12 +244,19 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       Facebook: process.env.VITE_FACEBOOK_TRAFFIC_SOURCE_ID || '684bf954359cb30012ff1586',
     }
 
+    const selectedTrafficSourceId = trafficSourceMap[trafficSource]
+    console.log(`🎯 Traffic Source: ${trafficSource} -> ID: ${selectedTrafficSourceId}`)
+
+    if (!selectedTrafficSourceId) {
+      throw new Error(`Невідомий traffic source: ${trafficSource}`)
+    }
+
     // ✅ Payload з вбудованим flow
     const campaignPayload = {
       name: campaignName,
       workspace_id,
       tracking_type: 'redirect',
-      traffic_source_id: trafficSourceMap[trafficSource],
+      traffic_source_id: selectedTrafficSourceId,
       cost,
       cost_type,
       disable_postbacks: false,
@@ -286,6 +293,13 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       },
     }
 
+    console.log('🔍 Деталі payload для кампанії:')
+    console.log(`   workspace_id: ${workspace_id}`)
+    console.log(`   traffic_source_id: ${selectedTrafficSourceId}`)
+    console.log(`   buyer: ${buyer}`)
+    console.log(`   country: ${country}`)
+    console.log(`   offerId в flow: ${offerId}`)
+
     // Додаємо країну тільки якщо вона передана
     if (country && country !== null && country !== 'null') {
       campaignPayload.country = country
@@ -310,6 +324,26 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
 
     console.log('✅ Кампанія створена з ID:', campaignId)
     console.log('✅ Flow створений з ID:', flowId)
+
+    // 🔍 Перевіряємо чи офер справді прив'язаний
+    const createdFlow = campaignResponse.data?.flow
+    if (createdFlow?.paths?.defaultPaths?.paths?.[0]?.offers_only?.offers) {
+      const linkedOffers = createdFlow.paths.defaultPaths.paths[0].offers_only.offers
+      console.log(
+        "🔗 Прив'язані офери в flow:",
+        linkedOffers.map((o) => o.id)
+      )
+
+      const isOfferLinked = linkedOffers.some((o) => o.id === offerId)
+      console.log(`🎯 Офер ${offerId} прив'язаний: ${isOfferLinked ? '✅ ТАК' : '❌ НІ'}`)
+
+      if (!isOfferLinked) {
+        console.warn("⚠️ УВАГА: Офер НЕ прив'язаний до кампанії!")
+      }
+    } else {
+      console.warn('⚠️ УВАГА: Flow не містить офери або має неправильну структуру!')
+    }
+
     console.log('📊 Повна відповідь кампанії:', JSON.stringify(campaignResponse.data, null, 2))
 
     res.json({
@@ -340,6 +374,119 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       status: statusCode,
       data: rawData,
       stack: error.stack,
+    })
+
+    res.status(statusCode).json({ error: msg, details: rawData })
+  }
+})
+
+// 🔧 ДОДАТКОВИЙ метод для перевірки та виправлення прив'язки офера
+router.post('/clickflare/verify-and-fix-offer-link', async (req, res) => {
+  const { campaignId, offerId } = req.body
+  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
+
+  if (!campaignId || !offerId) {
+    return res.status(400).json({
+      error: 'Missing required fields: campaignId, offerId',
+    })
+  }
+
+  try {
+    console.log(`🔍 Перевіряємо прив'язку офера ${offerId} до кампанії ${campaignId}`)
+
+    // Отримуємо поточну кампанію
+    const getCampaignResponse = await axios.get(
+      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': API_KEY,
+        },
+      }
+    )
+
+    const currentCampaign = getCampaignResponse.data
+
+    // Перевіряємо чи офер вже прив'язаний
+    const linkedOffers =
+      currentCampaign?.flow?.paths?.defaultPaths?.paths?.[0]?.offers_only?.offers || []
+    const isOfferLinked = linkedOffers.some((o) => o.id === offerId)
+
+    console.log(
+      `🎯 Поточні прив'язані офери:`,
+      linkedOffers.map((o) => o.id)
+    )
+    console.log(`🔗 Офер ${offerId} прив'язаний: ${isOfferLinked ? '✅ ТАК' : '❌ НІ'}`)
+
+    if (isOfferLinked) {
+      return res.json({
+        success: true,
+        message: "Офер вже прив'язаний до кампанії",
+        alreadyLinked: true,
+      })
+    }
+
+    // Якщо офер не прив'язаний - виправляємо це
+    console.log(`🔧 Прив'язуємо офер ${offerId} до кампанії ${campaignId}`)
+
+    const updatePayload = {
+      ...currentCampaign,
+      flow: {
+        ...currentCampaign.flow,
+        paths: {
+          defaultPaths: {
+            paths: [
+              {
+                name: 'Default Path',
+                destination: 'offers_only',
+                enabled: true,
+                transition: '302',
+                weight: 100,
+                offers_only: {
+                  offers: [
+                    {
+                      id: offerId,
+                      weight: 100,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+    }
+
+    const updateResponse = await axios.put(
+      `https://public-api.clickflare.io/api/campaigns/${campaignId}`,
+      updatePayload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': API_KEY,
+        },
+      }
+    )
+
+    console.log("✅ Офер успішно прив'язано до кампанії")
+
+    res.json({
+      success: true,
+      data: updateResponse.data,
+      message: "Офер успішно прив'язано до кампанії",
+      wasFixed: true,
+    })
+  } catch (error) {
+    const rawData = error?.response?.data
+    const statusCode = error?.response?.status || 500
+
+    const msg =
+      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
+
+    console.error('❌ ClickFlare verify and fix offer link error:', {
+      message: msg,
+      status: statusCode,
+      data: rawData,
     })
 
     res.status(statusCode).json({ error: msg, details: rawData })
