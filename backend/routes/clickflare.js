@@ -273,6 +273,11 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
             },
           },
         },
+        integrations: [
+          process.env.CLICKFLARE_INTEGRATION_1,
+          process.env.CLICKFLARE_INTEGRATION_2,
+          process.env.CLICKFLARE_INTEGRATION_3,
+        ],
       }
 
       console.log('🔍 Деталі payload для кампанії:')
