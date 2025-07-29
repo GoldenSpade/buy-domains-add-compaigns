@@ -22,7 +22,7 @@
         <div class="accordion-body">
           <div class="fw-bold">{{ text }} name</div>
           <div class="fw-medium mt-1 text-">
-            {{ tonikId }}_{{ name }}
+            {{ tonikId }}_{{ displayName }}
           </div>
           <div
             class="text-break bg-light p-2 rounded position-relative"
@@ -79,6 +79,21 @@ const props = defineProps({
     type: String,
     default: 'Id',
   },
+  // Новий пропс для передачі базової назви без [Account name]
+  baseName: {
+    type: String,
+    default: '',
+  },
+})
+
+// Обчислюємо яку назву показувати
+const displayName = computed(() => {
+  // Якщо передано baseName і це офер - використовуємо його
+  if (props.baseName && props.text === 'Offer') {
+    return props.baseName
+  }
+  // Інакше використовуємо звичайну назву
+  return props.name
 })
 
 // Генеруємо унікальний ID для accordion

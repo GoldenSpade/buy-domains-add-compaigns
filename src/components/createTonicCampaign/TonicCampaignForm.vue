@@ -235,6 +235,7 @@
                 title="🎯 ClickFlare Offer"
                 text="Offer"
                 :name="card.adTitle"
+                :baseName="card.baseCampaignName"
                 :tonikId="card.resId"
               />
             </div>
@@ -379,13 +380,15 @@ const trafficSources = ['TikTok', 'Facebook']
 const CACHE_TTL = 60 * 60 * 1000
 
 const getClickFlareNames = (card) => {
-  // Формат для ClickFlare: "3777496_[Account name] | 24/7 Nurse - Algeria - Alex - TikTok"
-  const clickFlareTitle = card.adTitle // Вже містить "[Account name] | ..."
+  const baseTitle = card.baseCampaignName || card.adTitle.replace('[Account name] | ', '')
+  const campaignTitleWithAccount = card.adTitle // Вже містить "[Account name] | ..."
 
   return {
-    offerName: `${card.resId}_${clickFlareTitle}`,
-    campaignName: `${card.resId}_${clickFlareTitle}`,
-    displayTitle: clickFlareTitle,
+    // Офер БЕЗ [Account name]
+    offerName: `${card.resId}_${baseTitle}`,
+    // Кампанія З [Account name]
+    campaignName: `${card.resId}_${campaignTitleWithAccount}`,
+    displayTitle: campaignTitleWithAccount,
   }
 }
 
@@ -529,9 +532,11 @@ const addCountry = () => {
   console.log(`   Buyer: "${form.buyer}"`)
   console.log(`   Traffic Source: "${form.trafficSource}"`)
 
-  // ДОДАЄМО [Account name] до назви кампанії
+  // БАЗОВА назва БЕЗ [Account name] - для офера
   const baseCampaignName = `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`
-  const displayCampaignName = `[Account name] | ${baseCampaignName}` // Для відображення на фронті
+
+  // ПОВНА назва З [Account name] - для кампанії та відображення
+  const displayCampaignName = `[Account name] | ${baseCampaignName}`
 
   const newCard = {
     __id: nanoid(),
@@ -539,8 +544,8 @@ const addCountry = () => {
     country: selected.name,
     buyer: form.buyer,
     trafficSource: form.trafficSource,
-    adTitle: displayCampaignName,
-    baseCampaignName: baseCampaignName,
+    adTitle: displayCampaignName, // З [Account name] - для відображення та кампанії
+    baseCampaignName: baseCampaignName, // БЕЗ [Account name] - для офера
     resId: '',
     resUrl: '',
     error: '',
@@ -565,8 +570,8 @@ const addCountry = () => {
     country: newCard.country,
     buyer: newCard.buyer,
     trafficSource: newCard.trafficSource,
-    adTitle: newCard.adTitle, // З [Account name]
-    baseCampaignName: newCard.baseCampaignName, // Без [Account name]
+    adTitle: newCard.adTitle, // З [Account name] - для кампанії
+    baseCampaignName: newCard.baseCampaignName, // БЕЗ [Account name] - для офера
   })
 
   tonicStore.addCard(newCard)
@@ -1249,9 +1254,10 @@ const submitCardToClickFlare = async (card) => {
 
     console.log(`📝 Назви для ClickFlare:`)
     console.log(`   Display (frontend): "${card.adTitle}"`)
-    console.log(`   ClickFlare format: "${clickFlareNames.displayTitle}"`)
-    console.log(`   Offer name: "${clickFlareNames.offerName}"`)
-    console.log(`   Campaign name: "${clickFlareNames.campaignName}"`)
+    console.log(`   Base title (без [Account name]): "${card.baseCampaignName}"`)
+    console.log(`   ✨ ОФЕР name (БЕЗ [Account name]): "${clickFlareNames.offerName}"`)
+    console.log(`   🎯 КАМПАНІЯ name (З [Account name]): "${clickFlareNames.campaignName}"`)
+    console.log(`   Display title: "${clickFlareNames.displayTitle}"`)
 
     // ГЕНЕРУЄМО URL З ДЕТАЛЬНИМ ЛОГУВАННЯМ
     console.log(`🔗 Генеруємо URL...`)
