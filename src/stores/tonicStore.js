@@ -1,21 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-const STORAGE_KEY = 'tonic_cards'
-
 export const useTonicStore = defineStore('tonic', () => {
-  const cards = ref(loadFromLocalStorage())
-
-  function loadFromLocalStorage() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? JSON.parse(raw) : []
-    } catch (e) {
-      console.warn('⚠️ Не вдалося прочитати localStorage:', e)
-      return []
-    }
-  }
-
+  const cards = ref([])
 
   const addCard = (card) => {
     cards.value.push(card)

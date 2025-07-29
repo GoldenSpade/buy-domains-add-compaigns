@@ -11,7 +11,6 @@
           @click="toggleAccordion"
         >
           <span>{{ title }}</span>
-          <small class="text-muted">(клік для розгортання)</small>
         </button>
       </h2>
       <div
@@ -21,6 +20,10 @@
         :class="{ show: isExpanded }"
       >
         <div class="accordion-body">
+          <div class="fw-bold">{{ text }} name</div>
+          <div class="fw-medium mt-1 text-">
+            {{ tonikId }}_{{ name }}
+          </div>
           <div
             class="text-break bg-light p-2 rounded position-relative"
             style="font-family: monospace; word-break: break-all; font-size: 12px"
@@ -34,12 +37,12 @@
             >
               <i :class="copyIcon"></i>
             </button>
-
+            <div class="fw-bold">{{ text }} Url</div>
             <!-- URL як посилання -->
             <a
               :href="url"
               target="_blank"
-              class="text-decoration-none d-block"
+              class="text-decoration-none d-block mt-1"
               style="padding-right: 40px"
             >
               {{ url }}
@@ -63,6 +66,18 @@ const props = defineProps({
   title: {
     type: String,
     default: 'Показати URL',
+  },
+  text: {
+    type: String,
+    default: 'Info:',
+  },
+  name: {
+    type: String,
+    default: 'name',
+  },
+  tonikId: {
+    type: String,
+    default: 'Id',
   },
 })
 

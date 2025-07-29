@@ -79,7 +79,7 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
     trafficSource = 'TikTok',
     country = null,
     cost = 0,
-    cost_type = 'cpc',
+    cost_type = 'no_tracked',
   } = req.body
 
   const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
