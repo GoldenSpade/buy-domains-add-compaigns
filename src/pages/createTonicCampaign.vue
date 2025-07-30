@@ -3,9 +3,12 @@
     <MainMenu />
     <div class="app mb-4 px-3">
       <Header title="Tonic AFD" />
-      <div class="row justify-content-center">
+      <div class="row">
         <div class="col-md-6">
           <TonicCampaignForm />
+        </div>
+        <div class="col-md-6" :class="{ 'mt-4': isMobile }">
+          <!-- col-2 -->
         </div>
       </div>
     </div>

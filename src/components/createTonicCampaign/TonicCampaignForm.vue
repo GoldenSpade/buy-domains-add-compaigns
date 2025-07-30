@@ -97,21 +97,14 @@
               @click="removeCard(card)"
             ></i>
 
-            <h6 class="mb-2">
-              <i class="bi bi-globe2 me-2"></i>
-              {{ card.offer }}
-            </h6>
-
-            <div class="mb-2">
-              <label class="form-label fw-bold mb-2">Campaign name</label>
-              <input
-                type="text"
-                v-model="card.adTitle"
-                class="form-control"
-                :disabled="card.resId.length !== 0"
-                @input="resetCardState(card)"
-              />
-            </div>
+            <label class="form-label fw-bold mb-2">Campaign name</label>
+            <input
+              type="text"
+              v-model="card.adTitle"
+              class="form-control"
+              :disabled="card.resId.length !== 0"
+              @input="resetCardState(card)"
+            />
 
             <div
               v-if="card.resId && card.resUrl"
@@ -151,45 +144,27 @@
               </div>
             </div>
 
-            <!-- Відображення згенерованого ChatGPT заголовка -->
-            <div v-if="card.chatGptTitle" class="mt-1">
-              <div class="bg-success bg-opacity-10 p-2 rounded mt-2">
-                <span class="fw-bold">AdTitle: </span>
-                <span class="fw-bold text-success">{{ card.chatGptTitle }}</span>
-              </div>
-            </div>
-
-            <!-- ClickFlare URL з ChatGPT заголовком -->
-            <div v-if="card.clickflareUrl" class="mt-2">
-              <UrlAccordion
-                type="offer"
+            <!-- Блок з CombinedAccordion -->
+            <div v-if="card.clickflareUrl || card.clickflareCampaignUrl" class="mt-2">
+              <CombinedAccordion
                 :tonikId="card.resId"
-                :url="card.clickflareUrl"
-                headerTitle="🎯 ClickFlare Offer"
-                cardTitle="Offer name"
+                :offerUrl="card.clickflareUrl"
                 :offerName="card.adTitle"
-              />
-            </div>
-
-            <!-- ClickFlare Campaign Info -->
-            <div v-if="card.clickflareCampaignUrl" class="mt-2">
-              <UrlAccordion
-                type="campaign"
-                :tonikId="card.resId"
-                :url="card.clickflareCampaignUrl"
-                headerTitle="📊 ClickFlare Campaign"
-                cardTitle="Campaign name"
-                :campaignName="card.clickflareResCampaignName"
+                :offerId="card.clickflareId"
+                :campaignUrl="card.clickflareCampaignUrl"
+                :campaignId="card.clickflareCampaignId"
+                :clickflareResCampaignName="card.clickflareResCampaignName"
+                :chatGptTitle="card.chatGptTitle"
               />
             </div>
 
             <!-- ClickFlare статус -->
-            <div class="small mt-3">
+            <div class="small d-flex justify-content-center mt-2">
               <span
                 v-if="
                   card.clickflareId && card.clickflareCampaignId && card.clickflareId !== 'existing'
                 "
-                class="badge bg-success text-white px-2 py-1"
+                class="badge bg-success text-white px-2 py-1 w-100"
                 style="font-size: 12px"
               >
                 🎉 Новий оффер + кампанія створені у ClickFlare
@@ -197,7 +172,7 @@
 
               <span
                 v-else-if="card.clickflareId === 'existing'"
-                class="badge bg-warning text-dark px-2 py-1"
+                class="badge bg-warning text-dark px-2 py-1 w-100"
                 style="font-size: 12px"
               >
                 Кампанія вже існує у ClickFlare
@@ -205,7 +180,7 @@
 
               <span
                 v-else-if="card.clickflareId && !card.clickflareCampaignId"
-                class="badge bg-warning text-dark px-2 py-1"
+                class="badge bg-warning text-dark px-2 py-1 w-100"
                 style="font-size: 12px"
               >
                 ⚠️ Тільки офер створено (без кампанії)
@@ -213,12 +188,13 @@
 
               <span
                 v-else-if="card.clickFlareError"
-                class="badge bg-danger text-white px-2 py-1"
+                class="badge bg-danger text-white px-2 py-1 w-100"
                 style="font-size: 12px"
               >
                 ❌ Помилка створення в ClickFlare
               </span>
             </div>
+
             <div v-if="card.clickFlareError" class="text-danger small mt-1">
               {{ card.clickFlareError }}
             </div>
@@ -232,39 +208,14 @@
       </div>
     </div>
 
-    <!-- timer -->
-    <div class="mb-3">
-      <label class="form-label">Перевірка статусів Tonik</label>
-      <div class="border rounded bg-light-subtle p-3 shadow-sm">
-        <div class="d-flex justify-content-between align-items-center">
-          <!-- Слева — часы -->
-          <div class="fw-bold timer-time-display text-dark-emphasis">
-            {{ timerMinutesDisplay }}:{{ timerSecondsDisplay }}
-          </div>
-
-          <!-- Справа — ввод минут -->
-          <div class="d-flex align-items-center gap-2">
-            <input
-              class="form-control text-center px-0"
-              type="number"
-              min="1"
-              max="60"
-              v-model="customTimerMinutes"
-            />
-
-            <span class="text-muted small">хвилин</span>
-
-            <button
-              class="btn btn-outline-secondary btn-sm d-flex align-items-center"
-              @click="pauseTimer"
-              :disabled="!timerInterval"
-            >
-              <i :class="timerPaused ? 'bi-play-fill' : 'bi-pause-fill'"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <StatusTimer
+      ref="statusTimer"
+      :defaultMinutes="1"
+      @timerComplete="onTimerComplete"
+      @timerStart="onTimerStart"
+      @timerPause="onTimerPause"
+      @timerStop="onTimerStop"
+    />
 
     <div class="mt-3">
       <button
@@ -284,7 +235,8 @@ import { useTonicStore } from '../../stores/tonicStore'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
-import UrlAccordion from './UrlAccordion.vue'
+import CombinedAccordion from './CombinedAccordion.vue'
+import StatusTimer from './StatusTimer.vue'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
@@ -307,6 +259,8 @@ const buyers = ['Alex', 'Davyd']
 const trafficSources = ['TikTok', 'Facebook']
 
 const CACHE_TTL = 60 * 60 * 1000
+
+const statusTimer = ref(null)
 
 const getClickFlareNames = (card) => {
   const tonicGeneratedName = card.adTitle
@@ -339,16 +293,12 @@ const updateCardNamesWithTonicId = (card) => {
 }
 
 const resetCardState = (card) => {
-  timerPaused.value = true
-
-  // ЗБЕРІГАЄМО важливі дані, які не повинні очищатися
   const preservedData = {
     clickflareCampaignUrl: card.clickflareCampaignUrl,
     clickflareId: card.clickflareId,
     clickflareCampaignId: card.clickflareCampaignId,
     resId: card.resId,
     resUrl: card.resUrl,
-    // ✅ НОВЕ: Зберігаємо campaign.name з ClickFlare відповіді
     clickflareResCampaignName: card.clickflareResCampaignName,
   }
 
@@ -439,6 +389,8 @@ function setToCache(key, data) {
 const fetchCampaignStatus = async (card) => {
   try {
     console.log(`🔍 Перевіряємо статус для кампанії: ${card.adTitle}`)
+    console.log(`   resId: ${card.resId || 'ВІДСУТНІЙ'}`)
+    console.log(`   поточний resUrl: ${card.resUrl || 'ВІДСУТНІЙ'}`)
 
     const query = new URLSearchParams({
       name: card.adTitle,
@@ -448,29 +400,44 @@ const fetchCampaignStatus = async (card) => {
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/campaign-status?${query}`)
     const data = await res.json()
 
-    console.log(`📊 Відповідь статусу для ${card.adTitle}:`, data)
+    console.log(`📊 Відповідь статусу для ${card.adTitle}:`, {
+      success: data.success,
+      status: data.status,
+      link: data.link ? 'ПРИСУТНІЙ' : 'ВІДСУТНІЙ',
+      linkValue: data.link,
+    })
 
     if (res.ok && data.success) {
+      const oldStatus = card.status
       card.status = data.status || 'unknown'
+
+      console.log(`📈 Статус змінено з "${oldStatus}" на "${card.status}"`)
 
       // ПОКРАЩЕННЯ: Встановлюємо resUrl тільки якщо його немає і є в відповіді
       if (!card.resUrl && data.link && data.link.trim()) {
-        card.resUrl = data.link.replace('https://', '').replace('http://', '')
-        console.log(`🔗 Додано resUrl з статусу: ${card.resUrl}`)
+        const cleanUrl = data.link.replace('https://', '').replace('http://', '')
+        card.resUrl = cleanUrl
+        console.log(`🔗 Додано resUrl: ${cleanUrl}`)
 
         // Якщо тепер є resUrl - генеруємо ClickFlare URL
         if (card.resUrl && card.resId) {
+          const oldClickflareUrl = card.clickflareUrl
           card.clickflareUrl = generateOfferUrl(card)
+          console.log(
+            `🔄 ClickFlare URL оновлено з "${oldClickflareUrl}" на "${card.clickflareUrl}"`
+          )
         }
+      } else if (card.resUrl && data.link) {
+        console.log(`ℹ️ resUrl вже існує, не перезаписуємо`)
+      } else if (!data.link) {
+        console.log(`⚠️ Сервер не повернув link для ${card.adTitle}`)
       }
-
-      console.log(`Статус встановлено: ${card.status}`)
     } else {
       card.status = 'error'
-      console.warn(`⚠️ Помилка отримання статусу для ${card.adTitle}`)
+      console.warn(`⚠️ Помилка отримання статусу для ${card.adTitle}:`, data)
     }
   } catch (e) {
-    console.warn(`⚠️ Не вдалося отримати статус для ${card.adTitle}:`, e)
+    console.error(`❌ Виняток при отриманні статусу для ${card.adTitle}:`, e)
     card.status = 'error'
   }
 }
@@ -790,15 +757,6 @@ watch(
   }
 )
 
-// -- timer
-const timerMinutesDisplay = computed(() => {
-  return timerInterval.value ? String(timerMinutes.value).padStart(2, '0') : '00'
-})
-
-const timerSecondsDisplay = computed(() => {
-  return timerInterval.value ? String(timerSeconds.value).padStart(2, '0') : '00'
-})
-
 const removeCountry = (country) => {
   tonicStore.cards = tonicStore.cards.filter((card) => card.__id !== country.id)
 }
@@ -845,8 +803,6 @@ const preloadAllowedCountries = async () => {
     }
   }
 }
-
-let isTimerStarted = false
 
 const submitForm = async () => {
   await preloadAllowedCountries()
@@ -979,11 +935,8 @@ const submitForm = async () => {
     updateAllUrlsWithChatGpt()
   }, 2000)
 
-  // Запускаємо таймер
-  if (!isTimerStarted) {
-    if (!timerInterval.value) {
-      startTimer()
-    }
+  if (statusTimer.value && tonicStore.cards.length > 0) {
+    statusTimer.value.startTimer()
   }
 }
 
@@ -1222,74 +1175,180 @@ const debugCardUrls = (card) => {
   console.log(`   clickflareCampaignUrl: ${card.clickflareCampaignUrl || 'Немає'}`)
 }
 
-//-------------------------timer-------------------------
-const showTimer = ref(false)
-const timerMinutes = ref(1)
-const timerSeconds = ref(0)
-let timerInterval = ref(null)
-const timerPaused = ref(false)
-const customTimerMinutes = ref(1)
+// Timer
+// Виправлена функція onTimerComplete - виконує те саме що submitForm
+const onTimerComplete = async () => {
+  console.log('⏰ Таймер завершено - виконуємо ПОВНИЙ цикл створення кампаній')
 
-function startTimer() {
-  showTimer.value = true
-  timerMinutes.value = customTimerMinutes.value || 10
-  timerSeconds.value = 0
-  timerPaused.value = false
+  const cards = tonicStore.cards
+  console.log(`📊 Кількість карток: ${cards.length}`)
 
-  if (timerInterval.value) {
-    clearInterval(timerInterval.value)
-    timerInterval.value = null
+  // Якщо немає карток - все одно перезапускаємо таймер
+  if (cards.length === 0) {
+    console.log('ℹ️ Немає карток, але перезапускаємо таймер')
+    setTimeout(() => {
+      if (statusTimer.value) {
+        statusTimer.value.startTimer()
+      }
+    }, 1000)
+    return
   }
 
-  timerInterval.value = setInterval(async () => {
-    if (timerPaused.value) return
+  try {
+    // ТОЧНА КОПІЯ ЛОГІКИ З submitForm()
+    await preloadAllowedCountries()
 
-    if (timerMinutes.value === 0 && timerSeconds.value === 0) {
-      clearInterval(timerInterval.value)
-      timerInterval.value = null
-      showTimer.value = false
-      timerPaused.value = false
+    // 🎯 КРОК 1: Створюємо кампанії Tonic і ОБОВ'ЯЗКОВО отримуємо resUrl
+    for (const card of cards) {
+      console.log(`🔄 Обробляємо картку: ${card.adTitle}`)
 
-      await submitForm()
+      const allowedResp = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
+          card.offer
+        )}&buyer=${card.buyer}&trafficSource=${card.trafficSource}`
+      )
+      const allowedData = await allowedResp.json()
+      const allowedCodes = allowedData?.allowedCountries?.map((c) => c.code) || []
 
-      // 🔁 Обновляем статус у всех карточек после отправки
-      for (const card of tonicStore.cards) {
-        // Завантажуємо статус для нової кампанії
-        await fetchCampaignStatus(card)
+      const countryCode = mapCountryToCode(card.country)
+      if (!allowedCodes.includes(countryCode)) {
+        card.error = `🚫 Країна ${card.country} не дозволена для оффера "${card.offer}"`
+        console.warn(card.error)
+        continue
+      }
 
-        // 🎯 Відправляємо у ClickFlare якщо є resUrl
-        if (card.resUrl) {
-          await submitCardToClickFlare(card)
+      const payload = {
+        name: card.adTitle, // БЕЗ resId на цьому етапі
+        offer: card.offer,
+        country: countryCode,
+        buyer: card.buyer,
+        trafficSource: card.trafficSource,
+      }
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        const result = await res.json()
+
+        if (res.ok && result.success && typeof result.data === 'number') {
+          card.resId = result.data
+          card.error = ''
+
+          // ✅ КЛЮЧОВИЙ МОМЕНТ: Оновлюємо назви ПІСЛЯ отримання resId
+          updateCardNamesWithTonicId(card)
+
+          // ОБОВ'ЯЗКОВО завантажуємо статус для отримання resUrl
+          await fetchCampaignStatus(card)
+
+          console.log(
+            `Кампанія створена. ID: ${card.resId}, оновлене adTitle: ${card.adTitle}, URL: ${card.resUrl}`
+          )
+        } else {
+          // Обробка існуючих кампаній
+          const msg =
+            typeof result.data === 'string'
+              ? result.data
+              : result?.error?.[0] || result?.error || '❌ Невідома помилка'
+
+          if (msg.toLowerCase().includes('already in use')) {
+            try {
+              const query = new URLSearchParams({
+                name: payload.name,
+                trafficSource: payload.trafficSource,
+              })
+
+              const findRes = await fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/tonic/find-campaign?${query}`
+              )
+
+              if (findRes.ok) {
+                const findData = await findRes.json()
+                if (findData.success) {
+                  card.resId = findData.id
+                  card.resUrl = findData.link || findData.target || ''
+                  card.error = ''
+
+                  // ✅ ТАКОЖ оновлюємо назви для існуючих кампаній
+                  updateCardNamesWithTonicId(card)
+
+                  console.log(
+                    `ℹ️ Кампанія вже існує. ID: ${findData.id}, оновлене adTitle: ${card.adTitle}, URL: ${findData.link}`
+                  )
+
+                  // ОБОВ'ЯЗКОВО завантажуємо статус
+                  await fetchCampaignStatus(card)
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️ Не вдалося знайти існуючу кампанію:', e)
+              card.error = `⚠️ Помилка пошуку існуючої кампанії: ${e.message}`
+            }
+          } else {
+            card.error = msg
+            console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
+          }
+        }
+      } catch (e) {
+        console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
+        card.error = `Помилка створення кампанії: ${e.message}`
+      }
+    }
+
+    // 🤖 КРОК 2: Генеруємо ChatGPT заголовки ТІЛЬКИ для карток з resId та resUrl
+    console.log('🤖 Початок генерації ChatGPT заголовків...')
+
+    const cardsWithTonicData = cards.filter((card) => card.resId && card.resUrl && !card.error)
+    console.log(`📊 Знайдено ${cardsWithTonicData.length} карток для ChatGPT генерації`)
+
+    if (cardsWithTonicData.length > 0) {
+      console.log('🤖 Генеруємо ChatGPT заголовки для всіх карток...')
+
+      // Генеруємо ChatGPT заголовки послідовно
+      for (const card of cardsWithTonicData) {
+        if (card.chatGptStatus !== 'success') {
+          console.log(`🤖 Генеруємо ChatGPT для: ${card.offer}`)
+          await generateChatGptTitle(card)
+
+          // Пауза між запитами
+          await new Promise((resolve) => setTimeout(resolve, 1500))
         }
       }
 
-      return
+      console.log('Генерація ChatGPT заголовків завершена')
     }
 
-    if (timerSeconds.value === 0) {
-      timerMinutes.value -= 1
-      timerSeconds.value = 59
-    } else {
-      timerSeconds.value -= 1
+    // 🔄 КРОК 3: Фінальне оновлення всіх URL
+    setTimeout(() => {
+      updateAllUrlsWithChatGpt()
+    }, 2000)
+  } catch (error) {
+    console.error('❌ Помилка під час виконання onTimerComplete:', error)
+  }
+
+  // 🔄 ЗАВЖДИ перезапускаємо таймер
+  console.log('🔄 Перезапускаємо таймер...')
+  setTimeout(() => {
+    if (statusTimer.value) {
+      statusTimer.value.startTimer()
+      console.log('✅ Таймер перезапущено')
     }
-  }, 1000)
+  }, 3000) // Збільшена пауза для завершення всіх операцій
 }
 
-function pauseTimer() {
-  if (!timerInterval.value) return
+const onTimerStart = (data) => {
+  console.log(`🟢 Таймер запущено: ${data.minutes}:${data.seconds}`)
+}
 
-  if (!timerPaused.value) {
-    // Ставим на паузу
-    timerPaused.value = true
-  } else {
-    // Перезапускаем с новым временем
-    const newMinutes = parseInt(customTimerMinutes.value)
-    if (!isNaN(newMinutes) && newMinutes > 0) {
-      timerMinutes.value = newMinutes
-      timerSeconds.value = 0
-    }
-    timerPaused.value = false
-  }
+const onTimerPause = (data) => {
+  console.log(`🟡 Таймер на паузі: ${data.minutes}:${data.seconds}`)
+}
+
+const onTimerStop = () => {
+  console.log('🔴 Таймер зупинено')
 }
 </script>
 
