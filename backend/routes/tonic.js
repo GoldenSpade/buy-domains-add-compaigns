@@ -179,12 +179,26 @@ router.post('/tonic/create-campaign', async (req, res) => {
 })
 
 // 🔍 Поиск кампании по имени
+// Оновлений ендпоінт find-campaign в tonic.js
 router.get('/tonic/find-campaign', async (req, res) => {
   const { name, trafficSource } = req.query
   if (!name || !trafficSource) return res.status(400).json({ error: 'Missing params' })
 
   try {
     const token = await getTonicJwtToken(trafficSource.toLowerCase())
+
+    console.log(`🔍 Пошук кампанії:`)
+    console.log(`   Отримана назва: "${name}"`)
+    console.log(`   Traffic Source: "${trafficSource}"`)
+
+    // ✅ ВИПРАВЛЕННЯ: Якщо назва містить resId_, видаляємо його для пошуку
+    let searchName = name
+
+    const resIdMatch = name.match(/^(\d+)_(.+)$/)
+    if (resIdMatch) {
+      searchName = resIdMatch[2] // Беремо частину після resId_
+      console.log(`   Пошук за очищеною назвою: "${searchName}"`)
+    }
 
     const resp = await axios.get(
       'https://api.publisher.tonic.com/privileged/v3/campaign/list?output=json',
@@ -196,18 +210,27 @@ router.get('/tonic/find-campaign', async (req, res) => {
       }
     )
 
-    const found = resp.data.find((c) => c.name === name)
+    // Шукаємо кампанію за очищеною назвою
+    const found = resp.data.find((c) => c.name === searchName)
 
     if (found) {
+      console.log(`✅ Кампанію знайдено:`, {
+        id: found.id,
+        name: found.name,
+        link: found.link || found.target,
+      })
+
       return res.json({
         success: true,
         id: found.id,
         link: found.link || found.target,
       })
     } else {
+      console.log(`❌ Кампанію не знайдено серед ${resp.data.length} кампаній`)
       return res.status(404).json({ error: 'Campaign not found' })
     }
   } catch (err) {
+    console.error('❌ Помилка пошуку кампанії:', err?.message || err)
     res.status(500).json({ error: err?.message || 'Server error' })
   }
 })
@@ -223,6 +246,20 @@ router.get('/tonic/campaign-status', async (req, res) => {
   try {
     const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
+    console.log(`🔍 Запит статусу кампанії:`)
+    console.log(`   Отримана назва: "${name}"`)
+    console.log(`   Traffic Source: "${trafficSource}"`)
+
+    // ✅ ВИПРАВЛЕННЯ: Якщо назва містить resId_, видаляємо його для API запиту
+    let cleanName = name
+
+    // Перевіряємо чи назва починається з цифр + підкреслення (resId_)
+    const resIdMatch = name.match(/^(\d+)_(.+)$/)
+    if (resIdMatch) {
+      cleanName = resIdMatch[2] // Беремо частину після resId_
+      console.log(`   Очищена назва (без resId): "${cleanName}"`)
+    }
+
     const response = await axios.get(
       `https://api.publisher.tonic.com/privileged/v3/campaign/status`,
       {
@@ -230,11 +267,13 @@ router.get('/tonic/campaign-status', async (req, res) => {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        params: { name },
+        params: { name: cleanName }, // Використовуємо очищену назву
       }
     )
 
     const data = response.data
+
+    console.log(`📊 Відповідь Tonic API:`, data)
 
     return res.json({
       success: true,
@@ -245,6 +284,7 @@ router.get('/tonic/campaign-status', async (req, res) => {
     const code = err?.response?.status || 500
 
     if (code === 404) {
+      console.log(`ℹ️ Кампанія не знайдена (404) - повертаємо status: inactive`)
       return res.status(200).json({ success: true, status: 'inactive' })
     }
 

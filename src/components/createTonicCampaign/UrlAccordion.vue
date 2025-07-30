@@ -10,7 +10,7 @@
           :aria-controls="`collapse-${uniqueId}`"
           @click="toggleAccordion"
         >
-          <span>{{ title }}</span>
+          <span>{{ headerTitle }}</span>
         </button>
       </h2>
       <div
@@ -20,10 +20,8 @@
         :class="{ show: isExpanded }"
       >
         <div class="accordion-body">
-          <div class="fw-bold">{{ text }} name</div>
-          <div class="fw-medium mt-1 text-">
-            {{ tonikId }}_{{ displayName }}
-          </div>
+          <div class="fw-bold">{{ cardTitle }}</div>
+          <div class="fw-medium mt-1 text-muted">{{ displayName }}</div>
           <div
             class="text-break bg-light p-2 rounded position-relative"
             style="font-family: monospace; word-break: break-all; font-size: 12px"
@@ -37,7 +35,7 @@
             >
               <i :class="copyIcon"></i>
             </button>
-            <div class="fw-bold">{{ text }} Url</div>
+            <div class="fw-bold">{{ urlLabel }}</div>
             <!-- URL як посилання -->
             <a
               :href="url"
@@ -59,41 +57,56 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { nanoid } from 'nanoid'
 
 const props = defineProps({
+  type: {
+    type: String,
+    required: true, // 'offer' або 'campaign'
+  },
+  tonikId: {
+    type: String,
+    default: '',
+  },
   url: {
     type: String,
     required: true,
   },
-  title: {
+  headerTitle: {
     type: String,
-    default: 'Показати URL',
+    default: 'Title',
   },
-  text: {
+  cardTitle: {
     type: String,
-    default: 'Info:',
+    default: 'Card Title',
   },
-  name: {
+  offerName: {
     type: String,
-    default: 'name',
+    default: '',
   },
-  tonikId: {
-    type: String,
-    default: 'Id',
-  },
-  // Новий пропс для передачі базової назви без [Account name]
-  baseName: {
+  campaignName: {
     type: String,
     default: '',
   },
 })
 
-// Обчислюємо яку назву показувати
+// ✅ ВИПРАВЛЕНО: Правильна логіка для displayName
 const displayName = computed(() => {
-  // Якщо передано baseName і це офер - використовуємо його
-  if (props.baseName && props.text === 'Offer') {
-    return props.baseName
+  if (props.type === 'offer') {
+    // Для offer показуємо offerName (це adTitle з картки)
+    return props.offerName || 'Не задано'
+  } else if (props.type === 'campaign') {
+    // Для campaign показуємо збережену назву з ClickFlare
+    return props.campaignName || 'Не задано'
   }
-  // Інакше використовуємо звичайну назву
-  return props.name
+  return 'Невідомий тип'
+})
+
+// ✅ ДОДАНО: Лейбл для URL секції
+const urlLabel = computed(() => {
+  if (props.type === 'offer') {
+    return 'Offer URL'
+  } else if (props.type === 'campaign') {
+    return 'Campaign URL'
+  }
+  return 'URL'
 })
 
 // Генеруємо унікальний ID для accordion
