@@ -152,17 +152,13 @@
           {{ card.error }}
         </div>
 
-        <!-- StatusTimer для кожної картки -->
-        <div v-if="card.resId" class="mt-2">
-          <StatusTimer :card="card" @status-updated="onStatusUpdated" />
-        </div>
-
         <!-- Час створення/переміщення -->
-        <div class="text-muted small mt-2 pt-2 border-top">
+        <div class="text-muted small mt-2 pt-2">
           <i class="bi bi-clock"></i>
           Переміщено: {{ formatTime(card.movedToActiveAt) }}
         </div>
       </div>
+      <StatusTimer />
     </div>
   </div>
 </template>
@@ -171,7 +167,6 @@
 import { useTonicStore } from '@/stores/tonicStore'
 import StatusTimer from './StatusTimer.vue'
 import CombinedAccordion from './CombinedAccordion.vue'
-
 const tonicStore = useTonicStore()
 
 // Видалення картки

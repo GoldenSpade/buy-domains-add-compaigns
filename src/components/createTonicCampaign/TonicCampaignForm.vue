@@ -203,19 +203,14 @@
               <i class="bi bi-exclamation-triangle me-1"></i>
               {{ card.error }}
             </div>
-
-            <!-- StatusTimer для кожної картки -->
-            <div v-if="card.resId" class="mt-2">
-              <StatusTimer :card="card" @status-updated="onStatusUpdated" />
-            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="mt-3">
+    <div class="mt-0">
       <button
-        class="btn btn-primary w-100 mt-2"
+        class="btn btn-primary w-100"
         :class="{ disabled: tonicStore.cards.length === 0 }"
         @click="submitForm"
       >
@@ -232,7 +227,6 @@ import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
 import CombinedAccordion from './CombinedAccordion.vue'
-import StatusTimer from './StatusTimer.vue'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
@@ -892,6 +886,7 @@ const submitForm = async () => {
       if (res.ok && result.success && typeof result.data === 'number') {
         card.resId = result.data
         card.error = ''
+        card.status = 'pending' // ✅ Встановлюємо статус pending
 
         // ✅ КЛЮЧОВИЙ МОМЕНТ: Оновлюємо назви ПІСЛЯ отримання resId
         updateCardNamesWithTonicId(card)
@@ -926,6 +921,7 @@ const submitForm = async () => {
                 card.resId = findData.id
                 card.resUrl = findData.link || findData.target || ''
                 card.error = ''
+                card.status = 'pending' // ✅ Встановлюємо статус pending
 
                 // ✅ ТАКОЖ оновлюємо назви для існуючих кампаній
                 updateCardNamesWithTonicId(card)
@@ -981,7 +977,22 @@ const submitForm = async () => {
     updateAllUrlsWithChatGpt()
   }, 2000)
 
-  console.log('✅ Кампанії створено, StatusTimer на кожній картці запуститься автоматично')
+  // ✅ НОВИЙ КРОК 4: Переміщуємо ВСІ картки в activeCards (навіть з pending статусом)
+  console.log('➡️ Переміщуємо всі картки в активні...')
+
+  const cardsToMove = cards.filter((card) => card.resId && !card.error)
+  console.log(`📊 Знайдено ${cardsToMove.length} карток для переміщення`)
+
+  for (const card of cardsToMove) {
+    console.log(`➡️ Переміщуємо картку: ${card.adTitle}`)
+    console.log(`   Статус: ${card.status}`)
+    console.log(`   resId: ${card.resId}`)
+
+    // Переміщуємо картку в праву колонку
+    tonicStore.moveToActive(card)
+  }
+
+  console.log('✅ Всі картки переміщено в активні!')
 }
 
 const onStatusUpdated = (cardKey, statusData) => {
