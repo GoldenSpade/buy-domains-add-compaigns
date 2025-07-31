@@ -6,12 +6,12 @@
       <div class="row">
         <!-- Ліва колонка - форма створення кампаній -->
         <div class="col-md-6">
-          <TonicCampaignForm />
+          <TonicCampaignForm :activeCardsRef="activeCardsRef" />
         </div>
 
         <!-- Права колонка - активні кампанії -->
         <div class="col-md-6" :class="{ 'mt-4': isMobile }">
-          <ActiveCardsColumn />
+          <ActiveCardsColumn ref="activeCardsRef" />
         </div>
       </div>
     </div>
@@ -25,6 +25,8 @@ import MainMenu from '@/components/MainMenu.vue'
 import Header from '@/components/Header.vue'
 import TonicCampaignForm from '@/components/createTonicCampaign/TonicCampaignForm.vue'
 import ActiveCardsColumn from '@/components/createTonicCampaign/ActiveCardsColumn.vue'
+
+const activeCardsRef = ref(null)
 
 const isMobile = ref(window.innerWidth <= 767)
 

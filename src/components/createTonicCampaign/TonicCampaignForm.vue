@@ -228,6 +228,13 @@ import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
 import CombinedAccordion from './CombinedAccordion.vue'
 
+const props = defineProps({
+  activeCardsRef: {
+    type: Object,
+    default: null,
+  },
+})
+
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
 
@@ -992,7 +999,17 @@ const submitForm = async () => {
     tonicStore.moveToActive(card)
   }
 
-  console.log('✅ Всі картки переміщено в активні!')
+  // 🚀 НОВЫЙ КОД: Автоматический запуск таймера в правой колонке
+  if (props.activeCardsRef && tonicStore.activeCards.length > 0) {
+    console.log('🚀 Запускаємо таймер для перевірки статусів активних карток')
+
+    // Небольшая задержка чтобы UI обновился
+    setTimeout(() => {
+      if (props.activeCardsRef.startTimer) {
+        props.activeCardsRef.startTimer()
+      }
+    }, 1000)
+  }
 }
 
 const onStatusUpdated = (cardKey, statusData) => {
