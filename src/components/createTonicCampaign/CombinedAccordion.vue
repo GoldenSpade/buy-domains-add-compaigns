@@ -39,7 +39,7 @@
 
             <div class="mb-2">
               <span class="fw-bold small text-muted fs-6">Offer Name:</span>
-              <div class="small fw-semibold">{{ displayOfferName || 'Не задано' }}</div>
+              <div class="small fw-semibold">{{ offerName || 'Не задано' }}</div>
             </div>
 
             <div
@@ -79,7 +79,7 @@
 
             <div class="mb-2">
               <span class="fw-bold small text-muted fs-6">Campaign Name:</span>
-              <div class="small fw-semibold">{{ displayCampaignName || 'Не задано' }}</div>
+              <div class="small fw-semibold">{{ clickflareResCampaignName || 'Не задано' }}</div>
             </div>
 
             <div
@@ -151,7 +151,12 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  // ChatGPT дані
+  // ✅ ДОДАНО: ChatGPT дані
+  chatGptTitle: {
+    type: String,
+    default: '',
+  },
+  // ✅ ДОДАНО: ChatGPT дані
   chatGptTitle: {
     type: String,
     default: '',
@@ -171,35 +176,6 @@ const isExpanded = ref(false)
 // Стан для кнопок копіювання
 const isCopiedOffer = ref(false)
 const isCopiedCampaign = ref(false)
-
-// ✅ НОВІ COMPUTED для правильного відображення назв
-const displayOfferName = computed(() => {
-  const name = props.clickflareResCampaignName || props.offerName || ''
-
-  // ✅ OFFER NAME: Видаляємо приставку "[будь-який текст] | " якщо вона є
-  // Використовуємо регулярний вираз для пошуку шаблону [текст] | на початку
-  const accountPrefixPattern = /^\[.*?\]\s*\|\s*/
-
-  if (accountPrefixPattern.test(name)) {
-    return name.replace(accountPrefixPattern, '')
-  }
-
-  return name
-})
-
-const displayCampaignName = computed(() => {
-  const name = props.clickflareResCampaignName || props.offerName || ''
-
-  // ✅ CAMPAIGN NAME: Залишаємо приставку "[текст] | " як є
-  // Якщо приставки немає - додаємо стандартну "[Account name] | "
-  const accountPrefixPattern = /^\[.*?\]\s*\|\s*/
-
-  if (!accountPrefixPattern.test(name) && name.trim()) {
-    return `[Account name] | ${name}`
-  }
-
-  return name
-})
 
 // Computed для статусу
 const hasAllData = computed(() => {

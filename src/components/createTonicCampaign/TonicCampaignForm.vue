@@ -208,9 +208,18 @@
       </div>
     </div>
 
-    <div class="mt-0">
+    <StatusTimer
+      ref="statusTimer"
+      :defaultMinutes="1"
+      @timerComplete="onTimerComplete"
+      @timerStart="onTimerStart"
+      @timerPause="onTimerPause"
+      @timerStop="onTimerStop"
+    />
+
+    <div class="mt-3">
       <button
-        class="btn btn-primary w-100"
+        class="btn btn-primary w-100 mt-2"
         :class="{ disabled: tonicStore.cards.length === 0 }"
         @click="submitForm"
       >
@@ -227,13 +236,7 @@ import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
 import CombinedAccordion from './CombinedAccordion.vue'
-
-const props = defineProps({
-  activeCardsRef: {
-    type: Object,
-    default: null,
-  },
-})
+import StatusTimer from './StatusTimer.vue'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
@@ -257,32 +260,16 @@ const trafficSources = ['TikTok', 'Facebook']
 
 const CACHE_TTL = 60 * 60 * 1000
 
+const statusTimer = ref(null)
+
 const getClickFlareNames = (card) => {
-  console.log(`📝 Генерація назв для ClickFlare:`)
-  console.log(`   Full adTitle (з [Account name]): "${card.adTitle}"`)
-  console.log(`   Base campaign name (без [Account name]): "${card.baseCampaignName}"`)
-
-  // ✅ ВИПРАВЛЕНО: Витягуємо частину БЕЗ [Account name] для офера
-  let offerNameClean = card.baseCampaignName
-
-  // Якщо в adTitle є resId_, то беремо частину після [Account name] |
-  if (card.resId && card.adTitle.includes(`${card.resId}_`)) {
-    const afterAccountName = card.adTitle.replace(/^\[Account name\]\s*\|\s*/, '')
-    offerNameClean = afterAccountName
-  }
-
-  // Для кампанії використовуємо повну назву З [Account name]
-  const campaignNameWithAccount = card.adTitle
-
-  console.log(`   ✨ ОФЕР name (БЕЗ [Account name]): "${offerNameClean}"`)
-  console.log(`   🎯 КАМПАНІЯ name (З [Account name]): "${campaignNameWithAccount}"`)
+  const tonicGeneratedName = card.adTitle
 
   return {
-    // Офер БЕЗ [Account name]
-    offerName: offerNameClean,
-    // Кампанія З [Account name]
-    campaignName: campaignNameWithAccount,
-    displayTitle: campaignNameWithAccount,
+    offerName: tonicGeneratedName,
+
+    campaignName: `[Account name] | ${tonicGeneratedName}`,
+    displayTitle: `[Account name] | ${tonicGeneratedName}`,
   }
 }
 
@@ -295,23 +282,10 @@ const updateCardNamesWithTonicId = (card) => {
     return
   }
 
-  // ✅ ВИПРАВЛЕННЯ: Зберігаємо оригінальний префікс з квадратних дужок
-  let accountPrefix = '[Account name]' // За замовчуванням
-
-  // Витягуємо префікс з поточного adTitle якщо він є
-  const accountPrefixPattern = /^(\[.*?\])\s*\|\s*/
-  const match = card.adTitle.match(accountPrefixPattern)
-
-  if (match && match[1]) {
-    accountPrefix = match[1] // Використовуємо оригінальний префікс (наприклад [Test])
-    console.log(`🔍 Знайдено оригінальний префікс: "${accountPrefix}"`)
-  }
-
-  // Оновлюємо adTitle з resId, ЗБЕРІГАЮЧИ оригінальний префікс
-  const updatedAdTitle = `${accountPrefix} | ${card.resId}_${card.baseCampaignName}`
+  // Оновлюємо adTitle з Tonic ID
+  const updatedAdTitle = `${card.resId}_${card.baseCampaignName}`
 
   console.log(`🔄 Оновлюємо назви з Tonic ID:`)
-  console.log(`   Оригінальний префікс: "${accountPrefix}"`)
   console.log(`   Старе adTitle: "${card.adTitle}"`)
   console.log(`   Нове adTitle: "${updatedAdTitle}"`)
 
@@ -419,7 +393,7 @@ const fetchCampaignStatus = async (card) => {
     console.log(`   поточний resUrl: ${card.resUrl || 'ВІДСУТНІЙ'}`)
 
     const query = new URLSearchParams({
-      name: card.baseCampaignName,
+      name: card.adTitle,
       trafficSource: card.trafficSource,
     })
 
@@ -480,26 +454,9 @@ const addCountry = () => {
   console.log(`   Buyer: "${form.buyer}"`)
   console.log(`   Traffic Source: "${form.trafficSource}"`)
 
-  // Базова назва кампанії БЕЗ [Account name]
+  // НОВА СТРУКТУРА: Tonic сам додасть префікс "resId_"
+  // Ми створюємо базову назву без префікса
   const baseCampaignName = `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`
-
-  // ✅ НОВЕ: Перевіряємо чи є вже створені картки з custom префіксом
-  let accountPrefix = '[Account name]' // За замовчуванням
-
-  // Якщо є хоча б одна картка, беремо префікс з неї
-  if (tonicStore.cards.length > 0) {
-    const firstCard = tonicStore.cards[0]
-    const accountPrefixPattern = /^(\[.*?\])\s*\|\s*/
-    const match = firstCard.adTitle.match(accountPrefixPattern)
-
-    if (match && match[1]) {
-      accountPrefix = match[1]
-      console.log(`🔄 Використовуємо префікс з існуючої картки: "${accountPrefix}"`)
-    }
-  }
-
-  // ✅ ВИПРАВЛЕНО: adTitle З оригінальним префіксом
-  const adTitleWithAccountName = `${accountPrefix} | ${baseCampaignName}`
 
   const newCard = {
     __id: nanoid(),
@@ -507,8 +464,8 @@ const addCountry = () => {
     country: selected.name,
     buyer: form.buyer,
     trafficSource: form.trafficSource,
-    adTitle: adTitleWithAccountName, // ✅ З оригінальним префіксом
-    baseCampaignName: baseCampaignName, // БЕЗ приставки для API запитів
+    adTitle: baseCampaignName, // БЕЗ префікса - Tonic додасть сам
+    baseCampaignName: baseCampaignName, // Для сумісності
     resId: '',
     resUrl: '',
     error: '',
@@ -517,15 +474,13 @@ const addCountry = () => {
     clickflareCampaignUrl: '',
     clickFlareError: '',
     clickflareUrl: '',
-    status: 'creating',
+    status: '',
     clickflareResCampaignName: '',
     chatGptTitle: '',
     chatGptTitleEncoded: '',
     chatGptStatus: 'pending',
     chatGptError: '',
     isGeneratingTitle: false,
-    createdAt: Date.now(),
-    lastStatusCheck: null,
   }
 
   console.log(`Створена картка:`, {
@@ -533,9 +488,7 @@ const addCountry = () => {
     country: newCard.country,
     buyer: newCard.buyer,
     trafficSource: newCard.trafficSource,
-    adTitle: newCard.adTitle, // З оригінальним префіксом
-    baseCampaignName: newCard.baseCampaignName, // Без префіксу
-    status: newCard.status,
+    adTitle: newCard.adTitle, // Без префікса
   })
 
   tonicStore.addCard(newCard)
@@ -874,7 +827,7 @@ const submitForm = async () => {
     }
 
     const payload = {
-      name: card.baseCampaignName,
+      name: card.adTitle, // БЕЗ resId на цьому етапі
       offer: card.offer,
       country: countryCode,
       buyer: card.buyer,
@@ -893,7 +846,6 @@ const submitForm = async () => {
       if (res.ok && result.success && typeof result.data === 'number') {
         card.resId = result.data
         card.error = ''
-        card.status = 'pending' // ✅ Встановлюємо статус pending
 
         // ✅ КЛЮЧОВИЙ МОМЕНТ: Оновлюємо назви ПІСЛЯ отримання resId
         updateCardNamesWithTonicId(card)
@@ -914,7 +866,7 @@ const submitForm = async () => {
         if (msg.toLowerCase().includes('already in use')) {
           try {
             const query = new URLSearchParams({
-              name: card.baseCampaignName,
+              name: payload.name,
               trafficSource: payload.trafficSource,
             })
 
@@ -928,7 +880,6 @@ const submitForm = async () => {
                 card.resId = findData.id
                 card.resUrl = findData.link || findData.target || ''
                 card.error = ''
-                card.status = 'pending' // ✅ Встановлюємо статус pending
 
                 // ✅ ТАКОЖ оновлюємо назви для існуючих кампаній
                 updateCardNamesWithTonicId(card)
@@ -984,93 +935,8 @@ const submitForm = async () => {
     updateAllUrlsWithChatGpt()
   }, 2000)
 
-  // ✅ НОВИЙ КРОК 4: Переміщуємо ВСІ картки в activeCards (навіть з pending статусом)
-  console.log('➡️ Переміщуємо всі картки в активні...')
-
-  const cardsToMove = cards.filter((card) => card.resId && !card.error)
-  console.log(`📊 Знайдено ${cardsToMove.length} карток для переміщення`)
-
-  for (const card of cardsToMove) {
-    console.log(`➡️ Переміщуємо картку: ${card.adTitle}`)
-    console.log(`   Статус: ${card.status}`)
-    console.log(`   resId: ${card.resId}`)
-
-    // Переміщуємо картку в праву колонку
-    tonicStore.moveToActive(card)
-  }
-
-  // 🚀 НОВЫЙ КОД: Автоматический запуск таймера в правой колонке
-  if (props.activeCardsRef && tonicStore.activeCards.length > 0) {
-    console.log('🚀 Запускаємо таймер для перевірки статусів активних карток')
-
-    // Небольшая задержка чтобы UI обновился
-    setTimeout(() => {
-      if (props.activeCardsRef.startTimer) {
-        props.activeCardsRef.startTimer()
-      }
-    }, 1000)
-  }
-}
-
-const onStatusUpdated = (cardKey, statusData) => {
-  console.log('📨 Отримано оновлення статусу:', { cardKey, statusData })
-
-  // Знаходимо картку в поточному списку
-  const cardIndex = tonicStore.cards.findIndex((card) => {
-    const key = `${card.offer}-${card.country}-${card.buyer}-${card.trafficSource}`
-    return key === cardKey
-  })
-
-  if (cardIndex !== -1) {
-    const card = tonicStore.cards[cardIndex]
-
-    // Створюємо оновлену картку
-    const updatedCard = {
-      ...card,
-      ...statusData,
-      lastStatusCheck: Date.now(),
-    }
-
-    console.log('🔄 Оновлення картки:', {
-      offer: card.offer,
-      country: card.country,
-      oldStatus: card.status,
-      newStatus: statusData.status,
-    })
-
-    // Перевіряємо чи отримано валідний статус від Tonic
-    const hasValidStatus =
-      statusData.status &&
-      statusData.status !== 'unknown' &&
-      statusData.status !== 'creating' &&
-      statusData.status !== '' &&
-      statusData.status !== 'loading' &&
-      !statusData.error
-
-    if (hasValidStatus) {
-      console.log('✅ Валідний статус отримано, переміщуємо картку в активні')
-
-      // Додаємо всі дані ClickFlare до картки перед переміщенням
-      updatedCard.clickflareUrl = card.clickflareUrl
-      updatedCard.clickflareCampaignUrl = card.clickflareCampaignUrl
-      updatedCard.clickflareId = card.clickflareId
-      updatedCard.clickflareCampaignId = card.clickflareCampaignId
-      updatedCard.baseCampaignName = card.baseCampaignName
-      updatedCard.clickflareResCampaignName = card.clickflareResCampaignName
-      updatedCard.chatGptTitle = card.chatGptTitle
-      updatedCard.chatGptTitleEncoded = card.chatGptTitleEncoded
-      updatedCard.chatGptStatus = card.chatGptStatus
-
-      // Переміщуємо картку в праву колонку (активні)
-      tonicStore.moveToActive(updatedCard)
-    } else {
-      console.log('⏳ Статус ще не готовий, оновлюємо в поточному списку')
-
-      // Просто оновлюємо картку в поточному списку
-      tonicStore.cards[cardIndex] = updatedCard
-    }
-  } else {
-    console.warn('⚠️ Картку не знайдено для оновлення:', cardKey)
+  if (statusTimer.value && tonicStore.cards.length > 0) {
+    statusTimer.value.startTimer()
   }
 }
 
@@ -1145,9 +1011,9 @@ const generateOfferUrl = (card) => {
   console.log(`   Encoded Title: ${adTitleToUse}`)
 
   // Шаблони з правильними фігурними дужками
-  const facebookTemplate = `network=facebook&site=direct&subid1={{trackingField6}}&subid2={{trackingField5}}&subid3={{trackingField3}}|{{trackingField2}}|{{trackingField1}}&subid4={{cf_click_id}}&click_id={{external_id}}&adtitle=${adTitleToUse}`
+  const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
 
-  const tiktokTemplate = `network=tiktok&site=direct&subid1={{trackingField3}}&subid2={{trackingField5}}&subid3={{trackingField8}}|{{trackingField6}}|{{trackingField4}}&subid4={{cf_click_id}}&click_id={{external_id}}&adtitle=${adTitleToUse}`
+  const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
 
   const selectedQuery = isFacebook ? facebookTemplate : isTiktok ? tiktokTemplate : ''
 
@@ -1307,6 +1173,182 @@ const debugCardUrls = (card) => {
   console.log(`   chatGptStatus: ${card.chatGptStatus}`)
   console.log(`   clickflareUrl: ${card.clickflareUrl || 'Немає'}`)
   console.log(`   clickflareCampaignUrl: ${card.clickflareCampaignUrl || 'Немає'}`)
+}
+
+// Timer
+// Виправлена функція onTimerComplete - виконує те саме що submitForm
+const onTimerComplete = async () => {
+  console.log('⏰ Таймер завершено - виконуємо ПОВНИЙ цикл створення кампаній')
+
+  const cards = tonicStore.cards
+  console.log(`📊 Кількість карток: ${cards.length}`)
+
+  // Якщо немає карток - все одно перезапускаємо таймер
+  if (cards.length === 0) {
+    console.log('ℹ️ Немає карток, але перезапускаємо таймер')
+    setTimeout(() => {
+      if (statusTimer.value) {
+        statusTimer.value.startTimer()
+      }
+    }, 1000)
+    return
+  }
+
+  try {
+    // ТОЧНА КОПІЯ ЛОГІКИ З submitForm()
+    await preloadAllowedCountries()
+
+    // 🎯 КРОК 1: Створюємо кампанії Tonic і ОБОВ'ЯЗКОВО отримуємо resUrl
+    for (const card of cards) {
+      console.log(`🔄 Обробляємо картку: ${card.adTitle}`)
+
+      const allowedResp = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tonic/countries/allowed?offer=${encodeURIComponent(
+          card.offer
+        )}&buyer=${card.buyer}&trafficSource=${card.trafficSource}`
+      )
+      const allowedData = await allowedResp.json()
+      const allowedCodes = allowedData?.allowedCountries?.map((c) => c.code) || []
+
+      const countryCode = mapCountryToCode(card.country)
+      if (!allowedCodes.includes(countryCode)) {
+        card.error = `🚫 Країна ${card.country} не дозволена для оффера "${card.offer}"`
+        console.warn(card.error)
+        continue
+      }
+
+      const payload = {
+        name: card.adTitle, // БЕЗ resId на цьому етапі
+        offer: card.offer,
+        country: countryCode,
+        buyer: card.buyer,
+        trafficSource: card.trafficSource,
+      }
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tonic/create-campaign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        const result = await res.json()
+
+        if (res.ok && result.success && typeof result.data === 'number') {
+          card.resId = result.data
+          card.error = ''
+
+          // ✅ КЛЮЧОВИЙ МОМЕНТ: Оновлюємо назви ПІСЛЯ отримання resId
+          updateCardNamesWithTonicId(card)
+
+          // ОБОВ'ЯЗКОВО завантажуємо статус для отримання resUrl
+          await fetchCampaignStatus(card)
+
+          console.log(
+            `Кампанія створена. ID: ${card.resId}, оновлене adTitle: ${card.adTitle}, URL: ${card.resUrl}`
+          )
+        } else {
+          // Обробка існуючих кампаній
+          const msg =
+            typeof result.data === 'string'
+              ? result.data
+              : result?.error?.[0] || result?.error || '❌ Невідома помилка'
+
+          if (msg.toLowerCase().includes('already in use')) {
+            try {
+              const query = new URLSearchParams({
+                name: payload.name,
+                trafficSource: payload.trafficSource,
+              })
+
+              const findRes = await fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/tonic/find-campaign?${query}`
+              )
+
+              if (findRes.ok) {
+                const findData = await findRes.json()
+                if (findData.success) {
+                  card.resId = findData.id
+                  card.resUrl = findData.link || findData.target || ''
+                  card.error = ''
+
+                  // ✅ ТАКОЖ оновлюємо назви для існуючих кампаній
+                  updateCardNamesWithTonicId(card)
+
+                  console.log(
+                    `ℹ️ Кампанія вже існує. ID: ${findData.id}, оновлене adTitle: ${card.adTitle}, URL: ${findData.link}`
+                  )
+
+                  // ОБОВ'ЯЗКОВО завантажуємо статус
+                  await fetchCampaignStatus(card)
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️ Не вдалося знайти існуючу кампанію:', e)
+              card.error = `⚠️ Помилка пошуку існуючої кампанії: ${e.message}`
+            }
+          } else {
+            card.error = msg
+            console.warn(`⚠️ Campaign failed: ${card.adTitle} — ${msg}`)
+          }
+        }
+      } catch (e) {
+        console.error(`❌ Помилка при запиті для ${payload.name}:`, e)
+        card.error = `Помилка створення кампанії: ${e.message}`
+      }
+    }
+
+    // 🤖 КРОК 2: Генеруємо ChatGPT заголовки ТІЛЬКИ для карток з resId та resUrl
+    console.log('🤖 Початок генерації ChatGPT заголовків...')
+
+    const cardsWithTonicData = cards.filter((card) => card.resId && card.resUrl && !card.error)
+    console.log(`📊 Знайдено ${cardsWithTonicData.length} карток для ChatGPT генерації`)
+
+    if (cardsWithTonicData.length > 0) {
+      console.log('🤖 Генеруємо ChatGPT заголовки для всіх карток...')
+
+      // Генеруємо ChatGPT заголовки послідовно
+      for (const card of cardsWithTonicData) {
+        if (card.chatGptStatus !== 'success') {
+          console.log(`🤖 Генеруємо ChatGPT для: ${card.offer}`)
+          await generateChatGptTitle(card)
+
+          // Пауза між запитами
+          await new Promise((resolve) => setTimeout(resolve, 1500))
+        }
+      }
+
+      console.log('Генерація ChatGPT заголовків завершена')
+    }
+
+    // 🔄 КРОК 3: Фінальне оновлення всіх URL
+    setTimeout(() => {
+      updateAllUrlsWithChatGpt()
+    }, 2000)
+  } catch (error) {
+    console.error('❌ Помилка під час виконання onTimerComplete:', error)
+  }
+
+  // 🔄 ЗАВЖДИ перезапускаємо таймер
+  console.log('🔄 Перезапускаємо таймер...')
+  setTimeout(() => {
+    if (statusTimer.value) {
+      statusTimer.value.startTimer()
+      console.log('✅ Таймер перезапущено')
+    }
+  }, 3000) // Збільшена пауза для завершення всіх операцій
+}
+
+const onTimerStart = (data) => {
+  console.log(`🟢 Таймер запущено: ${data.minutes}:${data.seconds}`)
+}
+
+const onTimerPause = (data) => {
+  console.log(`🟡 Таймер на паузі: ${data.minutes}:${data.seconds}`)
+}
+
+const onTimerStop = () => {
+  console.log('🔴 Таймер зупинено')
 }
 </script>
 
