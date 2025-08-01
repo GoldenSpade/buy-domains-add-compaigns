@@ -848,8 +848,18 @@ const submitForm = async () => {
       continue
     }
 
+    // Отправляем базовое имя без приставки и без resId
+    const cleanName =
+      card.baseCampaignName ||
+      (card.adTitle.includes(' | ') ? card.adTitle.split(' | ').slice(1).join(' | ') : card.adTitle)
+
+    // Убираем resId из cleanName если он есть
+    const finalCleanName = cleanName.match(/^\d+_(.+)$/)
+      ? cleanName.match(/^\d+_(.+)$/)[1]
+      : cleanName
+
     const payload = {
-      name: card.adTitle, // БЕЗ resId на цьому етапі
+      name: finalCleanName, // Отправляем чистое базовое имя
       offer: card.offer,
       country: countryCode,
       buyer: card.buyer,
@@ -887,8 +897,15 @@ const submitForm = async () => {
 
         if (msg.toLowerCase().includes('already in use')) {
           try {
+            // Используем базовое имя без префикса для поиска
+            const searchName =
+              card.baseCampaignName ||
+              (payload.name.includes(' | ')
+                ? payload.name.split(' | ').slice(1).join(' | ')
+                : payload.name)
+
             const query = new URLSearchParams({
-              name: payload.name,
+              name: searchName,
               trafficSource: payload.trafficSource,
             })
 
@@ -960,6 +977,10 @@ const submitForm = async () => {
   if (statusTimer.value && tonicStore.cards.length > 0) {
     statusTimer.value.startTimer()
   }
+
+  setTimeout(() => {
+    checkAndMoveCompletedCards()
+  }, 5000) // Даем больше времени на завершение всех операций
 }
 
 onMounted(async () => {
@@ -1239,8 +1260,20 @@ const onTimerComplete = async () => {
         continue
       }
 
+      // Отправляем базовое имя без приставки и без resId
+      const cleanName =
+        card.baseCampaignName ||
+        (card.adTitle.includes(' | ')
+          ? card.adTitle.split(' | ').slice(1).join(' | ')
+          : card.adTitle)
+
+      // Убираем resId из cleanName если он есть
+      const finalCleanName = cleanName.match(/^\d+_(.+)$/)
+        ? cleanName.match(/^\d+_(.+)$/)[1]
+        : cleanName
+
       const payload = {
-        name: card.adTitle, // БЕЗ resId на цьому етапі
+        name: finalCleanName, // Отправляем чистое базовое имя
         offer: card.offer,
         country: countryCode,
         buyer: card.buyer,
@@ -1278,8 +1311,15 @@ const onTimerComplete = async () => {
 
           if (msg.toLowerCase().includes('already in use')) {
             try {
+              // Используем базовое имя без префикса для поиска
+              const searchName =
+                card.baseCampaignName ||
+                (payload.name.includes(' | ')
+                  ? payload.name.split(' | ').slice(1).join(' | ')
+                  : payload.name)
+
               const query = new URLSearchParams({
-                name: payload.name,
+                name: searchName,
                 trafficSource: payload.trafficSource,
               })
 
@@ -1359,6 +1399,10 @@ const onTimerComplete = async () => {
       console.log('✅ Таймер перезапущено')
     }
   }, 3000) // Збільшена пауза для завершення всіх операцій
+
+  setTimeout(() => {
+    checkAndMoveCompletedCards()
+  }, 8000) // Еще больше времени для таймера
 }
 
 const onTimerStart = (data) => {
@@ -1372,6 +1416,32 @@ const onTimerPause = (data) => {
 const onTimerStop = () => {
   console.log('🔴 Таймер зупинено')
 }
+
+// Функция проверки и перемещения завершенных карточек
+const checkAndMoveCompletedCards = () => {
+  const cardsToMove = tonicStore.cards.filter((card) => tonicStore.isCardCompleted(card))
+
+  cardsToMove.forEach((card) => {
+    console.log(`🎯 Перемещаем завершенную карточку: ${card.adTitle}`)
+    tonicStore.moveCardToCompleted(card)
+  })
+
+  if (cardsToMove.length > 0) {
+    console.log(`✅ Перемещено ${cardsToMove.length} завершенных карточек`)
+  }
+}
+
+// Вызываем проверку после каждого обновления карточек
+watch(
+  () => tonicStore.cards,
+  () => {
+    // Даем время на завершение всех асинхронных операций
+    setTimeout(() => {
+      checkAndMoveCompletedCards()
+    }, 2000)
+  },
+  { deep: true }
+)
 </script>
 
 <style>

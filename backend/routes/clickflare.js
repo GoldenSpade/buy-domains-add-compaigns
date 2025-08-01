@@ -27,7 +27,7 @@ router.post('/clickflare/create-offer', async (req, res) => {
     direct: typeof req.body.direct === 'boolean' ? req.body.direct : false,
     affiliateNetworkID: AFFILIATE_NETWORK_ID,
     payout: {
-      type: 'manual',
+      type: 'auto',
       payout: 0,
       currency: 'USD',
     },
@@ -181,7 +181,7 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
         direct: false,
         affiliateNetworkID: affiliateNetworkID || process.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
         payout: {
-          type: 'manual',
+          type: 'auto',
           payout: 0,
           currency: 'USD',
         },

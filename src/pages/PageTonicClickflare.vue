@@ -7,7 +7,9 @@
         <div class="col-md-6">
           <TonicCampaignForm />
         </div>
-        <div class="col-md-6">Col-2</div>
+        <div class="col-md-6">
+          <CompletedCards />
+        </div>
       </div>
     </div>
   </div>
@@ -19,6 +21,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import MainMenu from '@/components/MainMenu.vue'
 import Header from '@/components/Header.vue'
 import TonicCampaignForm from '@/components/createTonicCampaign/TonicCampaignForm.vue'
+import CompletedCards from '@/components/createTonicCampaign/CompletedCards.vue'
 
 const isMobile = ref(window.innerWidth <= 767)
 
