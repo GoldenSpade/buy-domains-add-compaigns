@@ -9,12 +9,12 @@
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link :to="{ name: 'domainsSedoAFD' }" class="nav-link" active-class="active">
+          <router-link :to="{ name: 'PageDomainsSedoAFD' }" class="nav-link" active-class="active">
             <i class="bi bi-diagram-3 me-1"></i> Sedo AFD
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link :to="{ name: 'createTonicCampaign' }" class="nav-link" active-class="active">
+          <router-link :to="{ name: 'PageTonicClickflare' }" class="nav-link" active-class="active">
             <i class="bi bi-bar-chart-line me-1"></i>Tonic AFD
           </router-link>
         </li>

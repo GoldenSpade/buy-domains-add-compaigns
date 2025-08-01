@@ -3,10 +3,11 @@
     <MainMenu />
     <div class="app mb-4 px-3">
       <Header title="Tonic AFD" />
-      <div class="row justify-content-center">
-        <div class="col-md-8">
+      <div class="row">
+        <div class="col-md-6">
           <TonicCampaignForm />
         </div>
+        <div class="col-md-6">Col-2</div>
       </div>
     </div>
   </div>

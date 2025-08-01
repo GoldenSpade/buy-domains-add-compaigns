@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import Home from '@/pages/Home.vue'
-import domainsSedoAFD from '@/pages/domainsSedoAFD.vue'
-import createTonicCampaign from '@/pages/createTonicCampaign.vue'
+import PageDomainsSedoAFD from '@/pages/PageDomainsSedoAFD.vue'
+import PageTonicClickflare from '@/pages/PageTonicClickflare.vue'
 
 const routes = [
   {
@@ -13,15 +13,15 @@ const routes = [
   },
   {
     path: '/domains-sedo-afd',
-    component: domainsSedoAFD,
-    name: 'domainsSedoAFD',
+    component: PageDomainsSedoAFD,
+    name: 'PageDomainsSedoAFD',
     meta: { title: 'Створення кампаній Sedo AFD' },
   },
   {
-    path: '/tonic-campaign', // 🆕
-    component: createTonicCampaign,
-    name: 'createTonicCampaign',
-    meta: { title: 'Створення кампаній Tonic' },
+    path: '/tonic-offers',
+    component: PageTonicClickflare,
+    name: 'PageTonicClickflare',
+    meta: { title: 'Створення кампаній Tonic AFD' },
   },
 ]
 
