@@ -136,6 +136,8 @@ router.get('/tonic/countries/allowed', async (req, res) => {
 // 🎯 Создание новой кампании
 router.post('/tonic/create-campaign', async (req, res) => {
   const { name, offer, country, trafficSource } = req.body
+  // Извлекаем чистое имя без приставки для отправки в Tonic
+  const cleanName = name.includes(' | ') ? name.split(' | ').slice(1).join(' | ') : name
 
   if (!name || !offer || !country || !trafficSource) {
     return res.status(400).json({ error: 'Missing required fields' })
@@ -145,7 +147,7 @@ router.post('/tonic/create-campaign', async (req, res) => {
     const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
     const queryParams = new URLSearchParams({
-      name,
+      name: cleanName, // Отправляем без приставки
       offer,
       country,
       return_type: 'id',
@@ -191,10 +193,14 @@ router.get('/tonic/find-campaign', async (req, res) => {
     console.log(`   Отримана назва: "${name}"`)
     console.log(`   Traffic Source: "${trafficSource}"`)
 
-    // ✅ ВИПРАВЛЕННЯ: Якщо назва містить resId_, видаляємо його для пошуку
     let searchName = name
 
-    const resIdMatch = name.match(/^(\d+)_(.+)$/)
+    // Сначала убираем приставку, если есть
+    if (name.includes(' | ')) {
+      searchName = name.split(' | ').slice(1).join(' | ')
+    }
+
+    const resIdMatch = searchName.match(/^(\d+)_(.+)$/)
     if (resIdMatch) {
       searchName = resIdMatch[2] // Беремо частину після resId_
       console.log(`   Пошук за очищеною назвою: "${searchName}"`)
@@ -250,11 +256,15 @@ router.get('/tonic/campaign-status', async (req, res) => {
     console.log(`   Отримана назва: "${name}"`)
     console.log(`   Traffic Source: "${trafficSource}"`)
 
-    // ✅ ВИПРАВЛЕННЯ: Якщо назва містить resId_, видаляємо його для API запиту
     let cleanName = name
 
+    // Сначала убираем приставку, если есть
+    if (name.includes(' | ')) {
+      cleanName = name.split(' | ').slice(1).join(' | ')
+    }
+
     // Перевіряємо чи назва починається з цифр + підкреслення (resId_)
-    const resIdMatch = name.match(/^(\d+)_(.+)$/)
+    const resIdMatch = cleanName.match(/^(\d+)_(.+)$/)
     if (resIdMatch) {
       cleanName = resIdMatch[2] // Беремо частину після resId_
       console.log(`   Очищена назва (без resId): "${cleanName}"`)

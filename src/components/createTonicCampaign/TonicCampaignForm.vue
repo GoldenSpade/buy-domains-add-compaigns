@@ -263,13 +263,29 @@ const CACHE_TTL = 60 * 60 * 1000
 const statusTimer = ref(null)
 
 const getClickFlareNames = (card) => {
-  const tonicGeneratedName = card.adTitle
+  // Извлекаем приставку из adTitle (всё до " | ")
+  const parts = card.adTitle.split(' | ')
+  const prefix = parts.length > 1 ? parts[0] : '[Account name]'
+  let baseName = parts.length > 1 ? parts.slice(1).join(' | ') : card.adTitle
+
+  // Убираем resId из baseName если он уже есть
+  const resIdMatch = baseName.match(/^(\d+)_(.+)$/)
+  if (resIdMatch) {
+    baseName = resIdMatch[2] // Берем только часть после resId_
+  }
+
+  // Для оффера используем только базовое имя с resId (без приставки)
+  const offerName = card.resId ? `${card.resId}_${baseName}` : baseName
+
+  // Для кампании используем приставку + базовое имя с resId
+  const campaignName = card.resId
+    ? `${prefix} | ${card.resId}_${baseName}`
+    : `${prefix} | ${baseName}`
 
   return {
-    offerName: tonicGeneratedName,
-
-    campaignName: `[Account name] | ${tonicGeneratedName}`,
-    displayTitle: `[Account name] | ${tonicGeneratedName}`,
+    offerName: offerName,
+    campaignName: campaignName,
+    displayTitle: campaignName,
   }
 }
 
@@ -282,8 +298,12 @@ const updateCardNamesWithTonicId = (card) => {
     return
   }
 
-  // Оновлюємо adTitle з Tonic ID
-  const updatedAdTitle = `${card.resId}_${card.baseCampaignName}`
+  // Извлекаем приставку из текущего adTitle
+  const parts = card.adTitle.split(' | ')
+  const prefix = parts.length > 1 ? parts[0] : '[Account name]'
+
+  // Обновляем adTitle: приставка + resId + базовая назва
+  const updatedAdTitle = `${prefix} | ${card.resId}_${card.baseCampaignName}`
 
   console.log(`🔄 Оновлюємо назви з Tonic ID:`)
   console.log(`   Старе adTitle: "${card.adTitle}"`)
@@ -454,9 +474,11 @@ const addCountry = () => {
   console.log(`   Buyer: "${form.buyer}"`)
   console.log(`   Traffic Source: "${form.trafficSource}"`)
 
-  // НОВА СТРУКТУРА: Tonic сам додасть префікс "resId_"
-  // Ми створюємо базову назву без префікса
+  // Создаём базовую назву БЕЗ приставки
   const baseCampaignName = `${offerName} - ${selected.name} - ${form.buyer} - ${form.trafficSource}`
+
+  // В adTitle сразу добавляем приставку
+  const adTitleWithPrefix = `[Account name] | ${baseCampaignName}`
 
   const newCard = {
     __id: nanoid(),
@@ -464,8 +486,8 @@ const addCountry = () => {
     country: selected.name,
     buyer: form.buyer,
     trafficSource: form.trafficSource,
-    adTitle: baseCampaignName, // БЕЗ префікса - Tonic додасть сам
-    baseCampaignName: baseCampaignName, // Для сумісності
+    adTitle: adTitleWithPrefix, // С приставкой для отображения
+    baseCampaignName: baseCampaignName, // Базовая назва без приставки
     resId: '',
     resUrl: '',
     error: '',
