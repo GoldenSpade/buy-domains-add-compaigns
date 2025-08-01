@@ -225,6 +225,15 @@
       >
         🚀 Створити кампанії
       </button>
+
+      <button
+        v-if="tonicStore.cards.length > 0"
+        class="btn btn-outline-danger w-100 mt-2"
+        @click="clearAllCards"
+      >
+        <i class="bi bi-trash me-2"></i>
+        Очистити всі картки
+      </button>
     </div>
   </div>
 </template>
@@ -823,6 +832,23 @@ const preloadAllowedCountries = async () => {
     } catch (err) {
       console.error(`❌ Fetch error (allowed countries for "${offer}"):`, err)
     }
+  }
+}
+
+// Очичтити картки у лівій колонці
+const clearAllCards = () => {
+  if (confirm('Ви впевнені, що хочете видалити всі картки? Ця дія незворотна.')) {
+    console.log('🗑️ Очищаємо всі картки за запитом користувача')
+
+    if (statusTimer.value) {
+      statusTimer.value.stopTimer()
+      console.log('⏹️ Таймер зупинено через очистку карток')
+    }
+
+    tonicStore.clearCards()
+    selectedCountry.value = ''
+
+    console.log('✅ Всі картки успішно видалені')
   }
 }
 

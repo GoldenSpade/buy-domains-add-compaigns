@@ -5,6 +5,31 @@ export const useTonicStore = defineStore('tonic', () => {
   const cards = ref([])
   const completedCards = ref([])
 
+  // Загружаем cards из localStorage при инициализации
+  const loadCardsFromLS = () => {
+    try {
+      const saved = localStorage.getItem('tonicCards')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        cards.value = Array.isArray(parsed) ? parsed : []
+        console.log(`📂 Загружено ${cards.value.length} карточек из localStorage`)
+      }
+    } catch (error) {
+      console.warn('⚠️ Ошибка загрузки cards из localStorage:', error)
+      cards.value = []
+    }
+  }
+
+  // Сохраняем cards в localStorage
+  const saveCardsToLS = () => {
+    try {
+      localStorage.setItem('tonicCards', JSON.stringify(cards.value))
+      console.log(`💾 Сохранено ${cards.value.length} карточек в localStorage`)
+    } catch (error) {
+      console.warn('⚠️ Ошибка сохранения cards в localStorage:', error)
+    }
+  }
+
   // Загружаем completedCards из localStorage при инициализации
   const loadCompletedCardsFromLS = () => {
     try {
@@ -32,18 +57,24 @@ export const useTonicStore = defineStore('tonic', () => {
     }
   }
 
+  // Автоматически сохраняем при изменении cards
+  watch(cards, saveCardsToLS, { deep: true })
+
   // Автоматически сохраняем при изменении completedCards
   watch(completedCards, saveCompletedCardsToLS, { deep: true })
 
   // Загружаем данные при создании store
+  loadCardsFromLS()
   loadCompletedCardsFromLS()
 
   const addCard = (card) => {
     cards.value.push(card)
+    // saveCardsToLS() вызовется автоматически через watch
   }
 
   const clearCards = () => {
     cards.value = []
+    // saveCardsToLS() вызовется автоматически через watch
   }
 
   const removeCard = (cardToRemove) => {
@@ -56,6 +87,7 @@ export const useTonicStore = defineStore('tonic', () => {
           card.trafficSource === cardToRemove.trafficSource
         )
     )
+    // saveCardsToLS() вызовется автоматически через watch
   }
 
   // Новые методы для работы с завершенными карточками
@@ -67,7 +99,7 @@ export const useTonicStore = defineStore('tonic', () => {
     completedCards.value.push({ ...card })
 
     console.log(`✅ Карточка "${card.adTitle}" перемещена в завершенные`)
-    // saveCompletedCardsToLS() вызовется автоматически через watch
+    // saveCardsToLS() и saveCompletedCardsToLS() вызовутся автоматически через watch
   }
 
   const removeCompletedCard = (cardToRemove) => {
@@ -80,6 +112,7 @@ export const useTonicStore = defineStore('tonic', () => {
   const clearCompletedCards = () => {
     completedCards.value = []
     console.log('🗑️ Все завершенные карточки удалены')
+    // saveCompletedCardsToLS() вызовется автоматически через watch
   }
 
   // Проверка готовности карточки для перемещения
@@ -95,6 +128,19 @@ export const useTonicStore = defineStore('tonic', () => {
     )
   }
 
+  // Функция для ручной очистки localStorage (для отладки)
+  const clearAllLocalStorage = () => {
+    try {
+      localStorage.removeItem('tonicCards')
+      localStorage.removeItem('tonicCompletedCards')
+      cards.value = []
+      completedCards.value = []
+      console.log('🗑️ Все данные из localStorage очищены')
+    } catch (error) {
+      console.warn('⚠️ Ошибка очистки localStorage:', error)
+    }
+  }
+
   return {
     cards,
     completedCards,
@@ -105,7 +151,10 @@ export const useTonicStore = defineStore('tonic', () => {
     removeCompletedCard,
     clearCompletedCards,
     isCardCompleted,
+    loadCardsFromLS,
+    saveCardsToLS,
     loadCompletedCardsFromLS,
     saveCompletedCardsToLS,
+    clearAllLocalStorage,
   }
 })
