@@ -181,7 +181,6 @@ router.post('/tonic/create-campaign', async (req, res) => {
 })
 
 // 🔍 Поиск кампании по имени
-// Оновлений ендпоінт find-campaign в tonic.js
 router.get('/tonic/find-campaign', async (req, res) => {
   const { name, trafficSource } = req.query
   if (!name || !trafficSource) return res.status(400).json({ error: 'Missing params' })
@@ -300,6 +299,96 @@ router.get('/tonic/campaign-status', async (req, res) => {
 
     console.error('❌ Статус кампанії (помилка):', err?.message || err)
     return res.status(500).json({ error: 'Не вдалося отримати статус кампанії' })
+  }
+})
+
+// 🏷️ Добавление ключевых слов к кампании
+router.post('/tonic/add-keywords', async (req, res) => {
+  const { campaignId, keywords, keywordAmount = 6 } = req.body
+
+  if (!campaignId) {
+    return res.status(400).json({ error: 'Campaign ID is required' })
+  }
+
+  if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+    return res.status(400).json({ error: 'Keywords array is required and must not be empty' })
+  }
+
+  if (keywordAmount < 3 || keywordAmount > 10) {
+    return res.status(400).json({ error: 'keyword_amount must be between 3 and 10' })
+  }
+
+  try {
+    console.log('🏷️ Добавление ключевых слов к кампании:', {
+      campaignId,
+      keywords,
+      keywordAmount,
+    })
+
+    // Получаем токен (используем TikTok по умолчанию, можно добавить trafficSource параметр)
+    const token = await getTonicJwtToken('tiktok')
+
+    const requestData = {
+      campaign_id: parseInt(campaignId),
+      keywords: keywords,
+      keyword_amount: parseInt(keywordAmount),
+    }
+
+    console.log('📤 Отправка данных в Tonic API:', requestData)
+
+    const response = await axios.post(
+      'https://api.publisher.tonic.com/privileged/v3/campaign/keywords',
+      requestData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+        validateStatus: function (status) {
+          return status < 500 // Принимаем все статусы меньше 500
+        },
+      }
+    )
+
+    console.log('📥 Ответ от Tonic API:', {
+      status: response.status,
+      data: response.data,
+    })
+
+    if (response.status === 200) {
+      const keywordSetId = response.data.KeywordSetId
+      const resultKeywords = response.data.Keywords
+
+      console.log('✅ Ключевые слова успешно добавлены:', {
+        keywordSetId,
+        resultKeywords,
+      })
+
+      return res.json({
+        success: true,
+        data: {
+          keywordSetId: keywordSetId,
+          keywords: resultKeywords,
+        },
+      })
+    } else {
+      console.warn('⚠️ Неуспешный статус от Tonic API:', response.status)
+      return res.status(response.status).json({
+        success: false,
+        error: response.data,
+      })
+    }
+  } catch (error) {
+    console.error('❌ Ошибка добавления ключевых слов:', error?.response?.data || error.message)
+
+    const status = error?.response?.status || 500
+    const errorData = error?.response?.data || error.message
+
+    res.status(status).json({
+      success: false,
+      error: errorData,
+    })
   }
 })
 

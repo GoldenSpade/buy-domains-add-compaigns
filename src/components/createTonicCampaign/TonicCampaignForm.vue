@@ -515,18 +515,22 @@ const addCountry = () => {
     chatGptStatus: 'pending',
     chatGptError: '',
     isGeneratingTitle: false,
-    // Поля Keywords functionality
+    // Поля Keywords functionalit
     keywordsMode: 'inputWords',
-    isKeywordsEnabled: false,
     showKeywords: false,
     keywordsFromInputWords: '',
-    keywordsInputWordsStatus: 'pending',
     keywordsInputWordsError: '',
     keywordsFromUrl: '',
-    keywordsUrlStatus: 'pending',
     keywordsUrlError: '',
     isGeneratingKeywords: false,
-    keywordsLastGenerated: null,
+    generatedKeywords: '',
+    generatedKeywordsFromUrl: '',
+    // Поля для подтверждения ключевых
+    isConfirmingKeywords: false,
+    keywordsConfirmError: '',
+    keywordsConfirmed: false,
+    confirmedKeywords: '',
+    keywordSetId: '',
   }
 
   console.log(`Створена картка:`, {
