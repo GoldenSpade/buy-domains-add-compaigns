@@ -491,6 +491,7 @@ const addCountry = () => {
 
   const newCard = {
     __id: nanoid(),
+    // Поля для Tonic
     offer: offerName,
     country: selected.name,
     buyer: form.buyer,
@@ -499,19 +500,33 @@ const addCountry = () => {
     baseCampaignName: baseCampaignName, // Базовая назва без приставки
     resId: '',
     resUrl: '',
+    status: '',
+    // Поля ClickFlare
     error: '',
     clickflareId: '',
     clickflareCampaignId: '',
     clickflareCampaignUrl: '',
     clickFlareError: '',
     clickflareUrl: '',
-    status: '',
     clickflareResCampaignName: '',
+    // Поля ChatGPT AdTitle
     chatGptTitle: '',
     chatGptTitleEncoded: '',
     chatGptStatus: 'pending',
     chatGptError: '',
     isGeneratingTitle: false,
+    // Поля Keywords functionality
+    keywordsMode: 'inputWords',
+    isKeywordsEnabled: false,
+    showKeywords: false,
+    keywordsFromInputWords: '',
+    keywordsInputWordsStatus: 'pending',
+    keywordsInputWordsError: '',
+    keywordsFromUrl: '',
+    keywordsUrlStatus: 'pending',
+    keywordsUrlError: '',
+    isGeneratingKeywords: false,
+    keywordsLastGenerated: null,
   }
 
   console.log(`Створена картка:`, {

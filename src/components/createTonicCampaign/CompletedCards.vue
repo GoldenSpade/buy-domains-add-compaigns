@@ -46,22 +46,106 @@
 
         <!-- 🔗 ID и статус -->
         <div class="mt-1 small">
-          <div class="d-flex align-items-center gap-2">
-            🆔 {{ card.resId }}
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              🆔 {{ card.resId }}
 
-            <div class="small d-flex align-items-center">
-              <span
-                class="badge ms-1"
-                :class="{
-                  'bg-success': card.status === 'active',
-                  'bg-warning text-dark': card.status === 'paused' || card.status === 'pending',
-                  'bg-secondary': card.status === 'inactive',
-                  'bg-danger': card.status === 'error' || card.status === 'unknown',
-                  'bg-info': !card.status || card.status === '' || card.status === 'loading',
-                }"
-              >
-                {{ card.status || 'завантаження...' }}
-              </span>
+              <div class="small d-flex align-items-center">
+                <span
+                  class="badge ms-1"
+                  :class="{
+                    'bg-success': card.status === 'active',
+                    'bg-warning text-dark': card.status === 'paused' || card.status === 'pending',
+                    'bg-secondary': card.status === 'inactive',
+                    'bg-danger': card.status === 'error' || card.status === 'unknown',
+                    'bg-info': !card.status || card.status === '' || card.status === 'loading',
+                  }"
+                >
+                  {{ card.status || 'завантаження...' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Бейдж Keywords справа со стрелочкой -->
+            <span
+              @click="card.showKeywords = !card.showKeywords"
+              class="badge bg-success"
+              style="cursor: pointer; font-size: 10px"
+              title="Показати/приховати ключові слова"
+            >
+              Keywords
+              <i
+                class="bi ms-1"
+                :class="card.showKeywords ? 'bi-chevron-up' : 'bi-chevron-down'"
+              ></i>
+            </span>
+          </div>
+
+          <!-- ✨ БЛОК KEYWORDS - перенесен сюда -->
+          <div v-if="card.showKeywords" class="mt-2 pt-2 border-top">
+            <label class="form-label fw-bold mb-2 small">Ключові слова</label>
+            <div class="d-flex gap-2 align-items-center">
+              <!-- Чекбокс-переключатель для режима -->
+              <div class="form-check form-switch d-flex align-items-center">
+                <input
+                  :checked="card.keywordsMode === 'url'"
+                  @change="card.keywordsMode = $event.target.checked ? 'url' : 'inputWords'"
+                  class="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  style="cursor: pointer"
+                />
+              </div>
+
+              <!-- Инпут для режима "inputWords" (manual words) -->
+              <div v-if="card.keywordsMode === 'inputWords'" class="flex-grow-1">
+                <div class="input-group input-group-sm">
+                  <input
+                    v-model="card.keywordsFromInputWords"
+                    type="text"
+                    class="form-control"
+                    placeholder="Введіть слова для генерації"
+                    style="font-size: 14px"
+                  />
+                  <button
+                    class="btn btn-outline-primary"
+                    type="button"
+                    title="Генерувати по словах"
+                  >
+                    <i class="bi bi-magic"></i>
+                  </button>
+                  <button
+                    class="btn btn-outline-success"
+                    type="button"
+                    title="Підтвердити ключові слова"
+                  >
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Инпут для режима "url" -->
+              <div v-else class="flex-grow-1">
+                <div class="input-group input-group-sm">
+                  <input
+                    v-model="card.keywordsFromUrl"
+                    type="text"
+                    class="form-control"
+                    placeholder="Введіть URL для генерації"
+                    style="font-size: 14px"
+                  />
+                  <button class="btn btn-outline-primary" type="button" title="Генерувати по URL">
+                    <i class="bi bi-link-45deg"></i>
+                  </button>
+                  <button
+                    class="btn btn-outline-success"
+                    type="button"
+                    title="Підтвердити ключові слова"
+                  >
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
