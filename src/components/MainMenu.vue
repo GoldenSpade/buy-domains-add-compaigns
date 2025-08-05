@@ -18,6 +18,11 @@
             <i class="bi bi-bar-chart-line me-1"></i>Tonic AFD
           </router-link>
         </li>
+        <li class="nav-item">
+          <router-link :to="{ name: 'PromptsManager' }" class="nav-link" active-class="active">
+            <i class="bi bi-openai me-1"></i>Prompts Manager
+          </router-link>
+        </li>
       </ul>
     </div>
   </nav>
