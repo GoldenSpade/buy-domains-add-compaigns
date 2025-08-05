@@ -13,39 +13,46 @@ const openai = new OpenAI({
 // Генерація adtitle для кампанії
 router.post('/chatgpt/generate-adtitle', async (req, res) => {
   try {
-    const { offer, country, trafficSource } = req.body
+    const { offer, country, trafficSource, promptSettings } = req.body
 
-    if (!offer) {
-      return res.status(400).json({
-        success: false,
-        error: 'Offer name is required',
-      })
+    // Используем переданные настройки из store или дефолтные значения
+    const systemPrompt =
+      promptSettings?.systemPrompt ||
+      'You are a expert marketing copywriter. Generate compelling, short ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.'
+
+    const userPromptTemplate =
+      promptSettings?.userPromptTemplate ||
+      'Generate a headline / ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.'
+
+    const settings = promptSettings?.settings || {
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      max_tokens: 100,
     }
 
-    // Формуємо промпт для ChatGPT
-    const userMessage = `Generate a headline / ad title for social media ad on topic "${offer}" for ${
-      country || 'global'
-    } audience on ${
-      trafficSource || 'social media'
-    } platform. Maximum 50 characters. Return only the title without quotes or extra text.`
+    // Подставляем переменные в шаблон пользовательского промпта
+    const userMessage = userPromptTemplate
+      .replace('{offer}', offer || 'sample offer')
+      .replace('{country}', country || 'global')
+      .replace('{trafficSource}', trafficSource || 'social media')
 
     console.log('📤 Відправляю запит до ChatGPT:', userMessage)
+    console.log('🔧 Використовуючи настройки:', settings)
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Використовуємо доступну модель
+      model: settings.model,
       messages: [
         {
           role: 'system',
-          content:
-            'You are a expert marketing copywriter. Generate compelling, short ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.',
+          content: systemPrompt,
         },
         {
           role: 'user',
           content: userMessage,
         },
       ],
-      max_tokens: 100,
-      temperature: 0.7,
+      max_tokens: settings.max_tokens,
+      temperature: settings.temperature,
     })
 
     const generatedTitle = completion.choices[0].message.content.trim()

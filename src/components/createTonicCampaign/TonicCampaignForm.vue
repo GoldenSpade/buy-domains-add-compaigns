@@ -241,6 +241,7 @@
 <script setup>
 import { reactive, ref, onMounted, watch, computed, toRef } from 'vue'
 import { useTonicStore } from '../../stores/tonicStore'
+import { useChatGptStore } from '../../stores/chatGptStore'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 import { nanoid } from 'nanoid'
@@ -249,6 +250,7 @@ import StatusTimer from './StatusTimer.vue'
 
 //-------------------------Tonik-------------------------
 const tonicStore = useTonicStore()
+const chatGptStore = useChatGptStore()
 
 const form = reactive({
   offer: null,
@@ -634,6 +636,7 @@ const generateChatGptTitle = async (card) => {
       offer: card.offer,
       country: card.country,
       trafficSource: card.trafficSource,
+      promptSettings: chatGptStore.prompts.adTitle,
     }
 
     console.log(`📤 Тіло запиту:`, requestBody)
