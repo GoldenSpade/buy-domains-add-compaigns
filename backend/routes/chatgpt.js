@@ -18,11 +18,11 @@ router.post('/chatgpt/generate-adtitle', async (req, res) => {
     // Используем переданные настройки из store или дефолтные значения
     const systemPrompt =
       promptSettings?.systemPrompt ||
-      'You are a expert marketing copywriter. Generate compelling, short ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.'
+      'You are a expert marketing copywriter. Generate compelling, short SEO ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.'
 
     const userPromptTemplate =
       promptSettings?.userPromptTemplate ||
-      'Generate a headline / ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.'
+      'Generate a SEO headline / SEO ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.'
 
     const settings = promptSettings?.settings || {
       model: 'gpt-4o-mini',

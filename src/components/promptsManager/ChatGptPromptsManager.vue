@@ -5,7 +5,7 @@
       <h5 class="mb-3">AdTitle Prompt</h5>
 
       <!-- System Prompt -->
-      <div class="row mb-3">
+      <div class="row">
         <div class="col-md-6">
           <label class="form-label fw-bold">System Prompt:</label>
           <input
@@ -21,14 +21,8 @@
             placeholder="Enter user prompt template with {offer}, {country}, {trafficSource} placeholders..."
             v-model="chatGptStore.prompts.adTitle.userPromptTemplate"
           />
-          <small class="form-text text-muted">
-            You can set {offer}, {country}, {trafficSource}
-          </small>
         </div>
       </div>
-
-      <!-- User Prompt Template -->
-      <div class="row mb-3"></div>
 
       <!-- Test and Result -->
       <div class="row">
