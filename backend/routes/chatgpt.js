@@ -12,8 +12,13 @@ const openai = new OpenAI({
 
 // Генерація adtitle для кампанії
 router.post('/chatgpt/generate-adtitle', async (req, res) => {
+  const { offer, country, trafficSource, promptSettings } = req.body
   try {
-    const { offer, country, trafficSource, promptSettings } = req.body
+    // Для тестирования используем дефолтные значения если данные не переданы
+    const finalOffer = offer && offer.trim() !== '' ? offer.trim() : 'sample offer'
+    const finalCountry = country && country.trim() !== '' ? country.trim() : 'global'
+    const finalTrafficSource =
+      trafficSource && trafficSource.trim() !== '' ? trafficSource.trim() : 'social media'
 
     // Используем переданные настройки из store или дефолтные значения
     const systemPrompt =
@@ -32,9 +37,9 @@ router.post('/chatgpt/generate-adtitle', async (req, res) => {
 
     // Подставляем переменные в шаблон пользовательского промпта
     const userMessage = userPromptTemplate
-      .replace('{offer}', offer || 'sample offer')
-      .replace('{country}', country || 'global')
-      .replace('{trafficSource}', trafficSource || 'social media')
+      .replace('{offer}', finalOffer)
+      .replace('{country}', finalCountry)
+      .replace('{trafficSource}', finalTrafficSource)
 
     console.log('📤 Відправляю запит до ChatGPT:', userMessage)
     console.log('🔧 Використовуючи настройки:', settings)
@@ -90,39 +95,50 @@ router.post('/chatgpt/generate-adtitle', async (req, res) => {
 // Генерація ключових слів для Tonik по введених словах
 router.post('/chatgpt/generate-keywords-from-words', async (req, res) => {
   try {
-    const { inputWords, country, trafficSource } = req.body
+    const { inputWords, country, trafficSource, promptSettings } = req.body
 
-    if (!inputWords || inputWords.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Input words are required',
-      })
+    // Если inputWords не переданы или пустые - используем дефолтные для тестирования
+    const finalInputWords =
+      inputWords && inputWords.trim() !== '' ? inputWords.trim() : 'digital marketing services'
+
+    // Используем переданные настройки из store или дефолтные значения
+    const systemPrompt =
+      promptSettings?.systemPrompt ||
+      'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.'
+
+    const userPromptTemplate =
+      promptSettings?.userPromptTemplate ||
+      "Give me 6 most expensive keywords from Google Keywords Planner related to: \"{inputWords}\". ${country ? `Target country: {country}. ` : ''}${trafficSource ? `Traffic source: {trafficSource}. ` : ''}Return only the keywords separated by commas, without any additional text or explanations."
+
+    const settings = promptSettings?.settings || {
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      max_tokens: 150,
     }
 
-    // Формуємо промпт для ChatGPT (англійською)
-    const userMessage = `Give me 6 most expensive keywords from Google Keywords Planner related to: "${inputWords.trim()}". ${
-      country ? `Target country: ${country}. ` : ''
-    }${
-      trafficSource ? `Traffic source: ${trafficSource}. ` : ''
-    }Return only the keywords separated by commas, without any additional text or explanations.`
+    // Подставляем переменные в шаблон пользовательского промпта
+    const userMessage = userPromptTemplate
+      .replace('{inputWords}', finalInputWords)
+      .replace('{country}', country || '')
+      .replace('{trafficSource}', trafficSource || '')
 
     console.log('📤 Відправляю запит до ChatGPT для keywords:', userMessage)
+    console.log('🔧 Використовуючи настройки:', settings)
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: settings.model,
       messages: [
         {
           role: 'system',
-          content:
-            'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.',
+          content: systemPrompt,
         },
         {
           role: 'user',
           content: userMessage,
         },
       ],
-      max_tokens: 150,
-      temperature: 0.7,
+      max_tokens: settings.max_tokens,
+      temperature: settings.temperature,
     })
 
     const generatedKeywords = completion.choices[0].message.content.trim()
@@ -132,7 +148,7 @@ router.post('/chatgpt/generate-keywords-from-words', async (req, res) => {
       success: true,
       data: {
         keywords: generatedKeywords,
-        inputWords: inputWords.trim(),
+        inputWords: finalInputWords,
       },
     })
   } catch (error) {

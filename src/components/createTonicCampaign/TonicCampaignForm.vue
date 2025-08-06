@@ -589,7 +589,7 @@ const processCampaignUrl = (card) => {
     console.log(`   After:  ${updatedUrl}`)
   }
   // ВАРІАНТ 3: URL без title параметра - додаємо його
-  else if (!updatedUrl.includes('title=') && card.adTitle) {
+  else if (!updatedUrl.includes('title=') && (card.chatGptTitle || card.adTitle)) {
     console.log(`🔧 Додаємо title параметр до URL...`)
 
     const titleToUse = getTitleForUrl(card)
@@ -607,8 +607,8 @@ const processCampaignUrl = (card) => {
 
 // ДОПОМІЖНА функція для отримання правильного заголовка
 const getTitleForUrl = (card) => {
-  if (card.chatGptTitleEncoded && card.chatGptTitleEncoded.trim()) {
-    return card.chatGptTitleEncoded
+  if (card.chatGptTitle && card.chatGptTitle.trim()) {
+    return encodeURIComponent(card.chatGptTitle.trim())
   } else if (card.adTitle && card.adTitle.trim()) {
     return encodeURIComponent(card.adTitle.trim())
   } else {
@@ -655,7 +655,14 @@ const generateChatGptTitle = async (card) => {
     console.log(`📥 Повна відповідь ChatGPT:`, result)
 
     if (response.ok && result.success && result.data) {
-      card.chatGptTitle = result.data.originalTitle
+      // Очищаємо лапки з початку і кінця заголовка
+      let cleanTitle = result.data.originalTitle
+      // Видаляємо лапки з початку та кінця
+      if (cleanTitle.startsWith('"') && cleanTitle.endsWith('"')) {
+        cleanTitle = cleanTitle.slice(1, -1)
+      }
+
+      card.chatGptTitle = cleanTitle
       card.chatGptTitleEncoded = result.data.encodedTitle
       card.chatGptStatus = 'success'
       card.chatGptError = ''
@@ -1083,9 +1090,14 @@ const generateOfferUrl = (card) => {
   // ПОКРАЩЕННЯ: Використовуємо різні джерела для заголовка
   let adTitleToUse = ''
 
-  if (card.chatGptTitleEncoded && card.chatGptTitleEncoded.trim()) {
-    adTitleToUse = card.chatGptTitleEncoded
-    console.log(`🤖 Використовуємо ChatGPT заголовок: "${card.chatGptTitle}"`)
+  if (card.chatGptTitle && card.chatGptTitle.trim()) {
+    // Додаткова очистка лапок перед кодуванням
+    let cleanTitle = card.chatGptTitle.trim()
+    if (cleanTitle.startsWith('"') && cleanTitle.endsWith('"')) {
+      cleanTitle = cleanTitle.slice(1, -1)
+    }
+    adTitleToUse = encodeURIComponent(cleanTitle)
+    console.log(`🤖 Використовуємо ChatGPT заголовок: "${cleanTitle}"`)
   } else if (card.adTitle && card.adTitle.trim()) {
     adTitleToUse = encodeURIComponent(card.adTitle.trim())
     console.log(`📝 Використовуємо adTitle: "${card.adTitle}"`)
@@ -1101,7 +1113,7 @@ const generateOfferUrl = (card) => {
   console.log(`   Traffic: ${isFacebook ? 'Facebook' : isTiktok ? 'TikTok' : 'Unknown'}`)
   console.log(`   Encoded Title: ${adTitleToUse}`)
 
-  // Шаблони з правильними фігурними дужками
+  // Шаблони з правильними фігурними дужками (adtitle без & на початку)
   const facebookTemplate = `network=facebook&site=direct&subid1={trackingField6}&subid2={trackingField5}&subid3={trackingField3}|{trackingField2}|{trackingField1}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
 
   const tiktokTemplate = `network=tiktok&site=direct&subid1={trackingField3}&subid2={trackingField5}&subid3={trackingField8}|{trackingField6}|{trackingField4}&subid4={cf_click_id}&click_id={external_id}&adtitle=${adTitleToUse}`
@@ -1178,14 +1190,6 @@ const submitCardToClickFlare = async (card) => {
       cost: 0,
       cost_type: 'no_tracked',
     }
-
-    console.log(`📤 Відправляємо в ClickFlare:`, {
-      offerName: clickFlareNames.offerName,
-      campaignName: clickFlareNames.campaignName,
-      workspace_id,
-      trafficSource: card.trafficSource,
-      offerUrl: offerUrl.substring(0, 100) + '...',
-    })
 
     const response = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/clickflare/create-offer-and-campaign`,

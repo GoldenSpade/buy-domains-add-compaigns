@@ -20,6 +20,22 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
       isLoading: false,
       testDetails: null,
     },
+    keywords: {
+      systemPrompt:
+        'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.',
+      userPromptTemplate:
+        'Give me 6 most expensive keywords from Google Keywords Planner related to: "{inputWords}". Target country: {country}. Traffic source: {trafficSource}. Return only the keywords separated by commas, without any additional text or explanations.',
+      settings: {
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 150,
+      },
+      // UI состояния для тестирования
+      testAnswer: '',
+      testError: '',
+      isLoading: false,
+      testDetails: null,
+    },
   }
 
   // Функция загрузки из localStorage
@@ -35,6 +51,10 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
           adTitle: {
             ...defaultPrompts.adTitle,
             ...parsed.adTitle,
+          },
+          keywords: {
+            ...defaultPrompts.keywords,
+            ...parsed.keywords,
           },
         }
       }
@@ -82,11 +102,19 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
     prompts.adTitle.systemPrompt = ''
     prompts.adTitle.userPromptTemplate = ''
     prompts.adTitle.testAnswer = ''
-
-
-    
+    prompts.adTitle.testError = ''
     prompts.adTitle.testDetails = null
     console.log('🔄 AdTitle поля сброшены к дефолтным значениям')
+  }
+
+  // Функция сброса Keywords полей к дефолтным значениям
+  const resetKeywordsFields = () => {
+    prompts.keywords.systemPrompt = ''
+    prompts.keywords.userPromptTemplate = ''
+    prompts.keywords.testAnswer = ''
+    prompts.keywords.testError = ''
+    prompts.keywords.testDetails = null
+    console.log('🔄 Keywords поля сброшены к дефолтным значениям')
   }
 
   return {
@@ -96,5 +124,6 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
     savePromptsToLS,
     loadPromptsFromLS,
     resetAdTitleFields,
+    resetKeywordsFields,
   }
 })

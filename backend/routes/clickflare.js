@@ -146,6 +146,26 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
         }`
       )
 
+      if (existingOffer.url !== offerUrl) {
+        console.log(`🔄 Оновлюємо URL існуючого оффера...`)
+        try {
+          await axios.put(
+            `https://public-api.clickflare.io/api/offers/${existingOffer._id || existingOffer.id}`,
+            { url: offerUrl },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'api-key': API_KEY,
+              },
+            }
+          )
+          existingOffer.url = offerUrl // Оновлюємо локально для відповіді
+          console.log(`✅ URL оффера оновлено`)
+        } catch (error) {
+          console.warn(`⚠️ Не вдалося оновити URL оффера:`, error.message)
+        }
+      }
+
       return res.json({
         success: true,
         offer: {
