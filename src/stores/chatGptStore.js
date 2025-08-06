@@ -8,7 +8,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
       systemPrompt:
         'You are a expert marketing copywriter. Generate compelling, short ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.',
       userPromptTemplate:
-        'Generate a headline / ad title for social media ad on [topic] for [country] audience on [traffic source] platform. Maximum 50 characters. Return only the title without quotes or extra text.',
+        'Generate a headline / ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.',
       settings: {
         model: 'gpt-4o-mini',
         temperature: 0.7,
@@ -25,6 +25,22 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
         'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.',
       userPromptTemplate:
         'Give me 6 most expensive keywords from Google Keywords Planner related to: "{inputWords}". Target country: {country}. Traffic source: {trafficSource}. Return only the keywords separated by commas, without any additional text or explanations.',
+      settings: {
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 150,
+      },
+      // UI состояния для тестирования
+      testAnswer: '',
+      testError: '',
+      isLoading: false,
+      testDetails: null,
+    },
+    url: {
+      systemPrompt:
+        'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords based on website URLs and content. Focus on commercial intent keywords that would have high cost-per-click in Google Ads. Always respond with just the keywords separated by commas, no additional text.',
+      userPromptTemplate:
+        'Analyze the content and topic of this URL: "{url}" and give me 6 most expensive keywords from Google Keywords Planner based on the website\'s content and niche. {country ? `Target country: {country}. ` : ""}{trafficSource ? `Traffic source: {trafficSource}. ` : ""}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations.',
       settings: {
         model: 'gpt-4o-mini',
         temperature: 0.7,
@@ -55,6 +71,10 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
           keywords: {
             ...defaultPrompts.keywords,
             ...parsed.keywords,
+          },
+          url: {
+            ...defaultPrompts.url,
+            ...parsed.url,
           },
         }
       }
@@ -117,6 +137,16 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
     console.log('🔄 Keywords поля сброшены к дефолтным значениям')
   }
 
+  // Функция сброса URL полей к дефолтным значениям
+  const resetUrlFields = () => {
+    prompts.url.systemPrompt = ''
+    prompts.url.userPromptTemplate = ''
+    prompts.url.testAnswer = ''
+    prompts.url.testError = ''
+    prompts.url.testDetails = null
+    console.log('🔄 URL поля сброшены к дефолтным значениям')
+  }
+
   return {
     prompts,
     resetToDefaults,
@@ -125,5 +155,6 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
     loadPromptsFromLS,
     resetAdTitleFields,
     resetKeywordsFields,
+    resetUrlFields,
   }
 })

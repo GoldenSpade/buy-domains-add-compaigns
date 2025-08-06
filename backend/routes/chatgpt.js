@@ -27,7 +27,7 @@ router.post('/chatgpt/generate-adtitle', async (req, res) => {
 
     const userPromptTemplate =
       promptSettings?.userPromptTemplate ||
-      'Generate a SEO headline / SEO ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.'
+      'Generate a headline / ad title for social media ad on topic "{offer}" for {country} audience on {trafficSource} platform. Maximum 50 characters. Return only the title without quotes or extra text.'
 
     const settings = promptSettings?.settings || {
       model: 'gpt-4o-mini',
@@ -173,7 +173,7 @@ router.post('/chatgpt/generate-keywords-from-words', async (req, res) => {
 // Генерація ключових слів для Tonik по URL
 router.post('/chatgpt/generate-keywords-from-url', async (req, res) => {
   try {
-    const { url, country, trafficSource } = req.body
+    const { url, country, trafficSource, promptSettings } = req.body
 
     if (!url || url.trim() === '') {
       return res.status(400).json({
@@ -182,30 +182,44 @@ router.post('/chatgpt/generate-keywords-from-url', async (req, res) => {
       })
     }
 
-    // Формуємо промпт для ChatGPT (англійською)
-    const userMessage = `Analyze the content and topic of this URL: "${url.trim()}" and give me 6 most expensive keywords from Google Keywords Planner based on the website's content and niche. ${
-      country ? `Target country: ${country}. ` : ''
-    }${
-      trafficSource ? `Traffic source: ${trafficSource}. ` : ''
-    }Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations.`
+    // Формуємо промпт для ChatGPT (англійською). Используем переданные настройки из store или дефолтные значения
+    const systemPrompt =
+      promptSettings?.systemPrompt ||
+      'You are an expert SEO and PPC specialist. Analyze website URLs and generate high-value, expensive keywords based on the website content and niche. Focus on commercial intent keywords that would have high cost-per-click in Google Ads. Always respond with just the keywords separated by commas, no additional text.'
+
+    const userPromptTemplate =
+      promptSettings?.userPromptTemplate ||
+      "Analyze the content and topic of this URL: \"{url}\" and give me 6 most expensive keywords from Google Keywords Planner based on the website's content and niche. ${country ? `Target country: {country}. ` : ''}${trafficSource ? `Traffic source: {trafficSource}. ` : ''}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations."
+
+    const settings = promptSettings?.settings || {
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      max_tokens: 150,
+    }
+
+    // Подставляем переменные в шаблон пользовательского промпта
+    const userMessage = userPromptTemplate
+      .replace('{url}', url.trim())
+      .replace('{country}', country || '')
+      .replace('{trafficSource}', trafficSource || '')
 
     console.log('📤 Відправляю запит до ChatGPT для keywords по URL:', userMessage)
+    console.log('🔧 Використовуючи настройки:', settings)
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: settings.model,
       messages: [
         {
           role: 'system',
-          content:
-            'You are an expert SEO and PPC specialist. Analyze website URLs and generate high-value, expensive keywords based on the website content and niche. Focus on commercial intent keywords that would have high cost-per-click in Google Ads. Always respond with just the keywords separated by commas, no additional text.',
+          content: systemPrompt,
         },
         {
           role: 'user',
           content: userMessage,
         },
       ],
-      max_tokens: 150,
-      temperature: 0.7,
+      max_tokens: settings.max_tokens,
+      temperature: settings.temperature,
     })
 
     const generatedKeywords = completion.choices[0].message.content.trim()

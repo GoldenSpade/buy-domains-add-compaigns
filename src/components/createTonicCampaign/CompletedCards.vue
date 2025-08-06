@@ -330,9 +330,11 @@
 <script setup>
 import { computed } from 'vue'
 import { useTonicStore } from '../../stores/tonicStore'
+import { useChatGptStore } from '../../stores/chatGptStore'
 import CombinedAccordion from './CombinedAccordion.vue'
 
 const tonicStore = useTonicStore()
+const chatGptStore = useChatGptStore()
 
 // Получаем только завершенные карточки
 const completedCards = computed(() => {
@@ -382,6 +384,7 @@ const generateKeywordsFromWords = async (card) => {
       inputWords: card.keywordsFromInputWords.trim(),
       country: card.country,
       trafficSource: card.trafficSource,
+      promptSettings: chatGptStore.prompts.keywords,
     }
 
     const response = await fetch(
@@ -432,6 +435,7 @@ const generateKeywordsFromUrl = async (card) => {
       url: card.keywordsFromUrl.trim(),
       country: card.country,
       trafficSource: card.trafficSource,
+      promptSettings: chatGptStore.prompts.url,
     }
 
     const response = await fetch(
