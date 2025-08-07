@@ -87,10 +87,10 @@
             <div class="col-md-6 mb-3">
               <label class="form-label">Країна</label>
               <select v-model="searchForm.country" class="form-select">
-                <option value="UA">Україна</option>
-                <option value="RU">Росія</option>
                 <option value="US">США</option>
                 <option value="DE">Німеччина</option>
+                <option value="UA">Україна</option>
+                <option value="RU">Росія</option>
               </select>
             </div>
           </div>
@@ -265,8 +265,8 @@ const error = ref('')
 const searchForm = ref({
   keyword: '',
   customerId: 'default',
-  language: 'uk',
-  country: 'UA',
+  language: 'en',
+  country: 'US',
 })
 
 const filters = ref({
