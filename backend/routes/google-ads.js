@@ -28,10 +28,6 @@ router.get('/api/google-ads/customers', (req, res) => {
 router.post('/api/google-ads/keywords', async (req, res) => {
   try {
     const { keyword } = req.body
-    const apiKey =
-      process.env.GOOGLE_CUSTOM_SEARCH_API_KEY || 'AIzaSyCccEs-DtEvdz8gnwG-wxfHxVmOPK6J10U'
-    const searchEngineId =
-      process.env.GOOGLE_SEARCH_ENGINE_ID || '017576662512468239146:omuauf_lfve'
 
     if (!keyword) {
       return res.status(400).json({ error: 'Потрібне ключове слово' })
