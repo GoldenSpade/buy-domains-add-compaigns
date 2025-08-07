@@ -12,12 +12,14 @@ import sedoRoutes from './routes/sedo.js'
 import clickflareRoutes from './routes/clickflare.js'
 import tonicRoutes from './routes/tonic.js'
 import chatgptRoutes from './routes/chatgpt.js'
+import googleAdsRoutes from './routes/google-ads.js'
 
 app.use('/', namecheapRoutes)
 app.use('/', sedoRoutes)
 app.use('/', clickflareRoutes)
 app.use('/', tonicRoutes)
 app.use('/', chatgptRoutes)
+app.use('/', googleAdsRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на http://localhost:${PORT}`)

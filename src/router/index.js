@@ -4,6 +4,8 @@ import Home from '@/pages/Home.vue'
 import PageDomainsSedoAFD from '@/pages/PageDomainsSedoAFD.vue'
 import PageTonicClickflare from '@/pages/PageTonicClickflare.vue'
 import PagePromptsManager from '@/pages/PagePromptsManager.vue'
+import PageGoogleKeywordsPlanner from '@/pages/PageGoogleKeywordsPlanner.vue'
+
 const routes = [
   {
     path: '/',
@@ -27,7 +29,13 @@ const routes = [
     path: '/prompts-manager',
     component: PagePromptsManager,
     name: 'PromptsManager',
-    meta: { title: 'Prompts Manager | Configure and test your prompts with ease' },
+    meta: { title: 'Prompts Manager' },
+  },
+  {
+    path: '/google-keywords-planner',
+    component: PageGoogleKeywordsPlanner,
+    name: 'PageGoogleKeywordsPlanner',
+    meta: { title: 'Google Keywords Planner' },
   },
 ]
 
