@@ -34,6 +34,7 @@
     "@types/long": "^5.0.0",
     "@vitejs/plugin-vue": "^6.0.0",
     "vite": "^7.0.0",
+    "vite-plugin-remove-console": "^2.2.0",
     "vite-plugin-vue-devtools": "^7.7.7"
   }
 }
