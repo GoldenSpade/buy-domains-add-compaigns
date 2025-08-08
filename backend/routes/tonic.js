@@ -392,4 +392,49 @@ router.post('/tonic/add-keywords', async (req, res) => {
   }
 })
 
+// 📋 Получить список кампаний
+router.get('/tonic/campaigns', async (req, res) => {
+  const rawSource = req.query.trafficSource
+  const trafficSource = rawSource?.trim?.()
+
+  if (!trafficSource) {
+    return res.status(400).json({ error: 'Missing trafficSource' })
+  }
+
+  try {
+    const token = await getTonicJwtToken(trafficSource.toLowerCase())
+
+    const response = await axios.get(
+      'https://api.publisher.tonic.com/privileged/v3/campaign/list?state=active&output=json',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    if (Array.isArray(response.data)) {
+      const campaigns = response.data.map((campaign) => ({
+        id: campaign.id,
+        name: campaign.name,
+        type: campaign.type,
+        country: campaign.country,
+        offer: campaign.offer,
+        vertical: campaign.vertical,
+        link: campaign.link,
+        target: campaign.target,
+        direct_link: campaign.direct_link,
+      }))
+
+      res.json({ campaigns })
+    } else {
+      res.status(500).json({ error: 'Invalid response format' })
+    }
+  } catch (err) {
+    console.error('❌ Ошибка при загрузке кампаний:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
 export default router

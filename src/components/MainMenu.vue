@@ -28,6 +28,11 @@
             <i class="bi bi-graph-up me-1"></i>Keywords Planner
           </router-link>
         </li>
+        <li class="nav-item">
+          <router-link :to="{ name: 'SingleOfferEditing' }" class="nav-link" active-class="active">
+            <i class="bi bi-pencil me-1"></i>Single Offer Editing
+          </router-link>
+        </li>
       </ul>
     </div>
   </nav>

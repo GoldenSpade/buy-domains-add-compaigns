@@ -5,6 +5,7 @@ import PageDomainsSedoAFD from '@/pages/PageDomainsSedoAFD.vue'
 import PageTonicClickflare from '@/pages/PageTonicClickflare.vue'
 import PagePromptsManager from '@/pages/PagePromptsManager.vue'
 import PageGoogleKeywordsPlanner from '@/pages/PageGoogleKeywordsPlanner.vue'
+import SingleOfferEditing from '@/pages/PageSingleOfferEditing.vue'
 
 const routes = [
   {
@@ -36,6 +37,12 @@ const routes = [
     component: PageGoogleKeywordsPlanner,
     name: 'PageGoogleKeywordsPlanner',
     meta: { title: 'Google Keywords Planner' },
+  },
+  {
+    path: '/single-offer-editing',
+    component: SingleOfferEditing,
+    name: 'SingleOfferEditing',
+    meta: { title: 'Single Offer Editing' },
   },
 ]
 
