@@ -23,11 +23,11 @@ async function getTonicJwtToken(trafficSource) {
 
   let key, secret
   if (source === 'tiktok') {
-    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+    key = process.env.TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.TONIC_ARTEM_TT_CONSUMER_SECRET
   } else if (source === 'facebook') {
-    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+    key = process.env.TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.TONIC_MAX_FB_CONSUMER_SECRET
   } else {
     throw new Error(`🔒 Невідомий trafficSource: ${trafficSource}`)
   }
@@ -63,11 +63,11 @@ router.get('/tonic/offers', async (req, res) => {
 
   let key, secret
   if (trafficSource === 'TikTok') {
-    key = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_ARTEM_TT_CONSUMER_SECRET
+    key = process.env.TONIC_ARTEM_TT_CONSUMER_KEY
+    secret = process.env.TONIC_ARTEM_TT_CONSUMER_SECRET
   } else if (trafficSource === 'Facebook') {
-    key = process.env.VITE_TONIC_MAX_FB_CONSUMER_KEY
-    secret = process.env.VITE_TONIC_MAX_FB_CONSUMER_SECRET
+    key = process.env.TONIC_MAX_FB_CONSUMER_KEY
+    secret = process.env.TONIC_MAX_FB_CONSUMER_SECRET
   } else {
     return res.status(400).json({ error: 'Invalid trafficSource' })
   }
@@ -433,6 +433,41 @@ router.get('/tonic/campaigns', async (req, res) => {
     }
   } catch (err) {
     console.error('❌ Ошибка при загрузке кампаний:', err?.response?.data || err.message)
+    res.status(500).json({ error: err?.response?.data || err.message })
+  }
+})
+
+// 📋 Получить ключевые слова кампании
+router.get('/tonic/campaign-keywords', async (req, res) => {
+  const { campaignId, trafficSource } = req.query
+
+  if (!campaignId || !trafficSource) {
+    return res.status(400).json({ error: 'Missing campaignId or trafficSource' })
+  }
+
+  try {
+    const token = await getTonicJwtToken(trafficSource.toLowerCase())
+
+    const response = await axios.get(
+      `https://api.publisher.tonic.com/privileged/v3/campaign/keywords?campaign_id=${campaignId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    const keywords = response.data.Keywords || []
+    const keywordAmount = response.data.KwAmount || 0
+
+    res.json({
+      success: true,
+      keywords,
+      keywordAmount,
+    })
+  } catch (err) {
+    console.error('❌ Ошибка при загрузке ключевых слов:', err?.response?.data || err.message)
     res.status(500).json({ error: err?.response?.data || err.message })
   }
 })

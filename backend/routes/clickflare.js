@@ -9,7 +9,7 @@ const router = express.Router()
 // 🎯 Створити офер у ClickFlare (ClickflareOfferSedo & TonicCampaignForm)
 router.post('/clickflare/create-offer', async (req, res) => {
   const { name, url, workspace_id, affiliateNetworkID: clientAffiliateNetworkID } = req.body
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
+  const API_KEY = process.env.CLICKFLARE_API_KEY
 
   // ✅ fallback: якщо не передано — беремо з ENV
   const AFFILIATE_NETWORK_ID =
@@ -82,7 +82,7 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
     cost_type = 'no_tracked',
   } = req.body
 
-  const API_KEY = process.env.VITE_CLICKFLARE_API_KEY
+  const API_KEY = process.env.CLICKFLARE_API_KEY
 
   if (!offerName || !offerUrl || !campaignName || !workspace_id) {
     return res.status(400).json({
@@ -242,8 +242,8 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
       console.log('2️⃣ Створюємо нову кампанію з flow:', campaignName)
 
       const trafficSourceMap = {
-        TikTok: process.env.VITE_TIKTOK_TRAFFIC_SOURCE_ID || '684bf93e5f67710012addf85',
-        Facebook: process.env.VITE_FACEBOOK_TRAFFIC_SOURCE_ID || '684bf954359cb30012ff1586',
+        TikTok: process.env.TIKTOK_TRAFFIC_SOURCE_ID,
+        Facebook: process.env.FACEBOOK_TRAFFIC_SOURCE_ID,
       }
 
       const selectedTrafficSourceId = trafficSourceMap[trafficSource]

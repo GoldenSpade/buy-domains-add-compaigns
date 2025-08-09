@@ -24,7 +24,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
       systemPrompt:
         'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.',
       userPromptTemplate:
-        'Give me 6 most expensive keywords from Google Keywords Planner related to: "{inputWords}". Target country: {country}. Traffic source: {trafficSource}. Return only the keywords separated by commas, without any additional text or explanations.',
+        'Give me 6 most expensive keywords from Google Keywords Planner related to: "{inputWords}". Target country: {country}. Traffic source: {trafficSource}. Return only the keywords separated by commas, without any additional text or explanations. Use these codes in your keywords for moving functions. Available are the following location parameters: {City}, {in City}, {Country}, {in Country}, {State} and {in State}. And replace the corresponding parameter with one of these codes.',
       settings: {
         model: 'gpt-4o-mini',
         temperature: 0.7,
@@ -40,7 +40,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
       systemPrompt:
         'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords based on website URLs and content. Focus on commercial intent keywords that would have high cost-per-click in Google Ads. Always respond with just the keywords separated by commas, no additional text.',
       userPromptTemplate:
-        'Analyze the content and topic of this URL: "{url}" and give me 6 most expensive keywords from Google Keywords Planner based on the website\'s content and niche. {country ? `Target country: {country}. ` : ""}{trafficSource ? `Traffic source: {trafficSource}. ` : ""}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations.',
+        'Analyze the content and topic of this URL: "{url}" and give me 6 most expensive keywords from Google Keywords Planner based on the website\'s content and niche. {country ? `Target country: {country}. ` : ""}{trafficSource ? `Traffic source: {trafficSource}. ` : ""}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations. Use these codes in your keywords for moving functions. Available are the following location parameters: {City}, {in City}, {Country}, {in Country}, {State} and {in State}. And replace the corresponding parameter with one of these codes.',
       settings: {
         model: 'gpt-4o-mini',
         temperature: 0.7,

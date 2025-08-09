@@ -9,7 +9,7 @@
           name="trafficSource"
           id="tiktok"
           value="TikTok"
-          v-model="selectedTrafficSource"
+          v-model="store.selectedTrafficSource"
         />
         <label class="form-check-label" for="tiktok"> Tiktok </label>
       </div>
@@ -20,15 +20,20 @@
           name="trafficSource"
           id="meta"
           value="Meta"
-          v-model="selectedTrafficSource"
+          v-model="store.selectedTrafficSource"
         />
         <label class="form-check-label" for="meta"> Meta </label>
       </div>
 
-      <select class="form-select" v-model="selectedCampaign" :disabled="isLoadingCampaigns">
-        <option v-if="isLoadingCampaigns" disabled>Загрузка кампаний...</option>
-        <option v-else-if="campaigns.length === 0" disabled>Кампании не найдены</option>
-        <option v-for="campaign in campaigns" :key="campaign.id" :value="campaign">
+      <select
+        class="form-select"
+        v-model="store.selectedCampaign"
+        :disabled="store.isLoadingCampaigns"
+      >
+        <option value="" disabled>Select campaign</option>
+        <option v-if="store.isLoadingCampaigns" disabled>Загрузка кампаний...</option>
+        <option v-else-if="store.campaigns.length === 0" disabled>Кампании не найдены</option>
+        <option v-for="campaign in store.campaigns" :key="campaign.id" :value="campaign">
           {{ campaign.id }}_{{ campaign.name }}
         </option>
       </select>
@@ -37,7 +42,7 @@
     <!-- Action Buttons Row -->
     <div class="row mb-3">
       <div class="col-md-6">
-        <button class="btn btn-primary w-100 fs-6 fw-semibold" @click="toggleKeywords">
+        <button class="btn btn-primary w-100 fs-6 fw-semibold" @click="store.toggleKeywords">
           Pull keywords
         </button>
       </div>
@@ -49,28 +54,50 @@
     <!-- URL Input Section -->
     <div class="row mb-3">
       <div class="col-md-8">
-        <input type="text" class="form-control" placeholder="Enter URL" />
+        <input type="text" class="form-control" placeholder="Enter URL" v-model="store.urlInput" />
       </div>
       <div class="col-md-4">
-        <button class="btn btn-primary w-100 fs-6 fw-semibold">Add from URL</button>
+        <button
+          class="btn btn-primary w-100 fs-6 fw-semibold"
+          @click="store.generateKeywordsFromUrl"
+          :disabled="!store.urlInput.trim() || !store.selectedCampaign"
+        >
+          Add from URL
+        </button>
       </div>
     </div>
 
     <!-- Keywords Input Section -->
     <div class="row">
       <div class="col-md-8">
-        <input type="text" class="form-control" placeholder="Enter keyword" />
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Enter keyword"
+          v-model="store.keywordInput"
+        />
       </div>
       <div class="col-md-4">
-        <button class="btn btn-primary w-100 fs-6 fw-semibold">Generate keywords</button>
+        <button
+          class="btn btn-primary w-100 fs-6 fw-semibold"
+          @click="store.generateKeywordsFromWords"
+          :disabled="!store.keywordInput.trim() || !store.selectedCampaign"
+        >
+          Generate keywords
+        </button>
       </div>
     </div>
 
     <!-- Keywords Section -->
-    <div v-if="showKeywords" class="mt-3">
-      <div v-for="n in 6" :key="n" class="row mb-3">
+    <div v-if="store.showKeywords" class="mt-3">
+      <div v-for="(value, key, index) in store.keywords" :key="key" class="row mb-3">
         <div class="col-md-8">
-          <input type="text" class="form-control" :placeholder="`Enter keyword ${n}`" />
+          <input
+            type="text"
+            class="form-control"
+            :placeholder="`Enter keyword ${index + 1}`"
+            v-model="store.keywords[key]"
+          />
         </div>
         <div class="col-md-4 d-flex gap-1">
           <button class="btn btn-outline-secondary btn-sm flex-fill">+ city</button>
@@ -87,54 +114,35 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { watch, onMounted } from 'vue'
+import { useSingleOfferStore } from '../stores/singleOfferStore'
 
-const showKeywords = ref(false)
-
-const toggleKeywords = () => {
-  showKeywords.value = !showKeywords.value
-}
-
-const selectedTrafficSource = ref('TikTok')
-const campaigns = ref([])
-const selectedCampaign = ref(null)
-const isLoadingCampaigns = ref(false)
-
-// Функция загрузки кампаний через наш API
-const fetchCampaigns = async () => {
-  const source = selectedTrafficSource.value === 'Meta' ? 'Facebook' : 'TikTok'
-  if (!source) return
-
-  isLoadingCampaigns.value = true
-  campaigns.value = []
-  selectedCampaign.value = null
-
-  try {
-    const resp = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/tonic/campaigns?trafficSource=${source}`
-    )
-    const data = await resp.json()
-
-    if (resp.ok && Array.isArray(data.campaigns)) {
-      campaigns.value = data.campaigns
-      console.log(`Загружено ${campaigns.value.length} кампаний для ${source}`)
-    } else {
-      console.error('❌ Error loading campaigns:', data)
-    }
-  } catch (err) {
-    console.error('❌ Ошибка загрузки кампаний:', err)
-  } finally {
-    isLoadingCampaigns.value = false
-  }
-}
+const store = useSingleOfferStore()
 
 // Следим за изменением traffic source
-watch(selectedTrafficSource, () => {
-  fetchCampaigns()
-})
+watch(
+  () => store.selectedTrafficSource,
+  () => {
+    store.fetchCampaigns()
+  }
+)
+
+// Следим за изменением выбранной кампании
+watch(
+  () => store.selectedCampaign,
+  (newCampaign) => {
+    if (newCampaign && newCampaign.id) {
+      store.fetchCampaignKeywords(newCampaign.id)
+      // Автоматически показываем секцию keywords
+      if (!store.showKeywords) {
+        store.toggleKeywords()
+      }
+    }
+  }
+)
 
 // Загружаем кампании при монтировании
 onMounted(() => {
-  fetchCampaigns()
+  store.fetchCampaigns()
 })
 </script>
