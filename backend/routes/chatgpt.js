@@ -108,7 +108,7 @@ router.post('/chatgpt/generate-keywords-from-words', async (req, res) => {
 
     const userPromptTemplate =
       promptSettings?.userPromptTemplate ||
-      "Give me 6 most expensive keywords from Google Keywords Planner related to: \"{inputWords}\". ${country ? `Target country: {country}. ` : ''}${trafficSource ? `Traffic source: {trafficSource}. ` : ''}Return only the keywords separated by commas, without any additional text or explanations. Use these codes in your keywords for moving functions. Available are the following location parameters: {City}, {in City}, {Country}, {in Country}, {State} and {in State}. And replace the corresponding parameter with one of these codes."
+      'Give me 6 most expensive keywords from Google Keywords Planner related to: "{inputWords}". Target country: {country}. Traffic source: {trafficSource}. Return only the keywords separated by commas, without any additional text or explanations. Do NOT analyze URLs or websites. Focus only on the topic keywords provided. IMPORTANT: Replace the country name with the code {Country} in ALL keywords. For example, if the country is Algeria, write "nurse jobs {Country}" instead of "nurse jobs Algeria". Also use these location codes: {City}, {in City}, {Country}, {in Country}, {State}, {in State}.'
 
     const settings = promptSettings?.settings || {
       model: 'gpt-4o-mini',
@@ -189,7 +189,7 @@ router.post('/chatgpt/generate-keywords-from-url', async (req, res) => {
 
     const userPromptTemplate =
       promptSettings?.userPromptTemplate ||
-      "Analyze the content and topic of this URL: \"{url}\" and give me 6 most expensive keywords from Google Keywords Planner based on the website's content and niche. ${country ? `Target country: {country}. ` : ''}${trafficSource ? `Traffic source: {trafficSource}. ` : ''}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations.  Use these codes in your keywords for moving functions. Available are the following location parameters: {City}, {in City}, {Country}, {in Country}, {State} and {in State}. And replace the corresponding parameter with one of these codes."
+      'Analyze the content and topic of this URL: "{url}" and give me 6 most expensive keywords from Google Keywords Planner based on the website\'s content and niche. {country ? `Target country: {country}. ` : ""}{trafficSource ? `Traffic source: {trafficSource}. ` : ""}Focus on high commercial intent keywords that would be expensive in Google Ads for this type of website. Return only the keywords separated by commas, without any additional text or explanations. IMPORTANT: Replace the country name "{country}" with the code {Country} in ALL keywords. For example, if the country is Algeria, write "nurse jobs {Country}" instead of "nurse jobs Algeria". Also use these location codes: {City}, {in City}, {Country}, {in Country}, {State}, {in State}.'
 
     const settings = promptSettings?.settings || {
       model: 'gpt-4o-mini',

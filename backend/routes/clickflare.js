@@ -397,4 +397,140 @@ router.post('/clickflare/create-offer-and-campaign', async (req, res) => {
   }
 })
 
+// 🎯 Створити тільки офер у ClickFlare (для SingleOfferEditing)
+router.post('/clickflare/create-single-offer', async (req, res) => {
+  const { offerName, offerUrl, workspace_id, affiliateNetworkID } = req.body
+
+  const API_KEY = process.env.CLICKFLARE_API_KEY
+
+  if (!offerName || !offerUrl || !workspace_id) {
+    return res.status(400).json({
+      error: 'Missing required fields: offerName, offerUrl, workspace_id',
+    })
+  }
+
+  try {
+    console.log('🚀 Створення тільки офера в ClickFlare')
+    console.log('📋 Параметри:', {
+      offerName,
+      workspace_id,
+    })
+
+    // Перевіряємо чи вже існує офер
+    console.log('🔍 Перевіряємо наявність існуючого офера...')
+
+    const checkOfferResponse = await axios.get(`https://public-api.clickflare.io/api/offers`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': API_KEY,
+      },
+    })
+
+    let existingOffer = null
+    if (checkOfferResponse.data && Array.isArray(checkOfferResponse.data)) {
+      existingOffer = checkOfferResponse.data.find(
+        (offer) => offer.name === offerName && offer.workspace_id === workspace_id
+      )
+    }
+
+    // Якщо офер вже існує - повертаємо його
+    if (existingOffer) {
+      console.log(`ℹ️ Офер "${offerName}" вже існує з ID: ${existingOffer._id || existingOffer.id}`)
+
+      // Оновлюємо URL якщо він відрізняється
+      if (existingOffer.url !== offerUrl) {
+        console.log(`🔄 Оновлюємо URL існуючого оффера...`)
+        try {
+          await axios.put(
+            `https://public-api.clickflare.io/api/offers/${existingOffer._id || existingOffer.id}`,
+            { url: offerUrl },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'api-key': API_KEY,
+              },
+            }
+          )
+          existingOffer.url = offerUrl
+          console.log(`✅ URL оффера оновлено`)
+        } catch (error) {
+          console.warn(`⚠️ Не вдалося оновити URL оффера:`, error.message)
+        }
+      }
+
+      return res.json({
+        success: true,
+        offer: {
+          id: existingOffer._id || existingOffer.id,
+          data: existingOffer,
+        },
+        message: 'Офер вже існує.',
+        alreadyExisted: true,
+      })
+    }
+
+    // Створюємо новий офер
+    console.log('1️⃣ Створюємо новий офер:', offerName)
+
+    const offerPayload = {
+      name: offerName,
+      url: offerUrl,
+      workspace_id,
+      direct: false,
+      affiliateNetworkID: affiliateNetworkID || process.env.VITE_AFFILIATE_NETWORK_TONIC_ID,
+      payout: {
+        type: 'auto',
+        payout: 0,
+        currency: 'USD',
+      },
+      keywordBuilderMode: 'free_form',
+    }
+
+    console.log('📤 Offer payload:', JSON.stringify(offerPayload, null, 2))
+
+    const offerResponse = await axios.post(
+      'https://public-api.clickflare.io/api/offers',
+      offerPayload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': API_KEY,
+        },
+      }
+    )
+
+    const offerId = offerResponse.data?._id || offerResponse.data?.id
+
+    if (!offerId) {
+      throw new Error('Не вдалося отримати ID створеного офера')
+    }
+
+    console.log('✅ Новий офер створено з ID:', offerId)
+
+    res.json({
+      success: true,
+      offer: {
+        id: offerId,
+        data: offerResponse.data,
+      },
+      message: 'Офер успішно створено.',
+      wasCreated: true,
+    })
+  } catch (error) {
+    const rawData = error?.response?.data
+    const statusCode = error?.response?.status || 500
+
+    const msg =
+      rawData?.message || rawData?.data?.[0]?.message || error.message || 'Unknown server error'
+
+    console.error('❌ ClickFlare create single offer error:', {
+      message: msg,
+      status: statusCode,
+      data: rawData,
+    })
+
+    res.status(statusCode).json({ error: msg, details: rawData })
+  }
+})
+
 export default router
