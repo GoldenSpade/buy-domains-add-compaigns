@@ -65,7 +65,7 @@
           <button class="btn btn-danger btn-sm w-50" @click="resetAdtitleFields">
             Reset fields
           </button>
-          <button class="btn btn-warning btn-sm w-50" @click="setDefaults">Defaults</button>
+          <button class="btn btn-warning btn-sm w-50" @click="setDefaults">Previous prompt</button>
         </div>
       </div>
     </div>

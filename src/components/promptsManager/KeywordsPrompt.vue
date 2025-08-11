@@ -66,7 +66,9 @@
           <button class="btn btn-danger btn-sm w-50" @click="resetKeywordsFields">
             Reset fields
           </button>
-          <button class="btn btn-warning btn-sm w-50" @click="setKeywordsDefaults">Defaults</button>
+          <button class="btn btn-warning btn-sm w-50" @click="setKeywordsDefaults">
+            Previous prompt
+          </button>
         </div>
       </div>
     </div>

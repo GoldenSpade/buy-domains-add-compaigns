@@ -64,7 +64,9 @@
             Test
           </button>
           <button class="btn btn-danger btn-sm w-50" @click="resetUrlFields">Reset fields</button>
-          <button class="btn btn-warning btn-sm w-50" @click="setUrlDefaults">Defaults</button>
+          <button class="btn btn-warning btn-sm w-50" @click="setUrlDefaults">
+            Previous prompt
+          </button>
         </div>
       </div>
     </div>

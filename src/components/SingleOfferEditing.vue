@@ -35,6 +35,8 @@
         :close-on-select="true"
         :allow-empty="false"
         :disabled="store.isLoadingCampaigns"
+        :custom-label="getFullCampaignName"
+        :custom-search="customSearch"
       >
         <template #option="{ option }"> {{ option.id }}_{{ option.name }} </template>
         <template #singleLabel="{ option }"> {{ option.id }}_{{ option.name }} </template>
@@ -247,6 +249,20 @@ watch(
     }
   }
 )
+
+// Функции для кастомного поиска в Multiselect
+const getFullCampaignName = (option) => {
+  return `${option.id}_${option.name}`
+}
+
+const customSearch = (searchQuery, option) => {
+  if (!searchQuery) return true
+  
+  const fullName = `${option.id}_${option.name}`.toLowerCase()
+  const query = searchQuery.toLowerCase()
+  
+  return fullName.includes(query)
+}
 
 // Загружаем кампании при монтировании
 onMounted(async () => {
