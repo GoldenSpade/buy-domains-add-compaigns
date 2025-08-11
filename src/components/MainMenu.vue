@@ -29,7 +29,7 @@
             <i class="bi bi-pencil me-1"></i>Single Offer Editing
           </router-link>
         </li>
-        <li class="nav-item">
+        <!-- <li class="nav-item">
           <router-link
             :to="{ name: 'PageGoogleKeywordsPlanner' }"
             class="nav-link"
@@ -37,7 +37,7 @@
           >
             <i class="bi bi-graph-up me-1"></i>Keywords Planner
           </router-link>
-        </li>
+        </li> -->
       </ul>
     </div>
   </nav>
