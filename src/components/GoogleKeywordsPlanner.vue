@@ -37,7 +37,7 @@
                 ></i>
                 <span>API налаштований: {{ apiStatus.configured ? 'Так' : 'Ні' }}</span>
               </div>
-              <div class="d-flex align-items-center">
+              <div class="d-flex align-items-center mb-3">
                 <i
                   :class="
                     apiStatus.authorized
@@ -48,6 +48,67 @@
                 ></i>
                 <span>Авторизований: {{ apiStatus.authorized ? 'Так' : 'Ні' }}</span>
               </div>
+              
+              <!-- Кнопка авторизації -->
+              <div v-if="apiStatus.configured && !apiStatus.authorized" class="mb-3">
+                <button @click="authorize" class="btn btn-primary" :disabled="loading.authorize">
+                  <span v-if="loading.authorize">
+                    <div class="spinner-border spinner-border-sm me-2"></div>
+                    Отримуємо URL...
+                  </span>
+                  <span v-else>
+                    <i class="bi bi-shield-check"></i>
+                    Авторизувати Google Ads API
+                  </span>
+                </button>
+                <div class="mt-2">
+                  <small class="text-muted">
+                    Після авторизації додайте Refresh Token в .env файл та перезапустіть сервер
+                  </small>
+                </div>
+              </div>
+
+              <!-- Інструкції для авторизації -->
+              <div v-if="apiStatus.configured && !apiStatus.authorized" class="alert alert-info">
+                <h6 class="alert-heading">
+                  <i class="bi bi-info-circle"></i>
+                  Як отримати авторизацію:
+                </h6>
+                <ol class="mb-0">
+                  <li>Натисніть кнопку "Авторизувати Google Ads API"</li>
+                  <li>Увійдіть в свій Google акаунт з доступом до Google Ads</li>
+                  <li>Дайте дозвіл додатку на доступ до Google Ads</li>
+                  <li>Скопіюйте отриманий Refresh Token</li>
+                  <li>Додайте його в .env файл як GOOGLE_ADS_REFRESH_TOKEN</li>
+                  <li>Перезапустіть сервер</li>
+                </ol>
+              </div>
+            </div>
+            
+            <!-- Деталі конфігурації -->
+            <div class="col-md-6" v-if="apiStatus.details">
+              <small class="text-muted">
+                <div class="mb-1">
+                  Client ID: 
+                  <i :class="apiStatus.details.clientId ? 'bi bi-check text-success' : 'bi bi-x text-danger'"></i>
+                </div>
+                <div class="mb-1">
+                  Client Secret: 
+                  <i :class="apiStatus.details.clientSecret ? 'bi bi-check text-success' : 'bi bi-x text-danger'"></i>
+                </div>
+                <div class="mb-1">
+                  Developer Token: 
+                  <i :class="apiStatus.details.developerToken ? 'bi bi-check text-success' : 'bi bi-x text-danger'"></i>
+                </div>
+                <div class="mb-1">
+                  Refresh Token: 
+                  <i :class="apiStatus.details.refreshToken ? 'bi bi-check text-success' : 'bi bi-x text-danger'"></i>
+                </div>
+                <div>
+                  Customer ID: 
+                  <i :class="apiStatus.details.customerId ? 'bi bi-check text-success' : 'bi bi-x text-danger'"></i>
+                </div>
+              </small>
             </div>
           </div>
         </div>
@@ -69,8 +130,12 @@
                 type="text"
                 class="form-control"
                 placeholder="Введіть ключове слово..."
+                maxlength="80"
                 required
               />
+              <div v-if="searchForm.keyword.length > 75" class="form-text text-warning">
+                Залишилося символів: {{ 80 - searchForm.keyword.length }}
+              </div>
             </div>
           </div>
 
@@ -114,10 +179,13 @@
     </div>
 
     <!-- Результати пошуку -->
-    <div class="card" v-if="keywords.length > 0">
+    <div class="card" v-if="keywords.length > 0 || loading.search">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">Результати пошуку</h6>
-        <div>
+        <h6 class="mb-0">
+          <span v-if="loading.search">Пошук ключових слів...</span>
+          <span v-else>Результати пошуку</span>
+        </h6>
+        <div v-if="!loading.search && keywords.length > 0">
           <span class="badge bg-primary me-2">{{ keywords.length }} слів</span>
           <button @click="exportKeywords" class="btn btn-sm btn-outline-success">
             <i class="bi bi-download"></i>
@@ -126,85 +194,100 @@
         </div>
       </div>
       <div class="card-body">
-        <!-- Фільтри -->
-        <div class="row mb-3">
-          <div class="col-md-4">
-            <input
-              v-model="filters.search"
-              type="text"
-              class="form-control form-control-sm"
-              placeholder="Фільтр за ключовими словами..."
-            />
+        <!-- Індикатор завантаження -->
+        <div v-if="loading.search" class="text-center py-5">
+          <div class="spinner-border text-primary me-3"></div>
+          <span class="text-muted">Отримуємо ключові слова від Google Ads API...</span>
+        </div>
+        
+        <!-- Фільтри та результати -->
+        <div v-else-if="keywords.length > 0">
+          <!-- Фільтри -->
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <input
+                v-model="filters.search"
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Фільтр за ключовими словами..."
+              />
+            </div>
+            <div class="col-md-4">
+              <select v-model="filters.competition" class="form-select form-select-sm">
+                <option value="">Усі рівні конкуренції</option>
+                <option value="LOW">Низька конкуренція</option>
+                <option value="MEDIUM">Середня конкуренція</option>
+                <option value="HIGH">Висока конкуренція</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <select v-model="filters.sortBy" class="form-select form-select-sm">
+                <option value="monthlySearches">За пошуками</option>
+                <option value="keyword">За алфавітом</option>
+                <option value="competition">За конкуренцією</option>
+              </select>
+            </div>
           </div>
-          <div class="col-md-4">
-            <select v-model="filters.competition" class="form-select form-select-sm">
-              <option value="">Усі рівні конкуренції</option>
-              <option value="LOW">Низька конкуренція</option>
-              <option value="MEDIUM">Середня конкуренція</option>
-              <option value="HIGH">Висока конкуренція</option>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <select v-model="filters.sortBy" class="form-select form-select-sm">
-              <option value="monthlySearches">За пошуками</option>
-              <option value="keyword">За алфавітом</option>
-              <option value="competition">За конкуренцією</option>
-            </select>
+
+          <!-- Таблиця результатів -->
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>Ключове слово</th>
+                  <th>Пошуки/місяць</th>
+                  <th>Конкуренція</th>
+                  <th>Мін. ставка</th>
+                  <th>Макс. ставка</th>
+                  <th>Дії</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(keyword, index) in filteredKeywords" :key="index">
+                  <td>
+                    <strong>{{ keyword.keyword }}</strong>
+                  </td>
+                  <td>
+                    <span class="badge bg-info">
+                      {{ formatNumber(keyword.monthlySearches) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge" :class="getCompetitionClass(keyword.competition)">
+                      {{ getCompetitionText(keyword.competition) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span v-if="keyword.lowBid" class="text-success"> ${{ keyword.lowBid }} </span>
+                    <span v-else class="text-muted">-</span>
+                  </td>
+                  <td>
+                    <span v-if="keyword.highBid" class="text-danger"> ${{ keyword.highBid }} </span>
+                    <span v-else class="text-muted">-</span>
+                  </td>
+                  <td>
+                    <button
+                      @click="copyKeyword(keyword.keyword)"
+                      class="btn btn-sm btn-outline-primary"
+                      title="Скопіювати"
+                    >
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-
-        <!-- Таблиця результатів -->
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead class="table-light">
-              <tr>
-                <th>Ключове слово</th>
-                <th>Пошуки/місяць</th>
-                <th>Конкуренція</th>
-                <th>Мін. ставка</th>
-                <th>Макс. ставка</th>
-                <th>Дії</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(keyword, index) in filteredKeywords" :key="index">
-                <td>
-                  <strong>{{ keyword.keyword }}</strong>
-                </td>
-                <td>
-                  <span class="badge bg-info">
-                    {{ formatNumber(keyword.monthlySearches) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="badge" :class="getCompetitionClass(keyword.competition)">
-                    {{ getCompetitionText(keyword.competition) }}
-                  </span>
-                </td>
-                <td>
-                  <span v-if="keyword.lowBid" class="text-success"> ${{ keyword.lowBid }} </span>
-                  <span v-else class="text-muted">-</span>
-                </td>
-                <td>
-                  <span v-if="keyword.highBid" class="text-danger"> ${{ keyword.highBid }} </span>
-                  <span v-else class="text-muted">-</span>
-                </td>
-                <td>
-                  <button
-                    @click="copyKeyword(keyword.keyword)"
-                    class="btn btn-sm btn-outline-primary"
-                    title="Скопіювати"
-                  >
-                    <i class="bi bi-clipboard"></i>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        
+        <!-- Повідомлення про відсутність результатів -->
+        <div v-else class="text-center py-4 text-muted">
+          <i class="bi bi-search" style="font-size: 2rem;"></i>
+          <p class="mt-2 mb-0">Введіть ключове слово та натисніть "Знайти ключові слова"</p>
         </div>
 
         <!-- Пагінація -->
-        <nav v-if="filteredKeywords.length > itemsPerPage">
+        <nav v-if="!loading.search && keywords.length > 0 && filteredKeywords.length > itemsPerPage">
           <ul class="pagination pagination-sm justify-content-center">
             <li class="page-item" :class="{ disabled: currentPage === 1 }">
               <button class="page-link" @click="currentPage = Math.max(1, currentPage - 1)">
@@ -235,9 +318,60 @@
     </div>
 
     <!-- Повідомлення про помилку -->
-    <div v-if="error" class="alert alert-danger" role="alert">
-      <h6 class="alert-heading">Помилка!</h6>
-      <p class="mb-0">{{ error }}</p>
+    <div v-if="error" class="alert" :class="getErrorClass(error)" role="alert">
+      <div class="d-flex align-items-center">
+        <i :class="getErrorIcon(error)" class="me-2"></i>
+        <div>
+          <h6 class="alert-heading mb-1">{{ getErrorTitle(error) }}</h6>
+          <p class="mb-0">{{ error }}</p>
+        </div>
+      </div>
+      <button @click="error = ''" type="button" class="btn-close" aria-label="Закрити"></button>
+    </div>
+
+    <!-- Модальне вікно з інструкціями авторизації -->
+    <div v-if="showAuthModal" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-shield-check text-primary"></i>
+              Авторизація Google Ads API
+            </h5>
+            <button @click="showAuthModal = false" type="button" class="btn-close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <h6 class="alert-heading">
+                <i class="bi bi-info-circle"></i>
+                Що робити далі:
+              </h6>
+              <ol class="mb-0">
+                <li><strong>Авторизуйтесь</strong> в Google акаунті у відкритому вікні</li>
+                <li><strong>Дайте дозвіл</strong> додатку на доступ до Google Ads</li>
+                <li><strong>Скопіюйте Refresh Token</strong> з результуючої сторінки</li>
+                <li><strong>Додайте token</strong> в .env файл:</li>
+              </ol>
+            </div>
+            
+            <div class="bg-dark text-light p-3 rounded">
+              <code>GOOGLE_ADS_REFRESH_TOKEN=ваш_токен_тут</code>
+            </div>
+            
+            <div class="alert alert-warning mt-3">
+              <i class="bi bi-exclamation-triangle"></i>
+              <strong>Важливо:</strong> Після додавання токену обов'язково перезапустіть сервер командою <code>npm run server</code>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="checkApiStatus" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise"></i>
+              Перевірити статус
+            </button>
+            <button @click="showAuthModal = false" class="btn btn-secondary">Закрити</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -251,6 +385,7 @@ const loading = ref({
   status: false,
   customers: false,
   search: false,
+  authorize: false,
 })
 
 const apiStatus = ref({
@@ -261,10 +396,11 @@ const apiStatus = ref({
 const customers = ref([])
 const keywords = ref([])
 const error = ref('')
+const showAuthModal = ref(false)
 
 const searchForm = ref({
   keyword: '',
-  customerId: 'default',
+  customerId: '', // Буде встановлено автоматично
   language: 'en',
   country: 'US',
 })
@@ -335,14 +471,45 @@ const checkApiStatus = async () => {
 }
 
 const authorize = async () => {
+  loading.value.authorize = true
+  error.value = ''
+  
   try {
     const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/google-ads/auth-url`)
-    window.open(response.data.authUrl, '_blank', 'width=500,height=600')
+    
+    if (!response.data.authUrl) {
+      error.value = response.data.error || 'Не вдалося отримати URL авторизації'
+      return
+    }
+    
+    // Відкриваємо popup для авторизації
+    const authWindow = window.open(
+      response.data.authUrl, 
+      'google-ads-auth', 
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    )
 
-    // Показуємо інструкції
-    alert('Після авторизації додайте отриманий Refresh Token в .env файл та перезапустіть сервер')
+    if (!authWindow) {
+      error.value = 'Не вдалося відкрити вікно авторизації. Дозвольте popup-и для цього сайту.'
+      return
+    }
+
+    // Показуємо модальне вікно з інструкціями
+    showAuthModal.value = true
+    
+    // Перевіряємо, чи закрилось вікно авторизації
+    const checkClosed = setInterval(() => {
+      if (authWindow.closed) {
+        clearInterval(checkClosed)
+        // Перевіряємо статус через 2 секунди після закриття
+        setTimeout(checkApiStatus, 2000)
+      }
+    }, 1000)
+
   } catch (err) {
-    error.value = 'Помилка отримання URL авторизації'
+    error.value = err.response?.data?.error || 'Помилка отримання URL авторизації'
+  } finally {
+    loading.value.authorize = false
   }
 }
 
@@ -369,10 +536,22 @@ const searchKeywords = async () => {
       `${import.meta.env.VITE_API_BASE_URL}/api/google-ads/keywords`,
       searchForm.value
     )
-    keywords.value = response.data.keywords
+    
+    if (!response.data.keywords || response.data.keywords.length === 0) {
+      error.value = 'За вашим запитом не знайдено ключових слів. Спробуйте інше слово.'
+      keywords.value = []
+    } else {
+      keywords.value = response.data.keywords
+      error.value = ''
+    }
+    
     currentPage.value = 1
   } catch (err) {
     error.value = err.response?.data?.error || 'Помилка пошуку ключових слів'
+    if (err.response?.data?.details) {
+      console.error('Деталі помилки:', err.response.data.details)
+    }
+    keywords.value = []
   } finally {
     loading.value.search = false
   }
@@ -437,6 +616,46 @@ const getCompetitionText = (competition) => {
     default:
       return 'Невідомо'
   }
+}
+
+// Обробка помилок
+const getErrorClass = (errorMessage) => {
+  if (errorMessage.includes('авторизації') || errorMessage.includes('автентифікації')) {
+    return 'alert-warning'
+  }
+  if (errorMessage.includes('не знайдено ключових слів')) {
+    return 'alert-info'
+  }
+  if (errorMessage.includes('ліміт запитів')) {
+    return 'alert-warning'
+  }
+  return 'alert-danger'
+}
+
+const getErrorIcon = (errorMessage) => {
+  if (errorMessage.includes('авторизації') || errorMessage.includes('автентифікації')) {
+    return 'bi bi-shield-exclamation'
+  }
+  if (errorMessage.includes('не знайдено ключових слів')) {
+    return 'bi bi-info-circle'
+  }
+  if (errorMessage.includes('ліміт запитів')) {
+    return 'bi bi-clock'
+  }
+  return 'bi bi-exclamation-triangle'
+}
+
+const getErrorTitle = (errorMessage) => {
+  if (errorMessage.includes('авторизації') || errorMessage.includes('автентифікації')) {
+    return 'Потрібна авторизація'
+  }
+  if (errorMessage.includes('не знайдено ключових слів')) {
+    return 'Інформація'
+  }
+  if (errorMessage.includes('ліміт запитів')) {
+    return 'Обмеження API'
+  }
+  return 'Помилка'
 }
 
 // Життєвий цикл
