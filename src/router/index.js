@@ -6,6 +6,7 @@ import PageTonicClickflare from '@/pages/PageTonicClickflare.vue'
 import PagePromptsManager from '@/pages/PagePromptsManager.vue'
 import PageGoogleKeywordsPlanner from '@/pages/PageGoogleKeywordsPlanner.vue'
 import SingleOfferEditing from '@/pages/PageSingleOfferEditing.vue'
+import PageTikTokManager from '@/pages/PageTikTokManager.vue'
 
 const routes = [
   {
@@ -15,16 +16,16 @@ const routes = [
     meta: { title: 'Панель управління | Ласкаво просимо! Оберіть розділ щоб розпочати роботу.' },
   },
   {
-    path: '/domains-sedo-afd',
+    path: '/sedo-afd',
     component: PageDomainsSedoAFD,
     name: 'PageDomainsSedoAFD',
-    meta: { title: 'Створення кампаній Sedo AFD' },
+    meta: { title: 'Sedo AFD' },
   },
   {
-    path: '/tonic-offers',
+    path: '/tonic-afd',
     component: PageTonicClickflare,
     name: 'PageTonicClickflare',
-    meta: { title: 'Створення кампаній Tonic AFD' },
+    meta: { title: 'Tonic AFD' },
   },
   {
     path: '/prompts-manager',
@@ -33,10 +34,10 @@ const routes = [
     meta: { title: 'Prompts Manager' },
   },
   {
-    path: '/google-keywords-planner',
-    component: PageGoogleKeywordsPlanner,
-    name: 'PageGoogleKeywordsPlanner',
-    meta: { title: 'Google Keywords Planner' },
+    path: '/tiktok-manager',
+    component: PageTikTokManager,
+    name: 'PageTikTokManager',
+    meta: { title: 'TikTok Manager' },
   },
   {
     path: '/single-offer-editing',
@@ -44,6 +45,12 @@ const routes = [
     name: 'SingleOfferEditing',
     meta: { title: 'Single Offer Editing' },
   },
+  // {
+  //   path: '/google-keywords-planner',
+  //   component: PageGoogleKeywordsPlanner,
+  //   name: 'PageGoogleKeywordsPlanner',
+  //   meta: { title: 'Google Keywords Planner' },
+  // },
 ]
 
 const router = createRouter({

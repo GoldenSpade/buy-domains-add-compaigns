@@ -23,10 +23,14 @@
             <i class="bi bi-openai me-1"></i>Prompts Manager
           </router-link>
         </li>
-
         <li class="nav-item">
           <router-link :to="{ name: 'SingleOfferEditing' }" class="nav-link" active-class="active">
             <i class="bi bi-pencil me-1"></i>Single Offer Editing
+          </router-link>
+        </li>
+        <li class="nav-item">
+          <router-link :to="{ name: 'PageTikTokManager' }" class="nav-link" active-class="active">
+            <i class="bi bi-tiktok me-1"></i>TikTok Manager
           </router-link>
         </li>
         <!-- <li class="nav-item">
