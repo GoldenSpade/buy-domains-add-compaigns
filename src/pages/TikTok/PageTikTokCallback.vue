@@ -18,14 +18,15 @@
             <div v-else-if="success" class="mb-3">
               <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
               <h6 class="text-success">Authorization Successful!</h6>
-              <p class="text-muted">Redirecting to TikTok Manager...</p>
+              <p class="text-muted" v-if="isInIframe">Completing authorization...</p>
+              <p class="text-muted" v-else>Redirecting to TikTok Manager...</p>
             </div>
             
             <div v-else-if="error" class="mb-3">
               <i class="fas fa-exclamation-circle text-danger fa-3x mb-3"></i>
               <h6 class="text-danger">Authorization Failed</h6>
               <p class="text-muted">{{ error }}</p>
-              <router-link to="/tiktok-manager" class="btn btn-primary">
+              <router-link v-if="!isInIframe" to="/tiktok-manager" class="btn btn-primary">
                 Try Again
               </router-link>
             </div>
@@ -40,17 +41,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useTikTokStore } from '@/stores/tiktokStore'
 
 const route = useRoute()
 const router = useRouter()
-const store = useTikTokStore()
-
 const loading = ref(true)
 const success = ref(false)
 const error = ref('')
+const isInIframe = ref(false)
 
 onMounted(async () => {
+  // Проверяем, загружена ли страница в iframe
+  isInIframe.value = window.self !== window.top
+
   try {
     // Извлекаем auth_code из URL параметров
     const authCode = route.query.auth_code || route.query.code
@@ -63,23 +65,47 @@ onMounted(async () => {
 
     console.log('Processing TikTok callback with auth_code:', authCode)
     
-    // Обрабатываем авторизацию через store
-    const authSuccess = await store.handleAuthCallback(authCode)
-    
-    if (authSuccess) {
+    // Если в iframe - отправляем сообщение в родительское окно
+    if (isInIframe.value) {
+      window.parent.postMessage({
+        type: 'TIKTOK_AUTH_SUCCESS',
+        authCode: authCode
+      }, window.location.origin)
+      
       success.value = true
-      // Перенаправляем на страницу TikTok Manager через 2 секунды
+      loading.value = false
+      
+      console.log('Message sent to parent window from iframe')
+    }
+    // Если в popup - отправляем сообщение в opener
+    else if (window.opener) {
+      window.opener.postMessage({
+        type: 'TIKTOK_AUTH_SUCCESS',
+        authCode: authCode
+      }, window.location.origin)
+      
+      success.value = true
+      loading.value = false
+      
+      // Закрываем popup через 1 секунду
+      setTimeout(() => {
+        window.close()
+      }, 1000)
+    } 
+    // Если обычная страница - редиректим на TikTok Manager
+    else {
+      success.value = true
+      loading.value = false
+      
+      // Редиректим через 2 секунды
       setTimeout(() => {
         router.push('/tiktok-manager')
       }, 2000)
-    } else {
-      error.value = store.error || 'Failed to process authorization'
     }
     
   } catch (err) {
     console.error('Error processing TikTok callback:', err)
     error.value = err.message || 'Unexpected error occurred'
-  } finally {
     loading.value = false
   }
 })
