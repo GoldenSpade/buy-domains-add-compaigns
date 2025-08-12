@@ -6,7 +6,8 @@ import PageTonicClickflare from '@/pages/PageTonicClickflare.vue'
 import PagePromptsManager from '@/pages/PagePromptsManager.vue'
 import PageGoogleKeywordsPlanner from '@/pages/PageGoogleKeywordsPlanner.vue'
 import SingleOfferEditing from '@/pages/PageSingleOfferEditing.vue'
-import PageTikTokManager from '@/pages/PageTikTokManager.vue'
+import PageTikTokManager from '@/pages/TikTok/PageTikTokManager.vue'
+import PageTikTokCallback from '@/pages/TikTok/PageTikTokCallback.vue'
 
 const routes = [
   {
@@ -38,6 +39,12 @@ const routes = [
     component: PageTikTokManager,
     name: 'PageTikTokManager',
     meta: { title: 'TikTok Manager' },
+  },
+  {
+    path: '/tiktok-callback',
+    component: PageTikTokCallback,
+    name: 'PageTikTokCallback',
+    meta: { title: 'TikTok Authorization' },
   },
   {
     path: '/single-offer-editing',

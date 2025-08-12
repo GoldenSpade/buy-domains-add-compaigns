@@ -2,135 +2,90 @@
   <div class="container">
     <div class="row">
       <div class="col-12">
-        <!-- Шаг 1: Получение Authorization URL -->
+        
+        <!-- Упрощенная панель авторизации -->
         <div class="card mb-3">
-          <div class="card-header">
-            <h5>Step 1: Authorization</h5>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">TikTok API Manager</h5>
+            <span v-if="store.isAuthenticated" class="badge bg-success">
+              <i class="fas fa-check me-1"></i>Connected
+            </span>
+            <span v-else class="badge bg-danger">
+              <i class="fas fa-exclamation-triangle me-1"></i>Not Connected
+            </span>
           </div>
           <div class="card-body">
-            <button @click="getAuthUrl" class="btn btn-primary me-2" :disabled="loading">
-              Get Authorization URL
-            </button>
-            <div v-if="authUrl" class="mt-3">
-              <p>Authorization URL:</p>
-              <a :href="authUrl" target="_blank" class="btn btn-success">
-                Open TikTok Authorization
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Шаг 2: Обмен кода на токен -->
-        <div class="card mb-3">
-          <div class="card-header">
-            <h5>Step 2: Exchange Code for Token</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <label for="authCode" class="form-label">Authorization Code:</label>
-              <input
-                v-model="authCode"
-                type="text"
-                class="form-control"
-                id="authCode"
-                placeholder="Enter authorization code from callback"
-              />
-            </div>
-            <button @click="exchangeToken" class="btn btn-warning" :disabled="loading || !authCode">
-              Exchange for Access Token
-            </button>
-            <div v-if="accessToken" class="mt-3">
-              <p><strong>Access Token:</strong></p>
-              <div class="alert alert-success">
-                {{ accessToken }}
+            
+            <!-- Если НЕ авторизован - показать кнопку авторизации -->
+            <div v-if="!store.isAuthenticated" class="text-center">
+              <div v-if="store.loading" class="mb-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Connecting to TikTok...
+              </div>
+              <div v-else>
+                <p class="text-muted mb-3">Connect your TikTok Business account to start managing campaigns</p>
+                <button @click="authorizeWithTikTok" class="btn btn-primary btn-lg" :disabled="store.loading">
+                  <i class="fab fa-tiktok me-2"></i>Connect TikTok Account
+                </button>
+              </div>
+              <div v-if="store.error" class="alert alert-danger mt-3">
+                {{ store.error }}
+                <button @click="store.clearError" class="btn-close float-end" aria-label="Close"></button>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Шаг 3: Тест API -->
-        <div class="card mb-3">
-          <div class="card-header">
-            <h5>Step 3: Test API</h5>
-          </div>
-          <div class="card-body">
-            <button @click="testApi" class="btn btn-info" :disabled="loading || !accessToken">
-              Get Advertisers
-            </button>
-            <div v-if="advertisers" class="mt-3">
-              <p><strong>Advertisers:</strong></p>
-              <pre class="bg-light p-3">{{ JSON.stringify(advertisers, null, 2) }}</pre>
+            <!-- Если авторизован - показать управление -->
+            <div v-else>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="fas fa-check-circle text-success me-2"></i>
+                  <strong>TikTok account connected successfully</strong>
+                  <div class="small text-muted mt-1">Ready to manage your advertising campaigns</div>
+                </div>
+                <div>
+                  <button @click="store.testApi" class="btn btn-sm btn-outline-info me-2" :disabled="store.loading">
+                    <i class="fas fa-sync-alt me-1"></i>Test Connection
+                  </button>
+                  <button @click="store.resetStore" class="btn btn-sm btn-outline-danger" :disabled="store.loading">
+                    <i class="fas fa-sign-out-alt me-1"></i>Disconnect
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Показать данные рекламодателей если есть -->
+              <div v-if="store.advertisers" class="mt-3">
+                <h6>Connected Advertisers:</h6>
+                <div class="bg-light p-3 rounded">
+                  <pre class="mb-0 small">{{ JSON.stringify(store.advertisers, null, 2) }}</pre>
+                </div>
+              </div>
             </div>
+            
           </div>
         </div>
-
-        <!-- Результаты и ошибки -->
-        <div v-if="error" class="alert alert-danger"><strong>Error:</strong> {{ error }}</div>
-
-        <div v-if="loading" class="text-center">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-        </div>
+        
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import axios from 'axios'
+import { useTikTokStore } from '@/stores/tiktokStore'
+import { onMounted } from 'vue'
 
-const loading = ref(false)
-const authUrl = ref('')
-const authCode = ref('')
-const accessToken = ref('')
-const advertisers = ref(null)
-const error = ref('')
+const store = useTikTokStore()
 
-const getAuthUrl = async () => {
-  loading.value = true
-  error.value = ''
+// Автоматическая инициализация при загрузке компонента
+onMounted(async () => {
+  await store.initializeAuth()
+})
 
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth-url`)
-    authUrl.value = response.data.authUrl
-  } catch (err) {
-    error.value = err.response?.data?.error || err.message
+// Упрощенная авторизация - одна кнопка
+const authorizeWithTikTok = async () => {
+  await store.getAuthUrl()
+  if (store.authUrl) {
+    // Открываем в новой вкладке для авторизации
+    window.open(store.authUrl, '_blank')
   }
-
-  loading.value = false
-}
-
-const exchangeToken = async () => {
-  loading.value = true
-  error.value = ''
-
-  try {
-    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/exchange-token`, {
-      auth_code: authCode.value,
-    })
-    accessToken.value = response.data.data.data.access_token
-  } catch (err) {
-    error.value = err.response?.data?.error || err.message
-  }
-
-  loading.value = false
-}
-
-const testApi = async () => {
-  loading.value = true
-  error.value = ''
-
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/advertisers`, {
-      params: { access_token: accessToken.value },
-    })
-    advertisers.value = response.data.data
-  } catch (err) {
-    error.value = err.response?.data?.error || err.message
-  }
-
-  loading.value = false
 }
 </script>

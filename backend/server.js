@@ -21,7 +21,7 @@ app.use('/', clickflareRoutes)
 app.use('/', tonicRoutes)
 app.use('/', chatgptRoutes)
 app.use('/', googleAdsRoutes)
-app.use('/', tiktokRoutes)
+app.use('/tiktok', tiktokRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на http://localhost:${PORT}`)
