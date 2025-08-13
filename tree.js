@@ -2,11 +2,11 @@ import { readdir } from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-// Эмуляция __dirname в ES-модулях
+// Емуляція __dirname у ES-модулях
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Папки, которые нужно игнорировать
+// Папки, які потрібно ігнорувати
 const ignoredFolders = ['node_modules', '.git']
 
 async function printTree(dirPath, indent = '') {
@@ -27,5 +27,5 @@ async function printTree(dirPath, indent = '') {
 
 // Запуск
 const rootDir = process.argv[2] ? path.resolve(process.argv[2]) : __dirname
-console.log(`Дерево файлов для: ${rootDir}\n`)
+console.log(`Дерево файлів для: ${rootDir}\n`)
 await printTree(rootDir)

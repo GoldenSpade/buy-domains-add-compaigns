@@ -10,7 +10,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
   const error = ref('')
   const isAuthenticated = ref(false)
 
-  // Загрузка из localStorage
+  // Завантаження з localStorage
   function loadFromLocalStorage(key) {
     try {
       const value = localStorage.getItem(key)
@@ -21,7 +21,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
-  // Сохранение в localStorage
+  // Збереження в localStorage
   function saveToLocalStorage(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value))
@@ -30,7 +30,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
-  // Очистка localStorage
+  // Очищення localStorage
   function clearFromLocalStorage() {
     try {
       localStorage.removeItem('tiktok_access_token')
@@ -40,7 +40,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
-  // Отслеживание изменений токена для сохранения
+  // Відстеження змін токена для збереження
   watch(accessToken, (newToken) => {
     if (newToken) {
       saveToLocalStorage('tiktok_access_token', newToken)
@@ -94,7 +94,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
         accessToken.value = data.data.data.access_token
         isAuthenticated.value = true
         
-        // Принудительное сохранение в localStorage
+        // Примусове збереження в localStorage
         saveToLocalStorage('tiktok_access_token', accessToken.value)
         saveToLocalStorage('tiktok_is_authenticated', true)
         
@@ -146,18 +146,18 @@ export const useTikTokStore = defineStore('tiktok', () => {
   }
 
 
-  // Автоматическая инициализация токенов
+  // Автоматична ініціалізація токенів
   const initializeAuth = async () => {
     console.log('Initializing TikTok auth...')
     
-    // Проверяем есть ли сохраненный токен
+    // Перевіряємо чи є збережений токен
     if (!accessToken.value) {
       console.log('No access token found, need manual authentication')
       isAuthenticated.value = false
       return false
     }
 
-    // Проверяем работоспособность токена через тестовый API вызов
+    // Перевіряємо роботоспроможність токена через тестовий API виклик
     console.log('Checking token validity...')
     const isValid = await testApi()
     if (isValid) {
@@ -183,12 +183,12 @@ export const useTikTokStore = defineStore('tiktok', () => {
     clearFromLocalStorage()
   }
 
-  // Проверка на существование сохраненных токенов при инициализации
+  // Перевірка на існування збережених токенів при ініціалізації
   if (accessToken.value) {
     isAuthenticated.value = loadFromLocalStorage('tiktok_is_authenticated') || false
   }
 
-  // Автоматическая обработка callback с auth_code
+  // Автоматична обробка callback з auth_code
   const handleAuthCallback = async (authCodeFromUrl) => {
     if (!authCodeFromUrl) {
       error.value = 'Authorization code not found in URL'
@@ -199,7 +199,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     const success = await exchangeToken()
     
     if (success) {
-      // Очищаем authCode после успешного обмена
+      // Очищаємо authCode після успішного обміну
       authCode.value = ''
       return true
     }

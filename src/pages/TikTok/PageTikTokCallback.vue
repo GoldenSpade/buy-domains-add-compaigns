@@ -50,11 +50,11 @@ const error = ref('')
 const isInIframe = ref(false)
 
 onMounted(async () => {
-  // Проверяем, загружена ли страница в iframe
+  // Перевіряємо, чи завантажена сторінка в iframe
   isInIframe.value = window.self !== window.top
 
   try {
-    // Извлекаем auth_code из URL параметров
+    // Витягуємо auth_code з URL параметрів
     const authCode = route.query.auth_code || route.query.code
     
     if (!authCode) {
@@ -65,7 +65,7 @@ onMounted(async () => {
 
     console.log('Processing TikTok callback with auth_code:', authCode)
     
-    // Если в iframe - отправляем сообщение в родительское окно
+    // Якщо в iframe - надсилаємо повідомлення в батьківське вікно
     if (isInIframe.value) {
       window.parent.postMessage({
         type: 'TIKTOK_AUTH_SUCCESS',
@@ -77,7 +77,7 @@ onMounted(async () => {
       
       console.log('Message sent to parent window from iframe')
     }
-    // Если в popup - отправляем сообщение в opener
+    // Якщо в popup - надсилаємо повідомлення в opener
     else if (window.opener) {
       window.opener.postMessage({
         type: 'TIKTOK_AUTH_SUCCESS',
@@ -87,17 +87,17 @@ onMounted(async () => {
       success.value = true
       loading.value = false
       
-      // Закрываем popup через 1 секунду
+      // Закриваємо popup через 1 секунду
       setTimeout(() => {
         window.close()
       }, 1000)
     } 
-    // Если обычная страница - редиректим на TikTok Manager
+    // Якщо звичайна сторінка - перенаправляємо на TikTok Manager
     else {
       success.value = true
       loading.value = false
       
-      // Редиректим через 2 секунды
+      // Перенаправляємо через 2 секунди
       setTimeout(() => {
         router.push('/tiktok-manager')
       }, 2000)

@@ -122,9 +122,9 @@ import { useChatGptStore } from '../../stores/chatGptStore'
 
 const chatGptStore = useChatGptStore()
 const testUrlInputUrl = ref('')
-// -----------------------------URL Prompt Functions-----------------------------
+// -----------------------------URL Prompt Функції-----------------------------
 
-// Функция тестирования URL промпта
+// Функція тестування URL промпту
 const testUrl = async () => {
   if (chatGptStore.prompts.url.isLoading) return
 
@@ -185,13 +185,13 @@ const testUrl = async () => {
   }
 }
 
-// Функция сброса полей URL к дефолтным значениям
+// Функція скидання полів URL до значень за замовчуванням
 const resetUrlFields = () => {
   chatGptStore.resetUrlFields()
   testUrlInputUrl.value = ''
 }
 
-// Функция сброса URL к дефолтным значениям
+// Функція скидання URL до значень за замовчуванням
 const setUrlDefaults = () => {
   chatGptStore.prompts.url.systemPrompt =
     'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords based on website URLs and content. Focus on commercial intent keywords that would have high cost-per-click in Google Ads. Always respond with just the keywords separated by commas, no additional text.'

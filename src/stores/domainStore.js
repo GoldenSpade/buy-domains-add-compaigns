@@ -5,35 +5,35 @@ export const useDomainStore = defineStore('domain', () => {
   const domains = ref(loadDomainsFromLocalStorage())
 
   const selectedSedoAccount = ref('TT1')
-  // Добавить домен
+  // Додати домен
   function addDomain(name) {
     if (!domains.value.find((d) => d.name === name)) {
       domains.value.push({ name, status: 'pending', message: '' })
     }
   }
 
-  // Удалить домен
+  // Видалити домен
   function removeDomain(name) {
     domains.value = domains.value.filter((d) => d.name !== name)
   }
 
-  // Очистить все
+  // Очистити все
   function clearDomains() {
     domains.value = []
   }
 
-  // Загрузка из localStorage
+  // Завантаження з localStorage
   function loadDomainsFromLocalStorage() {
     try {
       const saved = localStorage.getItem('domains')
       return saved ? JSON.parse(saved) : []
     } catch (e) {
-      console.error('⚠️ Ошибка при загрузке из localStorage:', e)
+      console.error('⚠️ Помилка при завантаженні з localStorage:', e)
       return []
     }
   }
 
-  // Сохраняем в localStorage при каждом изменении
+  // Зберігаємо в localStorage при кожній зміні
   watch(
     domains,
     (newVal) => {

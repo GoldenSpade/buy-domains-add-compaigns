@@ -12,7 +12,7 @@ const tonicTokenCache = {
   facebook: { token: '', expiresAt: 0 },
 }
 
-// 🔐 Получить JWT токен
+// 🔐 Отримати JWT токен
 async function getTonicJwtToken(trafficSource) {
   const source = trafficSource.toLowerCase()
 
@@ -46,13 +46,13 @@ async function getTonicJwtToken(trafficSource) {
   const token = response.data.token
   tonicTokenCache[source] = {
     token,
-    expiresAt: Date.now() + 90 * 60 * 1000 - 60 * 1000, // 90 мин - 1 мин запас
+    expiresAt: Date.now() + 90 * 60 * 1000 - 60 * 1000, // 90 хв - 1 хв запас
   }
 
   return token
 }
 
-// 📦 Получить список офферов
+// 📦 Отримати список оферів
 router.get('/tonic/offers', async (req, res) => {
   const rawSource = req.query.trafficSource
   const trafficSource = rawSource?.trim?.()
@@ -98,12 +98,12 @@ router.get('/tonic/offers', async (req, res) => {
 
     res.json({ offers: offersResp.data })
   } catch (err) {
-    console.error('❌ Ошибка при загрузке офферов:', err?.response?.data || err.message)
+    console.error('❌ Помилка при завантаженні оферів:', err?.response?.data || err.message)
     res.status(500).json({ error: err?.response?.data || err.message })
   }
 })
 
-// 🌍 Получить список разрешённых стран
+// 🌍 Отримати список дозволених країн
 router.get('/tonic/countries/allowed', async (req, res) => {
   const { offer, trafficSource } = req.query
 
@@ -133,10 +133,10 @@ router.get('/tonic/countries/allowed', async (req, res) => {
   }
 })
 
-// 🎯 Создание новой кампании
+// 🎯 Створення нової кампанії
 router.post('/tonic/create-campaign', async (req, res) => {
   const { name, offer, country, trafficSource } = req.body
-  // Извлекаем чистое имя без приставки для отправки в Tonic
+  // Витягуємо чисту назву без приставки для відправки в Tonic
   const cleanName = name.includes(' | ') ? name.split(' | ').slice(1).join(' | ') : name
 
   if (!name || !offer || !country || !trafficSource) {
@@ -147,7 +147,7 @@ router.post('/tonic/create-campaign', async (req, res) => {
     const token = await getTonicJwtToken(trafficSource.toLowerCase())
 
     const queryParams = new URLSearchParams({
-      name: cleanName, // Отправляем без приставки
+      name: cleanName, // Відправляємо без приставки
       offer,
       country,
       return_type: 'id',
@@ -174,13 +174,13 @@ router.post('/tonic/create-campaign', async (req, res) => {
   } catch (err) {
     const status = err?.response?.status || 500
     const errorData = err?.response?.data || err.message
-    console.error(`❌ Ошибка создания кампании (status ${status}):`, errorData)
+    console.error(`❌ Помилка створення кампанії (status ${status}):`, errorData)
 
     res.status(status).json({ error: errorData })
   }
 })
 
-// 🔍 Поиск кампании по имени
+// 🔍 Пошук кампанії за іменем
 router.get('/tonic/find-campaign', async (req, res) => {
   const { name, trafficSource } = req.query
   if (!name || !trafficSource) return res.status(400).json({ error: 'Missing params' })
@@ -194,7 +194,7 @@ router.get('/tonic/find-campaign', async (req, res) => {
 
     let searchName = name
 
-    // Сначала убираем приставку, если есть
+    // Спочатку прибираємо приставку, якщо є
     if (name.includes(' | ')) {
       searchName = name.split(' | ').slice(1).join(' | ')
     }
@@ -257,7 +257,7 @@ router.get('/tonic/campaign-status', async (req, res) => {
 
     let cleanName = name
 
-    // Сначала убираем приставку, если есть
+    // Спочатку прибираємо приставку, якщо є
     if (name.includes(' | ')) {
       cleanName = name.split(' | ').slice(1).join(' | ')
     }
@@ -302,7 +302,7 @@ router.get('/tonic/campaign-status', async (req, res) => {
   }
 })
 
-// 🏷️ Добавление ключевых слов к кампании
+// 🏷️ Додавання ключових слів до кампанії
 router.post('/tonic/add-keywords', async (req, res) => {
   const { campaignId, keywords, keywordAmount = 6 } = req.body
 
@@ -319,13 +319,13 @@ router.post('/tonic/add-keywords', async (req, res) => {
   }
 
   try {
-    console.log('🏷️ Добавление ключевых слов к кампании:', {
+    console.log('🏷️ Додавання ключових слів до кампанії:', {
       campaignId,
       keywords,
       keywordAmount,
     })
 
-    // Получаем токен (используем TikTok по умолчанию, можно добавить trafficSource параметр)
+    // Отримуємо токен (використовуємо TikTok за замовчуванням, можна додати trafficSource параметр)
     const token = await getTonicJwtToken('tiktok')
 
     const requestData = {
@@ -334,7 +334,7 @@ router.post('/tonic/add-keywords', async (req, res) => {
       keyword_amount: parseInt(keywordAmount),
     }
 
-    console.log('📤 Отправка данных в Tonic API:', requestData)
+    console.log('📤 Відправка даних в Tonic API:', requestData)
 
     const response = await axios.post(
       'https://api.publisher.tonic.com/privileged/v3/campaign/keywords',
@@ -346,12 +346,12 @@ router.post('/tonic/add-keywords', async (req, res) => {
         },
         timeout: 30000,
         validateStatus: function (status) {
-          return status < 500 // Принимаем все статусы меньше 500
+          return status < 500 // Приймаємо всі статуси менше 500
         },
       }
     )
 
-    console.log('📥 Ответ от Tonic API:', {
+    console.log('📥 Відповідь від Tonic API:', {
       status: response.status,
       data: response.data,
     })
@@ -360,7 +360,7 @@ router.post('/tonic/add-keywords', async (req, res) => {
       const keywordSetId = response.data.KeywordSetId
       const resultKeywords = response.data.Keywords
 
-      console.log('✅ Ключевые слова успешно добавлены:', {
+      console.log('✅ Ключові слова успішно додані:', {
         keywordSetId,
         resultKeywords,
       })
@@ -373,14 +373,14 @@ router.post('/tonic/add-keywords', async (req, res) => {
         },
       })
     } else {
-      console.warn('⚠️ Неуспешный статус от Tonic API:', response.status)
+      console.warn('⚠️ Неуспішний статус від Tonic API:', response.status)
       return res.status(response.status).json({
         success: false,
         error: response.data,
       })
     }
   } catch (error) {
-    console.error('❌ Ошибка добавления ключевых слов:', error?.response?.data || error.message)
+    console.error('❌ Помилка додавання ключових слів:', error?.response?.data || error.message)
 
     const status = error?.response?.status || 500
     const errorData = error?.response?.data || error.message
@@ -392,7 +392,7 @@ router.post('/tonic/add-keywords', async (req, res) => {
   }
 })
 
-// 📋 Получить список кампаний
+// 📋 Отримати список кампаній
 router.get('/tonic/campaigns', async (req, res) => {
   const rawSource = req.query.trafficSource
   const trafficSource = rawSource?.trim?.()
@@ -432,12 +432,12 @@ router.get('/tonic/campaigns', async (req, res) => {
       res.status(500).json({ error: 'Invalid response format' })
     }
   } catch (err) {
-    console.error('❌ Ошибка при загрузке кампаний:', err?.response?.data || err.message)
+    console.error('❌ Помилка при завантаженні кампаній:', err?.response?.data || err.message)
     res.status(500).json({ error: err?.response?.data || err.message })
   }
 })
 
-// 📋 Получить ключевые слова кампании
+// 📋 Отримати ключові слова кампанії
 router.get('/tonic/campaign-keywords', async (req, res) => {
   const { campaignId, trafficSource } = req.query
 
@@ -467,7 +467,7 @@ router.get('/tonic/campaign-keywords', async (req, res) => {
       keywordAmount,
     })
   } catch (err) {
-    console.error('❌ Ошибка при загрузке ключевых слов:', err?.response?.data || err.message)
+    console.error('❌ Помилка при завантаженні ключових слів:', err?.response?.data || err.message)
     res.status(500).json({ error: err?.response?.data || err.message })
   }
 })

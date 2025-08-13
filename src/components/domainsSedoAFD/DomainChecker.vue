@@ -186,7 +186,7 @@ const addToList = () => {
     domain.value = ''
     status.value = ''
     adding.value = false
-  }, 300) // лёгкая задержка для визуальной плавности
+  }, 300) // легка затримка для візуальної плавності
 }
 
 const buyAll = async () => {

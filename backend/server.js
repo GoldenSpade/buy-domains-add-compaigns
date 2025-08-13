@@ -24,5 +24,5 @@ app.use('/', googleAdsRoutes)
 app.use('/tiktok', tiktokRoutes)
 
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на http://localhost:${PORT}`)
+  console.log(`🚀 Сервер запущено на http://localhost:${PORT}`)
 })

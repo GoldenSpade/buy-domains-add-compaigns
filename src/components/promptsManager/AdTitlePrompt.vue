@@ -121,9 +121,9 @@ import { useChatGptStore } from '../../stores/chatGptStore'
 
 const chatGptStore = useChatGptStore()
 const testAdTitleInputWords = ref('')
-// -----------------------------AdTitle Prompt Functions-----------------------------
+// -----------------------------AdTitle Prompt Функції-----------------------------
 
-// Функция тестирования AdTitle промпта
+// Функція тестування AdTitle промпту
 const testAdTitle = async () => {
   if (chatGptStore.prompts.adTitle.isLoading) return
 
@@ -148,7 +148,7 @@ const testAdTitle = async () => {
     })
 
     const requestBody = {
-      offer: testAdTitleInputWords.value.trim(), // передаем введенные слова как offer
+      offer: testAdTitleInputWords.value.trim(), // передаємо введені слова як offer
       promptSettings: {
         systemPrompt: chatGptStore.prompts.adTitle.systemPrompt,
         userPromptTemplate: chatGptStore.prompts.adTitle.userPromptTemplate,
@@ -181,13 +181,13 @@ const testAdTitle = async () => {
   }
 }
 
-// Функция сброса полей к дефолтным значениям
+// Функція скидання полів до значень за замовчуванням
 const resetAdtitleFields = () => {
   chatGptStore.resetAdTitleFields()
   testAdTitleInputWords.value = ''
 }
 
-// Функция сброса к дефолтным значениям
+// Функція скидання до значень за замовчуванням
 const setDefaults = () => {
   chatGptStore.prompts.adTitle.systemPrompt =
     'You are a expert marketing copywriter. Generate compelling, short ad titles that grab attention and drive clicks. Always respond with just the title, no quotes or additional text.'

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
 
 export const useChatGptStore = defineStore('chatGptStore', () => {
-  // Дефолтные значения
+  // Стандартні значення
   const defaultPrompts = {
     adTitle: {
       systemPrompt:
@@ -14,7 +14,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
         temperature: 0.7,
         max_tokens: 100,
       },
-      // UI состояния для тестирования
+      // UI стани для тестування
       testAnswer: '',
       testError: '',
       isLoading: false,
@@ -30,7 +30,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
         temperature: 0.7,
         max_tokens: 150,
       },
-      // UI состояния для тестирования
+      // UI стани для тестування
       testAnswer: '',
       testError: '',
       isLoading: false,
@@ -46,7 +46,7 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
         temperature: 0.7,
         max_tokens: 150,
       },
-      // UI состояния для тестирования
+      // UI стани для тестування
       testAnswer: '',
       testError: '',
       isLoading: false,
@@ -54,13 +54,13 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
     },
   }
 
-  // Функция загрузки из localStorage
+  // Функція завантаження з localStorage
   const loadPromptsFromLS = () => {
     try {
       const saved = localStorage.getItem('chatGptPrompts')
       if (saved) {
         const parsed = JSON.parse(saved)
-        // Объединяем сохраненные данные с дефолтными (на случай добавления новых полей)
+        // Об'єднуємо збережені дані зі стандартними (на випадок додавання нових полів)
         return {
           ...defaultPrompts,
           ...parsed,
@@ -79,72 +79,72 @@ export const useChatGptStore = defineStore('chatGptStore', () => {
         }
       }
     } catch (error) {
-      console.warn('⚠️ Ошибка загрузки промптов из localStorage:', error)
+      console.warn('⚠️ Помилка завантаження промптів з localStorage:', error)
     }
     return defaultPrompts
   }
 
-  // Функция сохранения в localStorage
+  // Функція збереження в localStorage
   const savePromptsToLS = () => {
     try {
       localStorage.setItem('chatGptPrompts', JSON.stringify(prompts))
-      console.log('💾 ChatGPT промпты сохранены в localStorage')
+      console.log('💾 ChatGPT промпти збережені в localStorage')
     } catch (error) {
-      console.warn('⚠️ Ошибка сохранения промптов в localStorage:', error)
+      console.warn('⚠️ Помилка збереження промптів в localStorage:', error)
     }
   }
 
-  // Инициализируем prompts с данными из localStorage или дефолтными
+  // Ініціалізуємо prompts даними з localStorage або стандартними
   const prompts = reactive(loadPromptsFromLS())
 
-  // Автоматически сохраняем при изменении prompts
+  // Автоматично зберігаємо при зміні prompts
   watch(prompts, savePromptsToLS, { deep: true })
 
-  // Функция сброса к дефолтным значениям
+  // Функція скидання до стандартних значень
   const resetToDefaults = () => {
     Object.assign(prompts, defaultPrompts)
-    console.log('🔄 Промпты сброшены к дефолтным значениям')
+    console.log('🔄 Промпти скинуті до стандартних значень')
   }
 
-  // Функция очистки localStorage (для отладки)
+  // Функція очищення localStorage (для відладки)
   const clearLocalStorage = () => {
     try {
       localStorage.removeItem('chatGptPrompts')
       Object.assign(prompts, defaultPrompts)
-      console.log('🗑️ localStorage для ChatGPT промптов очищен')
+      console.log('🗑️ localStorage для ChatGPT промптів очищено')
     } catch (error) {
-      console.warn('⚠️ Ошибка очистки localStorage:', error)
+      console.warn('⚠️ Помилка очищення localStorage:', error)
     }
   }
 
-  // Функция сброса AdTitle полей к дефолтным значениям
+  // Функція скидання AdTitle полів до стандартних значень
   const resetAdTitleFields = () => {
     prompts.adTitle.systemPrompt = ''
     prompts.adTitle.userPromptTemplate = ''
     prompts.adTitle.testAnswer = ''
     prompts.adTitle.testError = ''
     prompts.adTitle.testDetails = null
-    console.log('🔄 AdTitle поля сброшены к дефолтным значениям')
+    console.log('🔄 AdTitle поля скинуті до стандартних значень')
   }
 
-  // Функция сброса Keywords полей к дефолтным значениям
+  // Функція скидання Keywords полів до стандартних значень
   const resetKeywordsFields = () => {
     prompts.keywords.systemPrompt = ''
     prompts.keywords.userPromptTemplate = ''
     prompts.keywords.testAnswer = ''
     prompts.keywords.testError = ''
     prompts.keywords.testDetails = null
-    console.log('🔄 Keywords поля сброшены к дефолтным значениям')
+    console.log('🔄 Keywords поля скинуті до стандартних значень')
   }
 
-  // Функция сброса URL полей к дефолтным значениям
+  // Функція скидання URL полів до стандартних значень
   const resetUrlFields = () => {
     prompts.url.systemPrompt = ''
     prompts.url.userPromptTemplate = ''
     prompts.url.testAnswer = ''
     prompts.url.testError = ''
     prompts.url.testDetails = null
-    console.log('🔄 URL поля сброшены к дефолтным значениям')
+    console.log('🔄 URL поля скинуті до стандартних значень')
   }
 
   return {

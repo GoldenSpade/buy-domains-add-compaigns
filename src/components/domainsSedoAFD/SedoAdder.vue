@@ -48,13 +48,13 @@ const { domains } = domainStore
 const loading = ref(false)
 const results = ref([])
 
-// восстановление значения при загрузке
+// відновлення значення при завантаженні
 const savedAccount = localStorage.getItem('selectedSedoAccount')
 if (savedAccount) {
   domainStore.selectedSedoAccount = savedAccount
 }
 
-// сохранение при изменении
+// збереження при зміні
 watch(
   () => domainStore.selectedSedoAccount,
   (val) => {

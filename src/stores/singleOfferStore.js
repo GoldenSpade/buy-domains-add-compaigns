@@ -3,13 +3,13 @@ import { ref, reactive, watch } from 'vue'
 import { useChatGptStore } from './chatGptStore'
 
 export const useSingleOfferStore = defineStore('singleOffer', () => {
-  // Основные состояния
+  // Основні стани
   const selectedTrafficSource = ref('TikTok')
   const selectedCampaign = ref('')
   const campaigns = ref([])
   const isLoadingCampaigns = ref(false)
 
-  // Keywords состояние
+  // Keywords стан
   const showKeywords = ref(false)
   const keywords = reactive({
     keyword1: '',
@@ -20,20 +20,20 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
     keyword6: '',
   })
 
-  // URL и keyword inputs
+  // URL і keyword inputs
   const urlInput = ref('')
   const keywordInput = ref('')
 
-  // Состояние для уведомлений
+  // Стан для сповіщень
   const updateMessage = ref('')
-  const updateMessageType = ref('') // 'success' или 'error'
+  const updateMessageType = ref('') // 'success' або 'error'
 
-  // Состояние для ClickFlare
+  // Стан для ClickFlare
   const clickflareMessage = ref('')
-  const clickflareMessageType = ref('') // 'success' или 'error'
+  const clickflareMessageType = ref('') // 'success' або 'error'
   const isCreatingOffer = ref(false)
 
-  // Функции
+  // Функції
   const toggleKeywords = () => {
     showKeywords.value = !showKeywords.value
   }
@@ -50,7 +50,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
     resetKeywords()
   }
 
-  // Функция загрузки кампаний
+  // Функція завантаження кампаній
   const fetchCampaigns = async () => {
     const source = selectedTrafficSource.value === 'Meta' ? 'Facebook' : 'TikTok'
     if (!source) return
@@ -76,8 +76,8 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
     } finally {
       isLoadingCampaigns.value = false
 
-      // Восстанавливаем selectedCampaign после загрузки campaigns
-      // Ищем по сохраненному ID или временному ID
+      // Відновлюємо selectedCampaign після завантаження campaigns
+      // Шукаємо за збереженим ID або тимчасовим ID
       const savedData = JSON.parse(localStorage.getItem('singleOfferStore') || '{}')
       const savedCampaignId = savedData.selectedCampaign?.id || window._tempSavedCampaignId
 
@@ -87,13 +87,13 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
           selectedCampaign.value = foundCampaign
           console.log('📂 Восстановлена выбранная кампания:', foundCampaign.name)
         }
-        // Очищаем временное хранилище
+        // Очищаємо тимчасове сховище
         delete window._tempSavedCampaignId
       }
     }
   }
 
-  // Функция загрузки ключевых слов кампании
+  // Функція завантаження ключових слів кампанії
   const fetchCampaignKeywords = async (campaignId) => {
     if (!campaignId || !selectedTrafficSource.value) return
 
@@ -108,13 +108,13 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
       const data = await resp.json()
 
       if (resp.ok && data.success) {
-        // Очищаем все ключевые слова
+        // Очищаємо всі ключові слова
         resetKeywords()
 
-        // Заполняем ключевыми словами из API
+        // Заповнюємо ключовими словами з API
         data.keywords.forEach((keyword, index) => {
           if (index < 6) {
-            // Максимум 6 ключевых слов
+            // Максимум 6 ключових слів
             keywords[`keyword${index + 1}`] = keyword
           }
         })
@@ -128,7 +128,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
     }
   }
 
-  // Генерация ключевых слов по URL
+  // Генерація ключових слів по URL
   const generateKeywordsFromUrl = async () => {
     if (!urlInput.value.trim()) {
       console.warn('⚠️ URL не введен')
@@ -146,7 +146,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
 
       console.log(`🌐 Генеруємо ключові слова для URL: "${urlInput.value}"`)
 
-      // Получаем полное название страны через API
+      // Отримуємо повну назву країни через API
       let countryName = null
       try {
         const countryResp = await fetch(
@@ -168,10 +168,10 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
       }
 
       const requestBody = {
-        url: urlInput.value.trim(), // или inputWords для второй функции
-        country: countryName, // Теперь передаем название страны
+        url: urlInput.value.trim(), // або inputWords для другої функції
+        country: countryName, // Тепер передаємо назву країни
         trafficSource: source,
-        promptSettings: chatGptStore.prompts.url, // или keywords
+        promptSettings: chatGptStore.prompts.url, // або keywords
       }
 
       const response = await fetch(
@@ -190,7 +190,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
       if (response.ok && result.success && result.data) {
         const keywordsList = result.data.keywords.split(',').map((kw) => kw.trim())
 
-        // Очищаем и заполняем keywords
+        // Очищаємо і заповнюємо keywords
         resetKeywords()
         keywordsList.forEach((keyword, index) => {
           if (index < 6) {
@@ -198,7 +198,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
           }
         })
 
-        // Показываем секцию keywords если скрыта
+        // Показуємо секцію keywords якщо прихована
         if (!showKeywords.value) {
           showKeywords.value = true
         }
@@ -212,7 +212,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
     }
   }
 
-  // Генерация ключевых слов по введенным словам
+  // Генерація ключових слів по введеним словам
   const generateKeywordsFromWords = async () => {
     if (!keywordInput.value.trim()) {
       console.warn('⚠️ Ключевое слово не введено')
@@ -230,7 +230,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
 
       console.log(`🔤 Генеруємо ключові слова для: "${keywordInput.value}"`)
 
-      // Получаем полное название страны через API
+      // Отримуємо повну назву країни через API
       let countryName = null
       try {
         const countryResp = await fetch(
@@ -276,7 +276,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
       if (response.ok && result.success && result.data) {
         const keywordsList = result.data.keywords.split(',').map((kw) => kw.trim())
 
-        // Очищаем и заполняем keywords
+        // Очищаємо і заповнюємо keywords
         resetKeywords()
         keywordsList.forEach((keyword, index) => {
           if (index < 6) {
@@ -284,7 +284,7 @@ export const useSingleOfferStore = defineStore('singleOffer', () => {
           }
         })
 
-        // Показываем секцию keywords если скрыта
+        // Показуємо секцію keywords якщо прихована
         if (!showKeywords.value) {
           showKeywords.value = true
         }

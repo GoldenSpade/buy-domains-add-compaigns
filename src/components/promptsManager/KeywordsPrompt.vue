@@ -125,9 +125,9 @@ import { useChatGptStore } from '../../stores/chatGptStore'
 const chatGptStore = useChatGptStore()
 const testKeywordsInputWords = ref('')
 
-// -----------------------------Keywords Prompt Functions-----------------------------
+// -----------------------------Keywords Prompt Функції-----------------------------
 
-// Функция тестирования Keywords промпта
+// Функція тестування Keywords промпту
 const testKeywords = async () => {
   if (chatGptStore.prompts.keywords.isLoading) return
 
@@ -188,13 +188,13 @@ const testKeywords = async () => {
   }
 }
 
-// Функция сброса полей Keywords к дефолтным значениям
+// Функція скидання полів Keywords до значень за замовчуванням
 const resetKeywordsFields = () => {
   chatGptStore.resetKeywordsFields()
   testKeywordsInputWords.value = ''
 }
 
-// Функция сброса Keywords к дефолтным значениям
+// Функція скидання Keywords до значень за замовчуванням
 const setKeywordsDefaults = () => {
   chatGptStore.prompts.keywords.systemPrompt =
     'You are an expert SEO and PPC specialist. Generate high-value, expensive keywords that would have high cost-per-click in Google Ads. Focus on commercial intent keywords. Always respond with just the keywords separated by commas, no additional text.'
