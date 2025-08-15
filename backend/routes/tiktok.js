@@ -23,7 +23,7 @@ router.get('/auth-url', (req, res) => {
   }
 
   const redirectUri = `${redirect_base_url}/tiktok-callback`
-  const authUrl = `https://business-api.tiktok.com/portal/auth?app_id=${TIKTOK_APP_ID}&state=test_state&redirect_uri=${encodeURIComponent(redirectUri)}`
+  const authUrl = `https://business-api.tiktok.com/portal/auth?app_id=${TIKTOK_APP_ID}&state=your_custom_params&redirect_uri=${encodeURIComponent(redirectUri)}`
 
   res.json({
     success: true,
