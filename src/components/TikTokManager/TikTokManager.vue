@@ -158,6 +158,9 @@
       </div>
     </div>
 
+    <!-- TikTok Campaign Manager Component -->
+    <TikTokCampaignManager />
+
     <!-- Модальное окно авторизации TikTok -->
     <div
       class="modal fade"
@@ -236,6 +239,7 @@
 import { useTikTokStore } from '@/stores/tiktokStore'
 import { onMounted, ref, reactive, computed } from 'vue'
 import { Modal } from 'bootstrap'
+import TikTokCampaignManager from './TikTokCampaignManager.vue'
 
 const store = useTikTokStore()
 

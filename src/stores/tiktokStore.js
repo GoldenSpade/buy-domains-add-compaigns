@@ -13,6 +13,17 @@ export const useTikTokStore = defineStore('tiktok', () => {
   const error = ref('')
   const isAuthenticated = ref(false)
 
+  // Campaign management state
+  const campaigns = ref([])
+  const campaignStats = ref({
+    active: 0,
+    totalSpend: '0.00',
+    impressions: 0,
+    clicks: 0
+  })
+  const campaignLoading = ref(false)
+  const lastStatsUpdate = ref(null)
+
   // Завантаження з localStorage
   function loadFromLocalStorage(key) {
     try {
@@ -157,7 +168,10 @@ export const useTikTokStore = defineStore('tiktok', () => {
     error.value = ''
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tiktok/advertisers?access_token=${encodeURIComponent(accessToken.value)}`)
+      // Сначала пробуем получить детальную информацию об аккаунтах
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tiktok/advertiser-info?access_token=${encodeURIComponent(accessToken.value)}&advertiser_ids=${encodeURIComponent(advertiserIds.value.join(','))}`
+      )
       const data = await response.json()
       
       if (data.success) {
@@ -165,7 +179,13 @@ export const useTikTokStore = defineStore('tiktok', () => {
         loading.value = false
         return true
       } else {
-        error.value = data.error || 'Failed to get advertisers'
+        // Проверяем на ошибку истекшего токена
+        if (data.data?.code === 40001 || data.error?.includes('token') || data.error?.includes('auth')) {
+          console.warn('Token expired during API test')
+          error.value = 'Session expired. Please re-authenticate.'
+        } else {
+          error.value = data.error || 'Failed to validate token'
+        }
         loading.value = false
         return false
       }
@@ -312,6 +332,175 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }))
   }
 
+  // ============ CAMPAIGN MANAGEMENT FUNCTIONS ============
+
+  // Получение списка кампаний
+  const getCampaigns = async () => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    campaignLoading.value = true
+    error.value = ''
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tiktok/campaigns?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      )
+      const data = await response.json()
+      
+      if (data.success) {
+        campaigns.value = data.data.data?.list || []
+        
+        // Обновляем статистику активных кампаний
+        const activeCampaigns = campaigns.value.filter(c => c.operation_status === 'ENABLE').length
+        campaignStats.value.active = activeCampaigns
+        
+        campaignLoading.value = false
+        return true
+      } else {
+        // Проверяем на ошибку истекшего токена
+        if (data.data?.code === 40001 || data.error?.includes('token') || data.error?.includes('auth')) {
+          console.warn('Token expired, clearing authentication')
+          clearFromLocalStorage()
+          resetStore()
+          error.value = 'Session expired. Please re-authenticate.'
+        } else {
+          error.value = data.error || 'Failed to get campaigns'
+        }
+        
+        campaignLoading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      campaignLoading.value = false
+      return false
+    }
+  }
+
+  // Получение статистики кампаний
+  const getCampaignStats = async () => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      return false
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tiktok/campaign-stats?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      )
+      const data = await response.json()
+      
+      if (data.success && data.data.data?.list?.length > 0) {
+        const stats = data.data.data.list[0].metrics
+        
+        campaignStats.value = {
+          active: campaigns.value.filter(c => c.operation_status === 'ENABLE').length,
+          totalSpend: parseFloat(stats.spend || 0).toFixed(2),
+          impressions: parseInt(stats.impressions || 0),
+          clicks: parseInt(stats.clicks || 0)
+        }
+        
+        lastStatsUpdate.value = new Date().toISOString()
+        return true
+      }
+      return false
+    } catch (err) {
+      console.warn('Failed to get campaign stats:', err)
+      return false
+    }
+  }
+
+  // Создание новой кампании
+  const createCampaign = async (campaignData) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    loading.value = true
+    error.value = ''
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tiktok/campaigns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken.value,
+          advertiser_id: selectedAdvertiserId.value,
+          campaign_data: campaignData
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Перезагружаем список кампаний
+        await getCampaigns()
+        loading.value = false
+        return true
+      } else {
+        error.value = data.error || 'Failed to create campaign'
+        loading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      loading.value = false
+      return false
+    }
+  }
+
+  // Обновление статуса кампании
+  const updateCampaignStatus = async (campaignId, operation) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tiktok/campaigns/${campaignId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken.value,
+          advertiser_id: selectedAdvertiserId.value,
+          operation: operation // "ENABLE", "DISABLE", "DELETE"
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Перезагружаем список кампаний
+        await getCampaigns()
+        return true
+      } else {
+        error.value = data.error || 'Failed to update campaign status'
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      return false
+    }
+  }
+
+  // Загрузка полных данных (кампании + статистика)
+  const loadCampaignData = async () => {
+    if (!selectedAdvertiserId.value) return false
+    
+    const campaignsLoaded = await getCampaigns()
+    if (campaignsLoaded) {
+      await getCampaignStats()
+    }
+    return campaignsLoaded
+  }
+
   return {
     loading,
     authUrl,
@@ -333,5 +522,15 @@ export const useTikTokStore = defineStore('tiktok', () => {
     resetStore,
     setSelectedAdvertiserId,
     getScopeInfo,
+    // Campaign management
+    campaigns,
+    campaignStats,
+    campaignLoading,
+    lastStatsUpdate,
+    getCampaigns,
+    getCampaignStats,
+    createCampaign,
+    updateCampaignStatus,
+    loadCampaignData,
   }
 })
