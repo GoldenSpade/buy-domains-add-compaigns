@@ -2,7 +2,11 @@
   <div>
     <MainMenu />
     <div class="app mb-4 px-3">
-      <Header title="Створення кампаній Sedo AFD" />
+      <Header title="Sedo AFD">
+        <template #header-icon>
+          <i class="bi bi-diagram-3 me-2 fs-4" style="transform: translateY(-4px)"></i>
+        </template>
+      </Header>
       <div class="row">
         <div class="col-md-6">
           <DomainChecker />
