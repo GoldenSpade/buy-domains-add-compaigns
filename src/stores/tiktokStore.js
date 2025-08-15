@@ -176,6 +176,40 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
+  // Получение детальной информации об advertiser аккаунтах
+  const getAdvertiserInfo = async () => {
+    if (!accessToken.value || !advertiserIds.value.length) {
+      error.value = 'Access token and advertiser IDs are required'
+      return false
+    }
+
+    loading.value = true
+    error.value = ''
+
+    try {
+      const idsParam = advertiserIds.value.join(',')
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tiktok/advertiser-info?access_token=${encodeURIComponent(accessToken.value)}&advertiser_ids=${encodeURIComponent(idsParam)}`
+      )
+      const data = await response.json()
+      
+      if (data.success) {
+        // Обновляем advertisers с детальной информацией
+        advertisers.value = data.data
+        loading.value = false
+        return true
+      } else {
+        error.value = data.error || 'Failed to get advertiser info'
+        loading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      loading.value = false
+      return false
+    }
+  }
+
   const clearError = () => {
     error.value = ''
   }
@@ -192,12 +226,16 @@ export const useTikTokStore = defineStore('tiktok', () => {
       return false
     }
 
-    // Перевіряємо роботоспроможність токена через тестовий API виклик
+    // Перевіряємо роботоспроможність токена через тестовый API виклик
     console.log('Checking token validity...')
     const isValid = await testApi()
     if (isValid) {
       console.log('TikTok authentication successful')
       isAuthenticated.value = true
+      
+      // После успешной проверки токена, загружаем детальную информацию об аккаунтах
+      await getAdvertiserInfo()
+      
       return true
     } else {
       console.log('Token invalid, need manual authentication')
@@ -289,6 +327,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     getAuthUrl,
     exchangeToken,
     testApi,
+    getAdvertiserInfo,
     handleAuthCallback,
     clearError,
     resetStore,

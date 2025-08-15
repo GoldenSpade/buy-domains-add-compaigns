@@ -59,7 +59,8 @@
             <div v-else class="text-center">
               <h6 class="text-success">
                 <i class="bi bi-check-circle me-1"></i>
-                TikTok account connected successfully</h6>
+                TikTok account connected successfully
+              </h6>
               <p class="text-muted">Ready to manage your advertising campaigns</p>
 
               <!-- Детальная информация -->
@@ -69,45 +70,62 @@
                   <div class="card h-100">
                     <div class="card-body p-3">
                       <h6 class="card-title mb-3">
-                        <i class="bi bi-building me-2"></i>Advertiser Accounts ({{ visibleAccounts.length }})
+                        <i class="bi bi-building me-2"></i>Advertiser Accounts ({{
+                          visibleAccounts.length
+                        }})
                       </h6>
                       <div v-if="visibleAccounts.length > 0" class="list-group list-group-flush">
-                        <div 
-                          v-for="account in visibleAccounts" 
+                        <div
+                          v-for="account in visibleAccounts"
                           :key="account.advertiser_id"
                           class="list-group-item px-0 py-2 border-0"
-                          style="cursor: pointer;"
+                          style="cursor: pointer"
                           @click="store.setSelectedAdvertiserId(account.advertiser_id)"
                         >
                           <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="fw-bold small">{{ account.advertiser_name || account.advertiser_id }}</div>
-                              <div class="text-muted" style="font-size: 11px;">ID: {{ account.advertiser_id }}</div>
+                            <div class="flex-grow-1">
+                              <div class="d-flex align-items-center gap-2 mb-1">
+                                <div class="fw-bold small">
+                                  {{
+                                    account.name || account.advertiser_name || account.advertiser_id
+                                  }}
+                                </div>
+                                <span
+                                  :class="getAccountStatusBadge(account.status)"
+                                  class="badge"
+                                  style="font-size: 10px"
+                                  :title="account.status"
+                                >
+                                  {{ getAccountStatusText(account.status) }}
+                                </span>
+                              </div>
+                              <div class="text-muted text-start" style="font-size: 11px">
+                                ID: {{ account.advertiser_id }}
+                              </div>
                             </div>
-                            <span 
+                            <span
                               v-if="store.selectedAdvertiserId === account.advertiser_id"
                               class="badge bg-primary"
                             >
                               <i class="bi bi-check me-1"></i>Active
                             </span>
-                            <span 
-                              v-else
-                              class="badge bg-outline-secondary"
-                              style="opacity: 0.5;"
-                            >
+                            <span v-else class="badge bg-outline-secondary" style="opacity: 0.5">
                               Click to select
                             </span>
                           </div>
                         </div>
                       </div>
                       <div v-else class="text-center py-3">
-                        <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                        <div
+                          class="spinner-border spinner-border-sm text-primary mb-2"
+                          role="status"
+                        ></div>
                         <div class="small text-muted">Loading accounts...</div>
                       </div>
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- API Permissions -->
                 <div class="col-12 col-md-6">
                   <div class="card h-100">
@@ -116,13 +134,16 @@
                         <i class="bi bi-key me-2"></i>API Permissions ({{ store.scope.length }})
                       </h6>
                       <div class="list-group list-group-flush">
-                        <div 
-                          v-for="permission in store.getScopeInfo()" 
+                        <div
+                          v-for="permission in store.getScopeInfo()"
                           :key="permission.id"
                           class="list-group-item px-0 py-2 border-0"
                         >
                           <div class="d-flex align-items-center">
-                            <i class="bi bi-check-circle text-success me-2" style="font-size: 12px;"></i>
+                            <i
+                              class="bi bi-check-circle text-success me-2"
+                              style="font-size: 12px"
+                            ></i>
                             <span class="small">{{ permission.name }}</span>
                           </div>
                         </div>
@@ -224,7 +245,7 @@ const HIDDEN_ADVERTISER_ID = '7524260058755170320'
 // Фильтрованный список аккаунтов (без скрытого)
 const visibleAccounts = computed(() => {
   if (!store.advertisers?.data?.list) return []
-  return store.advertisers.data.list.filter(acc => acc.advertiser_id !== HIDDEN_ADVERTISER_ID)
+  return store.advertisers.data.list.filter((acc) => acc.advertiser_id !== HIDDEN_ADVERTISER_ID)
 })
 
 // Состояние модального окна
@@ -243,10 +264,10 @@ let authPopup = null
 // Автоматическая инициализация при загрузке компонента
 onMounted(async () => {
   await store.initializeAuth()
-  
+
   // Если авторизован, загружаем данные о рекламодателях
   if (store.isAuthenticated) {
-    await store.testApi()
+    await store.getAdvertiserInfo()
   }
 
   // Инициализируем модальное окно Bootstrap
@@ -355,7 +376,7 @@ const setupPopupListeners = () => {
         // Загружаем данные о рекламодателях после успешной авторизации
         if (store.isAuthenticated) {
           modalState.loadingMessage = 'Loading account information...'
-          await store.testApi()
+          await store.getAdvertiserInfo()
         }
 
         modalState.loading = false
@@ -422,6 +443,29 @@ const retryAuth = () => {
   resetModalState()
   openAuthModal()
 }
+
+// Функции для обработки статуса аккаунта
+const getAccountStatusText = (status) => {
+  const statusMap = {
+    STATUS_ENABLE: 'Approved',
+    STATUS_DISABLE: 'Disabled',
+    STATUS_LIMIT: 'Limited',
+    STATUS_PENDING: 'Pending',
+    STATUS_REJECTED: 'Rejected',
+  }
+  return statusMap[status] || 'Unknown'
+}
+
+const getAccountStatusBadge = (status) => {
+  const badgeMap = {
+    STATUS_ENABLE: 'bg-success',
+    STATUS_DISABLE: 'bg-danger',
+    STATUS_LIMIT: 'bg-secondary',
+    STATUS_PENDING: 'bg-info',
+    STATUS_REJECTED: 'bg-danger',
+  }
+  return badgeMap[status] || 'bg-secondary'
+}
 </script>
 
 <style scoped>
@@ -430,24 +474,24 @@ const retryAuth = () => {
   .card-header h5 {
     font-size: 1rem;
   }
-  
+
   .badge {
     font-size: 0.75rem;
     padding: 0.375rem 0.5rem;
   }
-  
+
   .card-body {
     padding: 1rem !important;
   }
-  
+
   .list-group-item {
     padding: 0.5rem 0 !important;
   }
-  
+
   .fw-bold.small {
     font-size: 0.8rem;
   }
-  
+
   .text-muted {
     font-size: 0.7rem !important;
   }

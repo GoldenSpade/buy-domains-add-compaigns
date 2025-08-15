@@ -55,9 +55,10 @@ router.post('/exchange-token', async (req, res) => {
   }
 })
 
-// Тестовый запрос для получения рекламодателей
-router.get('/advertisers', async (req, res) => {
-  const { access_token } = req.query
+
+// Получение детальной информации об advertiser аккаунтах
+router.get('/advertiser-info', async (req, res) => {
+  const { access_token, advertiser_ids } = req.query
 
   if (!access_token) {
     return res.status(400).json({
@@ -66,14 +67,23 @@ router.get('/advertisers', async (req, res) => {
     })
   }
 
+  if (!advertiser_ids) {
+    return res.status(400).json({
+      success: false,
+      error: 'Advertiser IDs are required',
+    })
+  }
+
   try {
-    const response = await axios.get(`${TIKTOK_API_BASE}/oauth2/advertiser/get/`, {
+    // Разбираем advertiser_ids (может быть строкой или массивом)
+    const idsArray = Array.isArray(advertiser_ids) ? advertiser_ids : advertiser_ids.split(',')
+    
+    const response = await axios.get(`${TIKTOK_API_BASE}/advertiser/info/`, {
       headers: {
         'Access-Token': access_token,
       },
       params: {
-        app_id: TIKTOK_APP_ID,
-        secret: TIKTOK_SECRET,
+        advertiser_ids: JSON.stringify(idsArray),
       },
     })
 
