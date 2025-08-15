@@ -2,7 +2,7 @@
   <div>
     <MainMenu />
     <div class="app mb-4 px-3">
-      <Header title="TikTok API Manager" />
+      <Header title="TikTok Campaigns Manager" />
       <div class="row justify-content-center">
         <div class="col-md-8">
           <TikTokManager />

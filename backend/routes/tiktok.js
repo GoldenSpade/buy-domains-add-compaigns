@@ -89,4 +89,32 @@ router.get('/advertisers', async (req, res) => {
   }
 })
 
+// Тестовый endpoint для симуляции данных авторизации
+router.post('/test-auth-data', (req, res) => {
+  // Симулируем ответ который вы получили от TikTok
+  const mockResponse = {
+    success: true,
+    data: {
+      code: 0,
+      message: "OK",
+      request_id: "20250815190943EC52C6071423E8788C8A",
+      data: {
+        access_token: "cb6a4ab63c90c8895d5f43288220d5a1950fcc6f",
+        advertiser_ids: [
+          "7514344499263422465",
+          "7516608586064265233", 
+          "7516608711914455057",
+          "7516608814804992016",
+          "7516608843779162128",
+          "7524260058755170320",
+          "7524343342423998482"
+        ],
+        scope: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      }
+    }
+  }
+  
+  res.json(mockResponse)
+})
+
 export default router

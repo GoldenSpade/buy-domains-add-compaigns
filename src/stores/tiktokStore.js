@@ -6,6 +6,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
   const authUrl = ref('')
   const authCode = ref('')
   const accessToken = ref(loadFromLocalStorage('tiktok_access_token') || '')
+  const advertiserIds = ref(loadFromLocalStorage('tiktok_advertiser_ids') || [])
+  const scope = ref(loadFromLocalStorage('tiktok_scope') || [])
+  const selectedAdvertiserId = ref(loadFromLocalStorage('tiktok_selected_advertiser_id') || '')
   const advertisers = ref(null)
   const error = ref('')
   const isAuthenticated = ref(false)
@@ -34,16 +37,37 @@ export const useTikTokStore = defineStore('tiktok', () => {
   function clearFromLocalStorage() {
     try {
       localStorage.removeItem('tiktok_access_token')
+      localStorage.removeItem('tiktok_advertiser_ids')
+      localStorage.removeItem('tiktok_scope')
+      localStorage.removeItem('tiktok_selected_advertiser_id')
       localStorage.removeItem('tiktok_is_authenticated')
     } catch (e) {
       console.warn('Failed to clear tokens from localStorage:', e)
     }
   }
 
-  // Відстеження змін токена для збереження
+  // Відстеження змін для збереження в localStorage
   watch(accessToken, (newToken) => {
     if (newToken) {
       saveToLocalStorage('tiktok_access_token', newToken)
+    }
+  })
+
+  watch(advertiserIds, (newIds) => {
+    if (newIds && newIds.length > 0) {
+      saveToLocalStorage('tiktok_advertiser_ids', newIds)
+    }
+  }, { deep: true })
+
+  watch(scope, (newScope) => {
+    if (newScope && newScope.length > 0) {
+      saveToLocalStorage('tiktok_scope', newScope)
+    }
+  }, { deep: true })
+
+  watch(selectedAdvertiserId, (newId) => {
+    if (newId) {
+      saveToLocalStorage('tiktok_selected_advertiser_id', newId)
     }
   })
 
@@ -92,10 +116,20 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       if (data.success) {
         accessToken.value = data.data.data.access_token
+        advertiserIds.value = data.data.data.advertiser_ids || []
+        scope.value = data.data.data.scope || []
         isAuthenticated.value = true
+        
+        // Автоматически выбираем первый advertiser_id если не выбран
+        if (advertiserIds.value.length > 0 && !selectedAdvertiserId.value) {
+          selectedAdvertiserId.value = advertiserIds.value[0]
+        }
         
         // Примусове збереження в localStorage
         saveToLocalStorage('tiktok_access_token', accessToken.value)
+        saveToLocalStorage('tiktok_advertiser_ids', advertiserIds.value)
+        saveToLocalStorage('tiktok_scope', scope.value)
+        saveToLocalStorage('tiktok_selected_advertiser_id', selectedAdvertiserId.value)
         saveToLocalStorage('tiktok_is_authenticated', true)
         
         loading.value = false
@@ -177,6 +211,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
     authUrl.value = ''
     authCode.value = ''
     accessToken.value = ''
+    advertiserIds.value = []
+    scope.value = []
+    selectedAdvertiserId.value = ''
     advertisers.value = null
     error.value = ''
     isAuthenticated.value = false
@@ -207,11 +244,42 @@ export const useTikTokStore = defineStore('tiktok', () => {
     return false
   }
 
+  // Функция для изменения выбранного advertiser ID
+  const setSelectedAdvertiserId = (advertiserId) => {
+    if (advertiserIds.value.includes(advertiserId)) {
+      selectedAdvertiserId.value = advertiserId
+      saveToLocalStorage('tiktok_selected_advertiser_id', advertiserId)
+    }
+  }
+
+  // Получение информации о доступных scope (расшифровка)
+  const getScopeInfo = () => {
+    const scopeNames = {
+      1: 'Ad Account Management',
+      2: 'Ads Management', 
+      3: 'Audience Management',
+      4: 'Reporting',
+      5: 'Measurement',
+      6: 'Creative Management',
+      7: 'App Management',
+      8: 'Pixel Management',
+      9: 'DPA Catalog Management'
+    }
+    
+    return scope.value.map(id => ({
+      id,
+      name: scopeNames[id] || `Unknown scope (${id})`
+    }))
+  }
+
   return {
     loading,
     authUrl,
     authCode,
     accessToken,
+    advertiserIds,
+    scope,
+    selectedAdvertiserId,
     advertisers,
     error,
     isAuthenticated,
@@ -222,5 +290,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     handleAuthCallback,
     clearError,
     resetStore,
+    setSelectedAdvertiserId,
+    getScopeInfo,
   }
 })
