@@ -1,27 +1,29 @@
 <template>
-  <div class="container">
+  <div class="container-fluid px-2 px-md-3">
     <div class="row">
-      <div class="col-md-12">
+      <div class="col-12">
         <!-- Упрощенная панель авторизации -->
         <div class="card mb-3">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Connection Status</h5>
-            <div class="d-flex gap-2">
-              <span v-if="store.isAuthenticated" class="badge bg-success">
-                <i class="bi bi-check-circle me-1"></i>Connected
-              </span>
-              <span v-else class="badge bg-danger">
-                <i class="bi bi-exclamation-triangle me-1"></i>Not Connected
-              </span>
-              <span
-                v-if="store.isAuthenticated"
-                @click="handleDisconnect"
-                class="badge bg-danger"
-                style="cursor: pointer"
-                title="Disconnect from TikTok"
-              >
-                Disconnect<i class="bi bi-box-arrow-right ms-1"></i>
-              </span>
+          <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <h5 class="mb-0 me-2">Connection Status</h5>
+              <div class="d-flex gap-1 gap-md-2 flex-wrap">
+                <span v-if="store.isAuthenticated" class="badge bg-success text-nowrap">
+                  <i class="bi bi-check-circle me-1"></i>Connected
+                </span>
+                <span v-else class="badge bg-danger text-nowrap">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Not Connected
+                </span>
+                <span
+                  v-if="store.isAuthenticated"
+                  @click="handleDisconnect"
+                  class="badge bg-danger text-nowrap"
+                  style="cursor: pointer"
+                  title="Disconnect from TikTok"
+                >
+                  Disconnect<i class="bi bi-box-arrow-right ms-1"></i>
+                </span>
+              </div>
             </div>
           </div>
           <div class="card-body">
@@ -60,15 +62,73 @@
                 TikTok account connected successfully</h6>
               <p class="text-muted">Ready to manage your advertising campaigns</p>
 
-              <!-- Базовая информация -->
-              <div class="row mt-4">
-                <div class="col-md-6">
-                  <div class="small text-muted">Advertiser Accounts</div>
-                  <div class="fw-bold">{{ store.advertiserIds.length }}</div>
+              <!-- Детальная информация -->
+              <div class="row g-3">
+                <!-- Advertiser Accounts -->
+                <div class="col-12 col-md-6">
+                  <div class="card h-100">
+                    <div class="card-body p-3">
+                      <h6 class="card-title mb-3">
+                        <i class="bi bi-building me-2"></i>Advertiser Accounts ({{ visibleAccounts.length }})
+                      </h6>
+                      <div v-if="visibleAccounts.length > 0" class="list-group list-group-flush">
+                        <div 
+                          v-for="account in visibleAccounts" 
+                          :key="account.advertiser_id"
+                          class="list-group-item px-0 py-2 border-0"
+                          style="cursor: pointer;"
+                          @click="store.setSelectedAdvertiserId(account.advertiser_id)"
+                        >
+                          <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                              <div class="fw-bold small">{{ account.advertiser_name || account.advertiser_id }}</div>
+                              <div class="text-muted" style="font-size: 11px;">ID: {{ account.advertiser_id }}</div>
+                            </div>
+                            <span 
+                              v-if="store.selectedAdvertiserId === account.advertiser_id"
+                              class="badge bg-primary"
+                            >
+                              <i class="bi bi-check me-1"></i>Active
+                            </span>
+                            <span 
+                              v-else
+                              class="badge bg-outline-secondary"
+                              style="opacity: 0.5;"
+                            >
+                              Click to select
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                        <div class="small text-muted">Loading accounts...</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-6">
-                  <div class="small text-muted">API Permissions</div>
-                  <div class="fw-bold">{{ store.scope.length }}</div>
+                
+                <!-- API Permissions -->
+                <div class="col-12 col-md-6">
+                  <div class="card h-100">
+                    <div class="card-body p-3">
+                      <h6 class="card-title mb-3">
+                        <i class="bi bi-key me-2"></i>API Permissions ({{ store.scope.length }})
+                      </h6>
+                      <div class="list-group list-group-flush">
+                        <div 
+                          v-for="permission in store.getScopeInfo()" 
+                          :key="permission.id"
+                          class="list-group-item px-0 py-2 border-0"
+                        >
+                          <div class="d-flex align-items-center">
+                            <i class="bi bi-check-circle text-success me-2" style="font-size: 12px;"></i>
+                            <span class="small">{{ permission.name }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -153,10 +213,19 @@
 
 <script setup>
 import { useTikTokStore } from '@/stores/tiktokStore'
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, ref, reactive, computed } from 'vue'
 import { Modal } from 'bootstrap'
 
 const store = useTikTokStore()
+
+// ID аккаунта который нужно скрыть
+const HIDDEN_ADVERTISER_ID = '7524260058755170320'
+
+// Фильтрованный список аккаунтов (без скрытого)
+const visibleAccounts = computed(() => {
+  if (!store.advertisers?.data?.list) return []
+  return store.advertisers.data.list.filter(acc => acc.advertiser_id !== HIDDEN_ADVERTISER_ID)
+})
 
 // Состояние модального окна
 const modalState = reactive({
@@ -174,6 +243,11 @@ let authPopup = null
 // Автоматическая инициализация при загрузке компонента
 onMounted(async () => {
   await store.initializeAuth()
+  
+  // Если авторизован, загружаем данные о рекламодателях
+  if (store.isAuthenticated) {
+    await store.testApi()
+  }
 
   // Инициализируем модальное окно Bootstrap
   const modalElement = document.getElementById('tiktokAuthModal')
@@ -278,6 +352,12 @@ const setupPopupListeners = () => {
         store.authCode = event.data.authCode
         await store.exchangeToken()
 
+        // Загружаем данные о рекламодателях после успешной авторизации
+        if (store.isAuthenticated) {
+          modalState.loadingMessage = 'Loading account information...'
+          await store.testApi()
+        }
+
         modalState.loading = false
         modalState.success = true
 
@@ -343,3 +423,42 @@ const retryAuth = () => {
   openAuthModal()
 }
 </script>
+
+<style scoped>
+/* Адаптивность для мобильных устройств */
+@media (max-width: 767.98px) {
+  .card-header h5 {
+    font-size: 1rem;
+  }
+  
+  .badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.5rem;
+  }
+  
+  .card-body {
+    padding: 1rem !important;
+  }
+  
+  .list-group-item {
+    padding: 0.5rem 0 !important;
+  }
+  
+  .fw-bold.small {
+    font-size: 0.8rem;
+  }
+  
+  .text-muted {
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Предотвращаем переполнение */
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.card-title {
+  word-break: break-word;
+}
+</style>

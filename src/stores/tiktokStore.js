@@ -120,9 +120,10 @@ export const useTikTokStore = defineStore('tiktok', () => {
         scope.value = data.data.data.scope || []
         isAuthenticated.value = true
         
-        // Автоматически выбираем первый advertiser_id если не выбран
+        // Автоматически выбираем первый advertiser_id если не выбран (исключаем скрытый)
         if (advertiserIds.value.length > 0 && !selectedAdvertiserId.value) {
-          selectedAdvertiserId.value = advertiserIds.value[0]
+          const visibleAdvertiserIds = advertiserIds.value.filter(id => id !== '7524260058755170320')
+          selectedAdvertiserId.value = visibleAdvertiserIds[0] || advertiserIds.value[0]
         }
         
         // Примусове збереження в localStorage
@@ -246,7 +247,8 @@ export const useTikTokStore = defineStore('tiktok', () => {
 
   // Функция для изменения выбранного advertiser ID
   const setSelectedAdvertiserId = (advertiserId) => {
-    if (advertiserIds.value.includes(advertiserId)) {
+    // Проверяем что ID есть в списке и не является скрытым
+    if (advertiserIds.value.includes(advertiserId) && advertiserId !== '7524260058755170320') {
       selectedAdvertiserId.value = advertiserId
       saveToLocalStorage('tiktok_selected_advertiser_id', advertiserId)
     }
