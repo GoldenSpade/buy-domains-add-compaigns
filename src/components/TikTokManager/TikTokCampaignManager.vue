@@ -140,6 +140,14 @@
                               <i class="bi bi-pause"></i>
                             </button>
                             <button 
+                              class="btn btn-outline-primary btn-sm campaign-btn" 
+                              title="Manage Ad Groups"
+                              @click="openAdGroupManager(campaign.campaign_id, campaign.campaign_name)"
+                              :disabled="store.loading"
+                            >
+                              <i class="bi bi-collection"></i>
+                            </button>
+                            <button 
                               class="btn btn-outline-danger btn-sm campaign-btn" 
                               title="Delete"
                               @click="deleteCampaign(campaign.campaign_id, campaign.campaign_name)"
@@ -651,12 +659,21 @@
             </div>
           </div>
         </div>
+
+    <!-- TikTok Ad Group Manager Component -->
+    <TikTokAdGroupManager 
+      v-if="showAdGroupManager"
+      :campaign-id="selectedCampaignForAdGroups.id"
+      :campaign-name="selectedCampaignForAdGroups.name"
+      @back-to-campaigns="closeAdGroupManager"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import { useTikTokStore } from '@/stores/tiktokStore'
+import TikTokAdGroupManager from './TikTokAdGroupManager.vue'
 
 const store = useTikTokStore()
 
@@ -707,6 +724,14 @@ const campaignCreationSuccess = ref(false)
 const showAdvancedSettings = ref(false)
 const currentFormStep = ref(1) // Многоступенчатая форма
 const totalFormSteps = ref(4)
+
+// Ad Group Manager state
+const showAdGroupManager = ref(false)
+const selectedCampaignForAdGroups = ref({
+  id: '',
+  name: ''
+})
+
 
 // Computed опции для селектов на основе API данных
 const campaignObjectives = computed(() => {
@@ -877,12 +902,20 @@ const getCampaignStatusClass = (status) => {
   return statusClasses[status] || 'text-muted'
 }
 
+
 const openCreateCampaign = () => {
   // Открыть аккордеон создания кампании
   const createAccordion = document.getElementById('creatorCollapse')
   if (createAccordion && !createAccordion.classList.contains('show')) {
     const createButton = document.querySelector('[data-bs-target="#creatorCollapse"]')
     createButton?.click()
+  }
+}
+
+
+const refreshCampaignData = async () => {
+  if (store.selectedAdvertiserId) {
+    await store.loadCampaignData()
   }
 }
 
@@ -924,10 +957,23 @@ const deleteCampaign = async (campaignId, campaignName) => {
   }
 }
 
-const refreshCampaignData = async () => {
-  if (store.selectedAdvertiserId) {
-    await store.loadCampaignData()
+// Ad Group Manager methods
+const openAdGroupManager = (campaignId, campaignName) => {
+  selectedCampaignForAdGroups.value = {
+    id: campaignId,
+    name: campaignName
   }
+  showAdGroupManager.value = true
+}
+
+const closeAdGroupManager = () => {
+  showAdGroupManager.value = false
+  selectedCampaignForAdGroups.value = {
+    id: '',
+    name: ''
+  }
+  // Refresh campaign data when returning from ad groups
+  refreshCampaignData()
 }
 
 // Campaign creation methods
@@ -1159,10 +1205,12 @@ const resetCampaignForm = () => {
   currentFormStep.value = 1
 }
 
-// Watch for selected advertiser changes
-watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
-  if (newAdvertiserId) {
-    console.log('Loading campaigns and metadata for account:', newAdvertiserId)
+
+// Watch for advertiser account changes
+watch(() => store.selectedAdvertiserId, async (newAdvertiserId, oldAdvertiserId) => {
+  if (newAdvertiserId && newAdvertiserId !== oldAdvertiserId) {
+    console.log('Advertiser changed from', oldAdvertiserId, 'to', newAdvertiserId, '- refreshing campaign data')
+    
     await Promise.all([
       refreshCampaignData(),
       store.getCampaignMetadata()
@@ -1170,7 +1218,6 @@ watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
   }
 })
 
-// Lifecycle
 onMounted(async () => {
   console.log('TikTok Campaign Manager mounted')
   if (store.selectedAdvertiserId) {
@@ -1704,4 +1751,5 @@ onMounted(async () => {
     font-size: 0.7rem;
   }
 }
+
 </style>

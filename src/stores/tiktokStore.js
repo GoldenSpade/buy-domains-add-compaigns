@@ -32,6 +32,25 @@ export const useTikTokStore = defineStore('tiktok', () => {
   })
   const metadataLoading = ref(false)
 
+  // Ad Group management state
+  const adGroups = ref([])
+  const adGroupStats = ref({
+    active: 0,
+    totalSpend: '0.00',
+    impressions: 0,
+    clicks: 0
+  })
+  const adGroupLoading = ref(false)
+  const selectedCampaignId = ref('')
+  
+  // Ad Group metadata state
+  const adGroupMetadata = ref({
+    placements: [],
+    locations: [],
+    interests: []
+  })
+  const adGroupMetadataLoading = ref(false)
+
   // Завантаження з localStorage
   function loadFromLocalStorage(key) {
     try {
@@ -63,6 +82,41 @@ export const useTikTokStore = defineStore('tiktok', () => {
     } catch (e) {
       console.warn('Failed to clear tokens from localStorage:', e)
     }
+  }
+
+  // Функция автовыбора активного аккаунта
+  function autoSelectActiveAccount() {
+    if (!advertisers.value?.data?.list) return false
+    
+    let accountToSelect = null
+    
+    // Если есть сохраненный selectedAdvertiserId, проверяем его статус
+    if (selectedAdvertiserId.value) {
+      const currentAccount = advertisers.value.data.list.find(acc => acc.advertiser_id === selectedAdvertiserId.value)
+      // Если текущий аккаунт активный, оставляем его
+      if (currentAccount && currentAccount.status === 'STATUS_ENABLE') {
+        accountToSelect = currentAccount
+        console.log('Current advertiser is active, keeping it:', selectedAdvertiserId.value)
+      } else {
+        console.log('Current advertiser is not active or not found, selecting new active account')
+      }
+    }
+    
+    // Если нет активного выбранного аккаунта, ищем первый активный
+    if (!accountToSelect) {
+      const activeAccount = advertisers.value.data.list.find(acc => acc.status === 'STATUS_ENABLE')
+      accountToSelect = activeAccount || advertisers.value.data.list[0] // Fallback к первому
+    }
+    
+    // Применяем выбранный аккаунт
+    if (accountToSelect && accountToSelect.advertiser_id !== selectedAdvertiserId.value) {
+      selectedAdvertiserId.value = accountToSelect.advertiser_id
+      saveToLocalStorage('tiktok_selected_advertiser_id', selectedAdvertiserId.value)
+      console.log('Automatically selected active advertiser:', selectedAdvertiserId.value, '(Status:', accountToSelect.status, ')')
+      return true
+    }
+    
+    return false
   }
 
   // Відстеження змін для збереження в localStorage
@@ -142,6 +196,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
         // Автоматически выбираем первый advertiser_id если не выбран
         if (advertiserIds.value.length > 0 && !selectedAdvertiserId.value) {
           selectedAdvertiserId.value = advertiserIds.value[0]
+          console.log('Automatically selected first advertiser:', selectedAdvertiserId.value)
         }
         
         // Примусове збереження в localStorage
@@ -150,6 +205,13 @@ export const useTikTokStore = defineStore('tiktok', () => {
         saveToLocalStorage('tiktok_scope', scope.value)
         saveToLocalStorage('tiktok_selected_advertiser_id', selectedAdvertiserId.value)
         saveToLocalStorage('tiktok_is_authenticated', true)
+        
+        // Автоматически загружаем информацию об аккаунтах и кампаниях
+        if (selectedAdvertiserId.value) {
+          await getAdvertiserInfo()
+          await loadCampaignData()
+          console.log('Auto-loaded campaigns after token exchange')
+        }
         
         loading.value = false
         return true
@@ -223,6 +285,10 @@ export const useTikTokStore = defineStore('tiktok', () => {
       if (data.success) {
         // Обновляем advertisers с детальной информацией
         advertisers.value = data.data
+        
+        // Автоматически выбираем активный аккаунт
+        autoSelectActiveAccount()
+        
         loading.value = false
         return true
       } else {
@@ -262,6 +328,15 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       // После успешной проверки токена, загружаем детальную информацию об аккаунтах
       await getAdvertiserInfo()
+      
+      // Автоматически выбираем активный аккаунт
+      autoSelectActiveAccount()
+      
+      // Если у нас есть выбранный advertiser, автоматически загружаем кампании
+      if (selectedAdvertiserId.value) {
+        console.log('Auto-loading campaigns for selected advertiser:', selectedAdvertiserId.value)
+        await loadCampaignData()
+      }
       
       return true
     } else {
@@ -311,11 +386,15 @@ export const useTikTokStore = defineStore('tiktok', () => {
   }
 
   // Функция для изменения выбранного advertiser ID
-  const setSelectedAdvertiserId = (advertiserId) => {
+  const setSelectedAdvertiserId = async (advertiserId) => {
     // Проверяем что ID есть в списке
     if (advertiserIds.value.includes(advertiserId)) {
       selectedAdvertiserId.value = advertiserId
       saveToLocalStorage('tiktok_selected_advertiser_id', advertiserId)
+      
+      // Автоматически загружаем кампании для нового advertiser
+      console.log('Loading campaigns for advertiser:', advertiserId)
+      await loadCampaignData()
     }
   }
 
@@ -397,6 +476,10 @@ export const useTikTokStore = defineStore('tiktok', () => {
         // Обновляем статистику активных кампаний
         const activeCampaigns = campaigns.value.filter(c => c.operation_status === 'ENABLE').length
         campaignStats.value.active = activeCampaigns
+        
+        console.log('Campaigns loaded:', campaigns.value.length)
+        console.log('Campaign statuses:', campaigns.value.map(c => ({ name: c.campaign_name, status: c.operation_status })))
+        console.log('Active Campaigns count:', activeCampaigns)
         
         campaignLoading.value = false
         return true
@@ -564,6 +647,282 @@ export const useTikTokStore = defineStore('tiktok', () => {
     return campaignsLoaded
   }
 
+  // ============ AD GROUP MANAGEMENT FUNCTIONS ============
+
+  // Установка выбранной кампании для работы с Ad Groups
+  const setSelectedCampaignId = (campaignId) => {
+    selectedCampaignId.value = campaignId
+    // Сбрасываем список Ad Groups при смене кампании
+    adGroups.value = []
+  }
+
+  // Получение метаданных для создания Ad Groups
+  const getAdGroupMetadata = async (campaignId = null) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    adGroupMetadataLoading.value = true
+    error.value = ''
+
+    try {
+      let url = `${import.meta.env.VITE_API_BASE_URL}/tiktok/adgroup-metadata?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      
+      // Add campaign_id if provided to get proper objective_type
+      const targetCampaignId = campaignId || selectedCampaignId.value
+      if (targetCampaignId) {
+        url += `&campaign_id=${encodeURIComponent(targetCampaignId)}`
+      }
+      
+      const response = await fetch(url)
+      const data = await response.json()
+      
+      if (data.success) {
+        adGroupMetadata.value = data.data
+        adGroupMetadataLoading.value = false
+        return true
+      } else {
+        error.value = data.error || 'Failed to get ad group metadata'
+        adGroupMetadataLoading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      adGroupMetadataLoading.value = false
+      return false
+    }
+  }
+
+  // Получение списка Ad Groups для кампании
+  const getAdGroups = async (campaignId = null) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    const targetCampaignId = campaignId || selectedCampaignId.value
+    console.log(`getAdGroups: Loading ad groups for campaign ${targetCampaignId} (advertiser: ${selectedAdvertiserId.value})`)
+    
+    adGroupLoading.value = true
+    error.value = ''
+
+    try {
+      let url = `${import.meta.env.VITE_API_BASE_URL}/tiktok/adgroups?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      
+      if (targetCampaignId) {
+        url += `&campaign_id=${encodeURIComponent(targetCampaignId)}`
+      }
+      
+      // Добавляем timestamp для предотвращения кеширования
+      url += `&_t=${Date.now()}`
+
+      console.log(`getAdGroups: Making API request to: ${url}`)
+      const response = await fetch(url)
+      const data = await response.json()
+      
+      console.log(`getAdGroups: API response for campaign ${targetCampaignId}:`, data)
+      
+      if (data.success) {
+        adGroups.value = data.data.data?.list || []
+        
+        // Обновляем статистику активных Ad Groups
+        const activeAdGroups = adGroups.value.filter(ag => ag.operation_status === 'ENABLE').length
+        adGroupStats.value.active = activeAdGroups
+        
+        console.log(`getAdGroups: Successfully loaded ${adGroups.value.length} ad groups for campaign ${targetCampaignId}:`, adGroups.value.map(ag => ({ id: ag.adgroup_id, name: ag.adgroup_name })))
+        console.log('Ad Groups statuses:', adGroups.value.map(ag => ({ name: ag.adgroup_name, status: ag.operation_status })))
+        console.log('Active Ad Groups count:', activeAdGroups)
+        
+        adGroupLoading.value = false
+        return true
+      } else {
+        // Проверяем на ошибку истекшего токена
+        if (data.data?.code === 40001 || data.error?.includes('token') || data.error?.includes('auth')) {
+          console.warn('Token expired, clearing authentication')
+          clearFromLocalStorage()
+          resetStore()
+          error.value = 'Session expired. Please re-authenticate.'
+        } else {
+          error.value = data.error || 'Failed to get ad groups'
+        }
+        
+        adGroupLoading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      adGroupLoading.value = false
+      return false
+    }
+  }
+
+  // Получение статистики Ad Groups
+  const getAdGroupStats = async (campaignId = null, startDate = null, endDate = null) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      return false
+    }
+
+    const targetCampaignId = campaignId || selectedCampaignId.value
+
+    // Если нет Ad Groups, устанавливаем нулевую статистику
+    if (adGroups.value.length === 0) {
+      adGroupStats.value = {
+        active: 0,
+        totalSpend: '0.00',
+        impressions: 0,
+        clicks: 0
+      }
+      return true
+    }
+
+    try {
+      let url = `${import.meta.env.VITE_API_BASE_URL}/tiktok/adgroup-stats?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      
+      if (targetCampaignId) {
+        url += `&campaign_id=${encodeURIComponent(targetCampaignId)}`
+      }
+      if (startDate) {
+        url += `&start_date=${encodeURIComponent(startDate)}`
+      }
+      if (endDate) {
+        url += `&end_date=${encodeURIComponent(endDate)}`
+      }
+      
+      const response = await fetch(url)
+      const data = await response.json()
+      
+      if (data.success && data.data.data?.list?.length > 0) {
+        // Суммируем статистику по всем Ad Groups
+        let totalSpend = 0, totalImpressions = 0, totalClicks = 0
+        
+        data.data.data.list.forEach(item => {
+          const stats = item.metrics
+          totalSpend += parseFloat(stats.spend || 0)
+          totalImpressions += parseInt(stats.impressions || 0)
+          totalClicks += parseInt(stats.clicks || 0)
+        })
+        
+        adGroupStats.value = {
+          active: adGroups.value.filter(ag => ag.operation_status === 'ENABLE').length,
+          totalSpend: totalSpend.toFixed(2),
+          impressions: totalImpressions,
+          clicks: totalClicks
+        }
+        
+        return true
+      } else {
+        // Если нет данных, устанавливаем нулевую статистику
+        adGroupStats.value = {
+          active: adGroups.value.filter(ag => ag.operation_status === 'ENABLE').length,
+          totalSpend: '0.00',
+          impressions: 0,
+          clicks: 0
+        }
+        return false
+      }
+    } catch (err) {
+      console.warn('Failed to get ad group stats:', err)
+      adGroupStats.value = {
+        active: adGroups.value.filter(ag => ag.operation_status === 'ENABLE').length,
+        totalSpend: '0.00',
+        impressions: 0,
+        clicks: 0
+      }
+      return false
+    }
+  }
+
+  // Создание новой Ad Group
+  const createAdGroup = async (adGroupData) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    loading.value = true
+    error.value = ''
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tiktok/adgroups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken.value,
+          advertiser_id: selectedAdvertiserId.value,
+          adgroup_data: adGroupData
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Перезагружаем список Ad Groups для текущей кампании
+        await getAdGroups(adGroupData.campaign_id || selectedCampaignId.value)
+        loading.value = false
+        return true
+      } else {
+        error.value = data.error || 'Failed to create ad group'
+        loading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      loading.value = false
+      return false
+    }
+  }
+
+  // Обновление статуса Ad Group
+  const updateAdGroupStatus = async (adGroupId, operation) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/tiktok/adgroups/${adGroupId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken.value,
+          advertiser_id: selectedAdvertiserId.value,
+          operation: operation // "ENABLE", "DISABLE", "DELETE"
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Перезагружаем список Ad Groups
+        await getAdGroups()
+        return true
+      } else {
+        error.value = data.error || 'Failed to update ad group status'
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      return false
+    }
+  }
+
+  // Загрузка полных данных Ad Groups (список + статистика)
+  const loadAdGroupData = async (campaignId = null, startDate = null, endDate = null) => {
+    const targetCampaignId = campaignId || selectedCampaignId.value
+    if (!targetCampaignId) return false
+    
+    const adGroupsLoaded = await getAdGroups(targetCampaignId)
+    if (adGroupsLoaded) {
+      await getAdGroupStats(targetCampaignId, startDate, endDate)
+    }
+    return adGroupsLoaded
+  }
+
   return {
     loading,
     authUrl,
@@ -599,5 +958,20 @@ export const useTikTokStore = defineStore('tiktok', () => {
     campaignMetadata,
     metadataLoading,
     getCampaignMetadata,
+    // Ad Group management
+    adGroups,
+    adGroupStats,
+    adGroupLoading,
+    selectedCampaignId,
+    setSelectedCampaignId,
+    getAdGroups,
+    getAdGroupStats,
+    createAdGroup,
+    updateAdGroupStatus,
+    loadAdGroupData,
+    // Ad Group metadata
+    adGroupMetadata,
+    adGroupMetadataLoading,
+    getAdGroupMetadata,
   }
 })

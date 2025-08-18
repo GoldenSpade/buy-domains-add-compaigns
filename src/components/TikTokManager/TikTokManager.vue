@@ -123,7 +123,7 @@
                           :key="account.advertiser_id"
                           class="list-group-item px-3 py-2 border-0 account-item"
                           style="cursor: pointer"
-                          @click="store.setSelectedAdvertiserId(account.advertiser_id)"
+                          @click="handleSelectAccount(account.advertiser_id)"
                           :class="{ 'selected-account': store.selectedAdvertiserId === account.advertiser_id }"
                         >
                           <div class="d-flex justify-content-between align-items-start">
@@ -394,6 +394,8 @@ onMounted(async () => {
   // Если авторизован, загружаем данные о рекламодателях
   if (store.isAuthenticated) {
     await store.getAdvertiserInfo()
+    
+    // Store уже автоматически выберет первый активный аккаунт
   }
 
   // Инициализируем модальное окно Bootstrap
@@ -693,6 +695,11 @@ const isAdminAccount = (account) => {
          account.name === 'News World One' || 
          account.company === 'News World One'
 }
+
+// Обработчик выбора аккаунта
+const handleSelectAccount = async (advertiserId) => {
+  await store.setSelectedAdvertiserId(advertiserId)
+}
 </script>
 
 <style scoped>
@@ -707,11 +714,6 @@ const isAdminAccount = (account) => {
 
 .account-item:hover {
   background-color: var(--bs-gray-50);
-}
-
-.selected-account {
-  background-color: var(--bs-primary-bg-subtle);
-  border: 1px solid var(--bs-primary-border-subtle);
 }
 
 .account-name {
