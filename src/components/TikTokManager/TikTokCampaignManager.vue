@@ -457,6 +457,16 @@ const isFormValid = computed(() => {
   return hasRequiredFields
 })
 
+// Константы
+const ADMIN_ADVERTISER_ID = '7524260058755170320'
+
+// Проверка является ли аккаунт администраторским
+const isAdminAccount = (account) => {
+  return account.advertiser_id === ADMIN_ADVERTISER_ID || 
+         account.name === 'News World One' || 
+         account.company === 'News World One'
+}
+
 // Methods
 const getSelectedAccountName = () => {
   if (!store.advertisers?.data?.list) return 'Unknown'
@@ -465,6 +475,13 @@ const getSelectedAccountName = () => {
     (acc) => acc.advertiser_id === store.selectedAdvertiserId
   )
 
+  if (!account) return store.selectedAdvertiserId
+  
+  // Проверяем по ID или по содержимому полей name/company
+  if (isAdminAccount(account)) {
+    return 'Admin'
+  }
+  
   return account?.name || account?.advertiser_name || store.selectedAdvertiserId
 }
 
@@ -634,7 +651,7 @@ const resetCampaignForm = () => {
 watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
   if (newAdvertiserId) {
     console.log('Loading campaigns for account:', newAdvertiserId)
-    await store.loadCampaignData()
+    await refreshCampaignData()
   }
 })
 
@@ -642,7 +659,7 @@ watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
 onMounted(async () => {
   console.log('TikTok Campaign Manager mounted')
   if (store.selectedAdvertiserId) {
-    await store.loadCampaignData()
+    await refreshCampaignData()
   }
 })
 </script>
@@ -689,6 +706,21 @@ onMounted(async () => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Новые стили для статистики */
+.stats-overlay {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.stat-card-body.position-relative {
+  min-height: 85px;
 }
 
 /* Custom purple color */

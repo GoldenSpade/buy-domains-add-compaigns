@@ -131,10 +131,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
         scope.value = data.data.data.scope || []
         isAuthenticated.value = true
         
-        // Автоматически выбираем первый advertiser_id если не выбран (исключаем скрытый)
+        // Автоматически выбираем первый advertiser_id если не выбран
         if (advertiserIds.value.length > 0 && !selectedAdvertiserId.value) {
-          const visibleAdvertiserIds = advertiserIds.value.filter(id => id !== '7524260058755170320')
-          selectedAdvertiserId.value = visibleAdvertiserIds[0] || advertiserIds.value[0]
+          selectedAdvertiserId.value = advertiserIds.value[0]
         }
         
         // Примусове збереження в localStorage
@@ -305,8 +304,8 @@ export const useTikTokStore = defineStore('tiktok', () => {
 
   // Функция для изменения выбранного advertiser ID
   const setSelectedAdvertiserId = (advertiserId) => {
-    // Проверяем что ID есть в списке и не является скрытым
-    if (advertiserIds.value.includes(advertiserId) && advertiserId !== '7524260058755170320') {
+    // Проверяем что ID есть в списке
+    if (advertiserIds.value.includes(advertiserId)) {
       selectedAdvertiserId.value = advertiserId
       saveToLocalStorage('tiktok_selected_advertiser_id', advertiserId)
     }
@@ -380,16 +379,23 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
-  // Получение статистики кампаний
-  const getCampaignStats = async () => {
+  // Получение статистики кампаний с поддержкой дат
+  const getCampaignStats = async (startDate = null, endDate = null) => {
     if (!accessToken.value || !selectedAdvertiserId.value) {
       return false
     }
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/tiktok/campaign-stats?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
-      )
+      let url = `${import.meta.env.VITE_API_BASE_URL}/tiktok/campaign-stats?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      
+      if (startDate) {
+        url += `&start_date=${encodeURIComponent(startDate)}`
+      }
+      if (endDate) {
+        url += `&end_date=${encodeURIComponent(endDate)}`
+      }
+      
+      const response = await fetch(url)
       const data = await response.json()
       
       if (data.success && data.data.data?.list?.length > 0) {
@@ -404,10 +410,25 @@ export const useTikTokStore = defineStore('tiktok', () => {
         
         lastStatsUpdate.value = new Date().toISOString()
         return true
+      } else {
+        // Если нет данных, устанавливаем нулевую статистику
+        campaignStats.value = {
+          active: campaigns.value.filter(c => c.operation_status === 'ENABLE').length,
+          totalSpend: '0.00',
+          impressions: 0,
+          clicks: 0
+        }
+        lastStatsUpdate.value = new Date().toISOString()
+        return false
       }
-      return false
     } catch (err) {
       console.warn('Failed to get campaign stats:', err)
+      campaignStats.value = {
+        active: campaigns.value.filter(c => c.operation_status === 'ENABLE').length,
+        totalSpend: '0.00',
+        impressions: 0,
+        clicks: 0
+      }
       return false
     }
   }
@@ -490,13 +511,13 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }
   }
 
-  // Загрузка полных данных (кампании + статистика)
-  const loadCampaignData = async () => {
+  // Загрузка полных данных (кампании + статистика) с поддержкой дат
+  const loadCampaignData = async (startDate = null, endDate = null) => {
     if (!selectedAdvertiserId.value) return false
     
     const campaignsLoaded = await getCampaigns()
     if (campaignsLoaded) {
-      await getCampaignStats()
+      await getCampaignStats(startDate, endDate)
     }
     return campaignsLoaded
   }

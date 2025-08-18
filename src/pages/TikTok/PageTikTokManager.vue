@@ -8,7 +8,7 @@
         </template>
       </Header>
       <div class="row justify-content-center">
-        <div class="col-8">
+        <div class="col-10">
           <TikTokManager />
         </div>
       </div>

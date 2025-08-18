@@ -69,58 +69,131 @@
                 <div class="col-12 col-md-6">
                   <div class="card h-100">
                     <div class="card-body p-3">
-                      <h6 class="card-title mb-3">
-                        <i class="bi bi-building me-2"></i>Advertiser Accounts ({{
-                          visibleAccounts.length
-                        }})
-                      </h6>
+                      <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="card-title mb-0">
+                          <i class="bi bi-building me-2"></i>Advertiser Accounts
+                          <span class="badge bg-primary ms-2">{{ visibleAccounts.length }}/{{ accountStats.total }}</span>
+                        </h6>
+                        <div class="dropdown">
+                          <button 
+                            class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                            type="button" 
+                            data-bs-toggle="dropdown"
+                            title="Filter accounts"
+                          >
+                            <i class="bi bi-funnel"></i>
+                          </button>
+                          <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 250px;">
+                            <h6 class="dropdown-header">Filter Options</h6>
+                            <div class="form-check mb-2">
+                              <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                id="showOnlyActive"
+                                v-model="accountFilters.showOnlyActive"
+                              >
+                              <label class="form-check-label" for="showOnlyActive">
+                                Show only active accounts
+                              </label>
+                            </div>
+                            <div class="mb-2">
+                              <label class="form-label small">Currency:</label>
+                              <select class="form-select form-select-sm" v-model="accountFilters.currency">
+                                <option value="all">All currencies</option>
+                                <option v-for="currency in accountStats.currencies" :key="currency" :value="currency">
+                                  {{ currency }}
+                                </option>
+                              </select>
+                            </div>
+                            <div class="mb-0">
+                              <label class="form-label small">Sort by:</label>
+                              <select class="form-select form-select-sm" v-model="accountFilters.sortBy">
+                                <option value="status">Status</option>
+                                <option value="name">Name</option>
+                                <option value="created">Date created</option>
+                                <option value="balance">Balance</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       <div v-if="visibleAccounts.length > 0" class="list-group list-group-flush">
                         <div
                           v-for="account in visibleAccounts"
                           :key="account.advertiser_id"
-                          class="list-group-item px-0 py-2 border-0"
+                          class="list-group-item px-3 py-2 border-0 account-item"
                           style="cursor: pointer"
                           @click="store.setSelectedAdvertiserId(account.advertiser_id)"
+                          :class="{ 'selected-account': store.selectedAdvertiserId === account.advertiser_id }"
                         >
-                          <div class="d-flex justify-content-between align-items-center">
+                          <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                               <div class="d-flex align-items-center gap-2 mb-1">
-                                <div class="fw-bold small">
-                                  {{
-                                    account.name || account.advertiser_name || account.advertiser_id
-                                  }}
+                                <div class="fw-bold small account-name">
+                                  {{ getDisplayAccountName(account) }}
                                 </div>
                                 <span
                                   :class="getAccountStatusBadge(account.status)"
-                                  class="badge"
+                                  class="badge account-status-badge"
                                   style="font-size: 10px"
-                                  :title="account.status"
+                                  :title="getAccountStatusTooltip(account)"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="top"
                                 >
                                   {{ getAccountStatusText(account.status) }}
                                 </span>
+                                <span class="badge bg-light text-dark" style="font-size: 9px">
+                                  {{ account.currency }}
+                                </span>
                               </div>
-                              <div class="text-muted text-start" style="font-size: 11px">
-                                ID: {{ account.advertiser_id }}
+                              <div class="account-details">
+                                <div class="text-muted text-start" style="font-size: 11px">
+                                  <div class="mb-1">
+                                    <i class="bi bi-hash me-1"></i>ID: {{ account.advertiser_id }}
+                                  </div>
+                                  <div class="d-flex gap-3 flex-wrap">
+                                    <span v-if="account.balance > 0">
+                                      <i class="bi bi-wallet2 me-1"></i>{{ formatCurrency(account.balance, account.currency) }}
+                                    </span>
+                                    <span v-if="account.company">
+                                      <i class="bi bi-building me-1"></i>{{ getDisplayCompanyName(account) }}
+                                    </span>
+                                    <span v-if="account.display_timezone">
+                                      <i class="bi bi-clock me-1"></i>{{ account.display_timezone }}
+                                    </span>
+                                  </div>
+                                  <div v-if="account.create_time" class="mt-1">
+                                    <i class="bi bi-calendar3 me-1"></i>Created: {{ formatDate(account.create_time, account.display_timezone) }}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            <span
-                              v-if="store.selectedAdvertiserId === account.advertiser_id"
-                              class="badge bg-primary"
-                            >
-                              <i class="bi bi-check me-1"></i>Active
-                            </span>
-                            <span v-else class="badge bg-outline-secondary" style="opacity: 0.5">
-                              Click to select
-                            </span>
+                            <div class="text-end">
+                              <span
+                                v-if="store.selectedAdvertiserId === account.advertiser_id"
+                                class="badge bg-primary me-3"
+                              >
+                                <i class="bi bi-check me-1"></i>Active
+                              </span>
+                              <span v-else class="badge bg-outline-secondary" style="opacity: 0.5">
+                                Click to select
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div v-else class="text-center py-3">
+                      <div v-else-if="store.loading" class="text-center py-3">
                         <div
                           class="spinner-border spinner-border-sm text-primary mb-2"
                           role="status"
                         ></div>
                         <div class="small text-muted">Loading accounts...</div>
+                      </div>
+                      
+                      <div v-else class="text-center py-3">
+                        <i class="bi bi-building text-muted" style="font-size: 2rem;"></i>
+                        <div class="small text-muted mt-2">No accounts found</div>
+                        <div class="small text-muted">Try adjusting your filters</div>
                       </div>
                     </div>
                   </div>
@@ -237,19 +310,68 @@
 
 <script setup>
 import { useTikTokStore } from '@/stores/tiktokStore'
-import { onMounted, ref, reactive, computed } from 'vue'
+import { onMounted, ref, reactive, computed, nextTick } from 'vue'
 import { Modal } from 'bootstrap'
 import TikTokCampaignManager from './TikTokCampaignManager.vue'
 
 const store = useTikTokStore()
 
-// ID аккаунта который нужно скрыть
-const HIDDEN_ADVERTISER_ID = '7524260058755170320'
+// ID аккаунта News World One, который отображаем как Admin
+const ADMIN_ADVERTISER_ID = '7524260058755170320'
 
-// Фильтрованный список аккаунтов (без скрытого)
+// Состояние фильтров
+const accountFilters = ref({
+  showOnlyActive: true,
+  currency: 'all',
+  sortBy: 'status' // 'status', 'name', 'created', 'balance'
+})
+
+// Фильтрованный список аккаунтов
 const visibleAccounts = computed(() => {
   if (!store.advertisers?.data?.list) return []
-  return store.advertisers.data.list.filter((acc) => acc.advertiser_id !== HIDDEN_ADVERTISER_ID)
+  
+  let accounts = [...store.advertisers.data.list] // Теперь показываем все аккаунты
+  
+  // Фильтр по активности
+  if (accountFilters.value.showOnlyActive) {
+    accounts = accounts.filter(acc => acc.status === 'STATUS_ENABLE')
+  }
+  
+  // Фильтр по валюте
+  if (accountFilters.value.currency !== 'all') {
+    accounts = accounts.filter(acc => acc.currency === accountFilters.value.currency)
+  }
+  
+  // Сортировка
+  accounts.sort((a, b) => {
+    switch (accountFilters.value.sortBy) {
+      case 'status':
+        const statusOrder = { 'STATUS_ENABLE': 0, 'STATUS_PENDING': 1, 'STATUS_LIMIT': 2, 'STATUS_DISABLE': 3, 'STATUS_REJECTED': 4 }
+        return (statusOrder[a.status] || 5) - (statusOrder[b.status] || 5)
+      case 'name':
+        return (a.name || '').localeCompare(b.name || '')
+      case 'created':
+        return b.create_time - a.create_time
+      case 'balance':
+        return b.balance - a.balance
+      default:
+        return 0
+    }
+  })
+  
+  return accounts
+})
+
+// Статистика аккаунтов
+const accountStats = computed(() => {
+  const allAccounts = store.advertisers?.data?.list || []
+  return {
+    total: allAccounts.length,
+    active: allAccounts.filter(acc => acc.status === 'STATUS_ENABLE').length,
+    limited: allAccounts.filter(acc => acc.status === 'STATUS_LIMIT').length,
+    currencies: [...new Set(allAccounts.map(acc => acc.currency))],
+    totalBalance: allAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+  }
 })
 
 // Состояние модального окна
@@ -284,6 +406,14 @@ onMounted(async () => {
       resetModalState()
     })
   }
+  
+  // Инициализируем Bootstrap tooltips
+  nextTick(() => {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    tooltipTriggerList.forEach(tooltipTriggerEl => {
+      new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+  })
 })
 
 // Функция отключения (очистки данных)
@@ -451,7 +581,7 @@ const retryAuth = () => {
 // Функции для обработки статуса аккаунта
 const getAccountStatusText = (status) => {
   const statusMap = {
-    STATUS_ENABLE: 'Approved',
+    STATUS_ENABLE: 'Active',
     STATUS_DISABLE: 'Disabled',
     STATUS_LIMIT: 'Limited',
     STATUS_PENDING: 'Pending',
@@ -464,15 +594,153 @@ const getAccountStatusBadge = (status) => {
   const badgeMap = {
     STATUS_ENABLE: 'bg-success',
     STATUS_DISABLE: 'bg-danger',
-    STATUS_LIMIT: 'bg-secondary',
+    STATUS_LIMIT: 'bg-warning',
     STATUS_PENDING: 'bg-info',
     STATUS_REJECTED: 'bg-danger',
   }
   return badgeMap[status] || 'bg-secondary'
 }
+
+// Получить подробную информацию о статусе для тултипа
+const getAccountStatusTooltip = (account) => {
+  let tooltip = `Status: ${getAccountStatusText(account.status)}`
+  
+  if (account.status === 'STATUS_LIMIT' && account.rejection_reason) {
+    const reason = parseRejectionReason(account.rejection_reason)
+    tooltip += `\nReason: ${reason.message}`
+    if (reason.endTime) {
+      tooltip += `\nUntil: ${reason.endTime}`
+    }
+  }
+  
+  return tooltip
+}
+
+// Парсинг причины блокировки
+const parseRejectionReason = (rejectionReason) => {
+  if (!rejectionReason) return { message: 'No details available' }
+  
+  // Формат: "1:Your account has been suspended...,endtime:2035-08-13 07:19:04"
+  const parts = rejectionReason.split(',endtime:')
+  const message = parts[0].replace(/^\d+:/, '').trim()
+  const endTime = parts[1] ? new Date(parts[1]).toLocaleString() : null
+  
+  return { message, endTime }
+}
+
+// Форматирование валюты
+const formatCurrency = (amount, currency) => {
+  if (!amount || amount === 0) return `0.00 ${currency}`
+  
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+  
+  try {
+    return formatter.format(amount)
+  } catch {
+    return `${amount} ${currency}`
+  }
+}
+
+// Форматирование даты с учетом часового пояса
+const formatDate = (timestamp, timezone) => {
+  if (!timestamp) return 'N/A'
+  
+  const date = new Date(timestamp * 1000) // timestamp в секундах
+  
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: timezone || 'UTC'
+    }).format(date)
+  } catch {
+    return date.toLocaleDateString()
+  }
+}
+
+// Получение отображаемого имени аккаунта
+const getDisplayAccountName = (account) => {
+  // Проверяем по ID или по содержимому полей name/company
+  if (isAdminAccount(account)) {
+    return 'Admin'
+  }
+  
+  // Для остальных - обычное имя
+  return account.name || account.advertiser_name || account.advertiser_id
+}
+
+// Получение отображаемого названия компании
+const getDisplayCompanyName = (account) => {
+  // Проверяем по ID или по содержимому полей name/company
+  if (isAdminAccount(account)) {
+    return 'Admin'
+  }
+  
+  return account.company || account.name || account.advertiser_name || account.advertiser_id
+}
+
+// Проверка является ли аккаунт администраторским
+const isAdminAccount = (account) => {
+  return account.advertiser_id === ADMIN_ADVERTISER_ID || 
+         account.name === 'News World One' || 
+         account.company === 'News World One'
+}
 </script>
 
 <style scoped>
+/* Новые стили для аккаунтов */
+.account-item {
+  transition: background-color 0.2s ease;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.account-item:hover {
+  background-color: var(--bs-gray-50);
+}
+
+.selected-account {
+  background-color: var(--bs-primary-bg-subtle);
+  border: 1px solid var(--bs-primary-border-subtle);
+}
+
+.account-name {
+  color: var(--bs-dark);
+  font-weight: 600;
+}
+
+.account-status-badge {
+  font-weight: 500;
+  border-radius: 12px;
+}
+
+.account-details {
+  margin-top: 0.5rem;
+}
+
+.account-details i {
+  opacity: 0.7;
+}
+
+/* Стили для админ беджа */
+.badge.bg-info {
+  background-color: #0dcaf0 !important;
+  color: white;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
 /* Адаптивность для мобильных устройств */
 @media (max-width: 767.98px) {
   .card-header h5 {
@@ -499,6 +767,15 @@ const getAccountStatusBadge = (status) => {
   .text-muted {
     font-size: 0.7rem !important;
   }
+  
+  .account-details .d-flex {
+    flex-direction: column;
+    gap: 0.25rem !important;
+  }
+  
+  .dropdown-menu {
+    min-width: 200px !important;
+  }
 }
 
 /* Предотвращаем переполнение */
@@ -508,5 +785,19 @@ const getAccountStatusBadge = (status) => {
 
 .card-title {
   word-break: break-word;
+}
+
+/* Стили для dropdown фильтра */
+.dropdown-menu {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-header {
+  font-weight: 600;
+  color: var(--bs-primary);
+  border-bottom: 1px solid var(--bs-border-color);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 </style>
