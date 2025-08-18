@@ -23,6 +23,14 @@ export const useTikTokStore = defineStore('tiktok', () => {
   })
   const campaignLoading = ref(false)
   const lastStatsUpdate = ref(null)
+  
+  // Campaign metadata state
+  const campaignMetadata = ref({
+    objectives: [],
+    bidTypes: [],
+    campaignTypes: []
+  })
+  const metadataLoading = ref(false)
 
   // Завантаження з localStorage
   function loadFromLocalStorage(key) {
@@ -331,6 +339,40 @@ export const useTikTokStore = defineStore('tiktok', () => {
     }))
   }
 
+  // ============ CAMPAIGN METADATA FUNCTIONS ============
+
+  // Получение метаданных для создания кампаний
+  const getCampaignMetadata = async () => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      error.value = 'Access token and selected advertiser ID are required'
+      return false
+    }
+
+    metadataLoading.value = true
+    error.value = ''
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/tiktok/campaign-metadata?access_token=${encodeURIComponent(accessToken.value)}&advertiser_id=${encodeURIComponent(selectedAdvertiserId.value)}`
+      )
+      const data = await response.json()
+      
+      if (data.success) {
+        campaignMetadata.value = data.data
+        metadataLoading.value = false
+        return true
+      } else {
+        error.value = data.error || 'Failed to get campaign metadata'
+        metadataLoading.value = false
+        return false
+      }
+    } catch (err) {
+      error.value = err.message
+      metadataLoading.value = false
+      return false
+    }
+  }
+
   // ============ CAMPAIGN MANAGEMENT FUNCTIONS ============
 
   // Получение списка кампаний
@@ -553,5 +595,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
     createCampaign,
     updateCampaignStatus,
     loadCampaignData,
+    // Campaign metadata
+    campaignMetadata,
+    metadataLoading,
+    getCampaignMetadata,
   }
 })

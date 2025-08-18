@@ -140,13 +140,6 @@
                               <i class="bi bi-pause"></i>
                             </button>
                             <button 
-                              class="btn btn-outline-primary btn-sm campaign-btn" 
-                              title="Edit"
-                              :disabled="store.loading"
-                            >
-                              <i class="bi bi-pencil"></i>
-                            </button>
-                            <button 
                               class="btn btn-outline-danger btn-sm campaign-btn" 
                               title="Delete"
                               @click="deleteCampaign(campaign.campaign_id, campaign.campaign_name)"
@@ -194,158 +187,383 @@
                   aria-labelledby="creatorHeader"
                   data-bs-parent="#campaignAccordion"
                 >
-                  <div class="accordion-body">
-                    <!-- Campaign Creation Form -->
-                    <div class="campaign-creation-form">
-                      <div class="row">
-                        <div class="col-12">
-                          <h6 class="mb-3">
+                  <div class="accordion-body p-0">
+                    <!-- Campaign Creation Wizard -->
+                    <div class="campaign-creation-wizard">
+                      <!-- Progress Bar -->
+                      <div class="wizard-progress bg-light p-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <h6 class="mb-0">
                             <i class="bi bi-plus-circle me-2"></i>Create New Campaign
                           </h6>
+                          <span class="badge bg-primary">Step {{ currentFormStep }} of {{ totalFormSteps }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                          <div 
+                            class="progress-bar progress-bar-striped" 
+                            :style="{ width: (currentFormStep / totalFormSteps * 100) + '%' }"
+                          ></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                          <small class="text-muted">Basic Info</small>
+                          <small class="text-muted">Objective</small>
+                          <small class="text-muted">Budget</small>
+                          <small class="text-muted">Review</small>
                         </div>
                       </div>
 
-                      <form @submit.prevent="handleCreateCampaign">
-                        <div class="row g-3">
-                          <!-- Campaign Name -->
-                          <div class="col-12">
-                            <label for="campaignName" class="form-label">
-                              Campaign Name <span class="text-danger">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              class="form-control"
-                              id="campaignName"
-                              v-model="campaignForm.campaign_name"
-                              placeholder="Enter campaign name"
-                              :class="{ 'is-invalid': campaignFormErrors.campaign_name }"
-                              required
-                            >
-                            <div v-if="campaignFormErrors.campaign_name" class="invalid-feedback">
-                              {{ campaignFormErrors.campaign_name }}
+                      <!-- Form Content -->
+                      <div class="wizard-content p-4">
+                        <form @submit.prevent="handleCreateCampaign">
+                          <!-- Step 1: Basic Information -->
+                          <div v-if="currentFormStep === 1" class="wizard-step">
+                            <h5 class="mb-4 text-primary">
+                              <i class="bi bi-info-circle me-2"></i>Basic Information
+                            </h5>
+                            
+                            <div class="row g-4">
+                              <!-- Campaign Name -->
+                              <div class="col-12">
+                                <label for="campaignName" class="form-label fw-bold">
+                                  Campaign Name <span class="text-danger">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  class="form-control form-control-lg"
+                                  id="campaignName"
+                                  v-model="campaignForm.campaign_name"
+                                  placeholder="Enter a descriptive campaign name (e.g., 'Summer Sale 2024')"
+                                  :class="{ 'is-invalid': campaignFormErrors.campaign_name }"
+                                  maxlength="512"
+                                >
+                                <div v-if="campaignFormErrors.campaign_name" class="invalid-feedback">
+                                  {{ campaignFormErrors.campaign_name }}
+                                </div>
+                                <div class="form-text">
+                                  {{ campaignForm.campaign_name.length }}/512 characters
+                                </div>
+                              </div>
+
+                              <!-- Campaign Description -->
+                              <div class="col-12">
+                                <label for="campaignDescription" class="form-label fw-bold">
+                                  Campaign Description <span class="text-muted">(Optional)</span>
+                                </label>
+                                <textarea
+                                  class="form-control"
+                                  id="campaignDescription"
+                                  v-model="campaignForm.description"
+                                  rows="4"
+                                  placeholder="Describe your campaign goals, target audience, and key messages..."
+                                  maxlength="1000"
+                                ></textarea>
+                                <div class="form-text">
+                                  {{ campaignForm.description.length }}/1000 characters
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <!-- Campaign Objective -->
-                          <div class="col-md-6 col-12">
-                            <label for="objectiveType" class="form-label">
-                              Campaign Objective <span class="text-danger">*</span>
-                            </label>
-                            <select
-                              class="form-select"
-                              id="objectiveType"
-                              v-model="campaignForm.objective_type"
-                              :class="{ 'is-invalid': campaignFormErrors.objective_type }"
-                              required
-                            >
-                              <option value="">Select objective</option>
-                              <option value="REACH">Brand Awareness (Reach)</option>
-                              <option value="TRAFFIC">Website Traffic</option>
-                              <option value="APP_PROMOTION">App Promotion</option>
-                              <option value="CONVERSIONS">Conversions</option>
-                              <option value="LEAD_GENERATION">Lead Generation</option>
-                              <option value="ENGAGEMENT">Engagement</option>
-                            </select>
-                            <div v-if="campaignFormErrors.objective_type" class="invalid-feedback">
-                              {{ campaignFormErrors.objective_type }}
+                          <!-- Step 2: Campaign Objective -->
+                          <div v-if="currentFormStep === 2" class="wizard-step">
+                            <h5 class="mb-4 text-primary">
+                              <i class="bi bi-target me-2"></i>Campaign Objective
+                            </h5>
+                            
+                            <div class="row g-3">
+                              <div class="col-12">
+                                <label class="form-label fw-bold mb-3">
+                                  What's your advertising objective? <span class="text-danger">*</span>
+                                </label>
+                                <div class="objective-options">
+                                  <div 
+                                    v-for="objective in campaignObjectives" 
+                                    :key="objective.value"
+                                    class="objective-card"
+                                    :class="{ 'selected': campaignForm.objective_type === objective.value }"
+                                    @click="campaignForm.objective_type = objective.value"
+                                  >
+                                    <div class="objective-header">
+                                      <input 
+                                        type="radio" 
+                                        :value="objective.value" 
+                                        v-model="campaignForm.objective_type"
+                                        :id="'obj-' + objective.value"
+                                        class="form-check-input me-2"
+                                      >
+                                      <strong>{{ objective.label }}</strong>
+                                    </div>
+                                    <p class="objective-desc mb-0 mt-2">{{ objective.desc }}</p>
+                                  </div>
+                                </div>
+                                <div v-if="campaignFormErrors.objective_type" class="text-danger mt-2">
+                                  {{ campaignFormErrors.objective_type }}
+                                </div>
+                              </div>
+
+                              <!-- App Promotion Type (conditional) -->
+                              <div v-if="campaignForm.objective_type === 'APP_PROMOTION'" class="col-12">
+                                <label class="form-label fw-bold mb-3">
+                                  App Promotion Type <span class="text-danger">*</span>
+                                </label>
+                                <div class="row g-2">
+                                  <div 
+                                    v-for="appType in appPromotionTypes" 
+                                    :key="appType.value"
+                                    class="col-md-6"
+                                  >
+                                    <div 
+                                      class="app-promotion-card"
+                                      :class="{ 'selected': campaignForm.app_promotion_type === appType.value }"
+                                      @click="campaignForm.app_promotion_type = appType.value"
+                                    >
+                                      <input 
+                                        type="radio" 
+                                        :value="appType.value" 
+                                        v-model="campaignForm.app_promotion_type"
+                                        :id="'app-' + appType.value"
+                                        class="form-check-input me-2"
+                                      >
+                                      <div>
+                                        <strong>{{ appType.label }}</strong>
+                                        <p class="mb-0 mt-1 small text-muted">{{ appType.desc }}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Optimization Goal -->
+                              <div v-if="campaignForm.objective_type && optimizationGoals[campaignForm.objective_type]" class="col-12">
+                                <label for="optimizationGoal" class="form-label fw-bold">
+                                  Optimization Goal <span class="text-muted">(Optional)</span>
+                                </label>
+                                <select
+                                  class="form-select"
+                                  id="optimizationGoal"
+                                  v-model="campaignForm.optimization_goal"
+                                >
+                                  <option value="">Auto (Recommended)</option>
+                                  <option 
+                                    v-for="goal in optimizationGoals[campaignForm.objective_type]" 
+                                    :key="goal" 
+                                    :value="goal"
+                                  >
+                                    {{ goal.replace('_', ' ') }}
+                                  </option>
+                                </select>
+                                <div class="form-text">
+                                  TikTok will automatically optimize for the best results based on your objective
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <!-- Budget Mode -->
-                          <div class="col-md-6 col-12">
-                            <label for="budgetMode" class="form-label">
-                              Budget Type <span class="text-danger">*</span>
-                            </label>
-                            <select
-                              class="form-select"
-                              id="budgetMode"
-                              v-model="campaignForm.budget_mode"
-                              :class="{ 'is-invalid': campaignFormErrors.budget_mode }"
-                              required
-                            >
-                              <option value="">Select budget type</option>
-                              <option value="BUDGET_MODE_DAY">Daily Budget</option>
-                              <option value="BUDGET_MODE_TOTAL">Lifetime Budget</option>
-                            </select>
-                            <div v-if="campaignFormErrors.budget_mode" class="invalid-feedback">
-                              {{ campaignFormErrors.budget_mode }}
+                          <!-- Step 3: Budget & Schedule -->
+                          <div v-if="currentFormStep === 3" class="wizard-step">
+                            <h5 class="mb-4 text-primary">
+                              <i class="bi bi-wallet2 me-2"></i>Budget & Schedule
+                            </h5>
+                            
+                            <div class="row g-4">
+                              <!-- Budget Settings -->
+                              <div class="col-12">
+                                <div class="budget-section p-4 border rounded">
+                                  <h6 class="mb-3">
+                                    <i class="bi bi-currency-dollar me-2"></i>Budget Settings
+                                  </h6>
+                                  
+                                  <div class="row g-3">
+                                    <!-- Budget Mode -->
+                                    <div class="col-12">
+                                      <label class="form-label fw-bold">
+                                        Budget Type <span class="text-danger">*</span>
+                                      </label>
+                                      <div class="row g-2">
+                                        <div 
+                                          v-for="budgetMode in budgetModes" 
+                                          :key="budgetMode.value"
+                                          class="col-md-6"
+                                        >
+                                          <div 
+                                            class="budget-card"
+                                            :class="{ 'selected': campaignForm.budget_mode === budgetMode.value }"
+                                            @click="campaignForm.budget_mode = budgetMode.value"
+                                          >
+                                            <input 
+                                              type="radio" 
+                                              :value="budgetMode.value" 
+                                              v-model="campaignForm.budget_mode"
+                                              :id="'budget-' + budgetMode.value"
+                                              class="form-check-input me-2"
+                                            >
+                                            <div>
+                                              <strong>{{ budgetMode.label }}</strong>
+                                              <p class="mb-0 mt-1 small text-muted">{{ budgetMode.desc }}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <!-- Budget Amount -->
+                                    <div class="col-md-8">
+                                      <label for="budget" class="form-label fw-bold">
+                                        {{ campaignForm.budget_mode === 'BUDGET_MODE_DAY' ? 'Daily' : 'Total' }} Budget Amount <span class="text-danger">*</span>
+                                      </label>
+                                      <div class="input-group input-group-lg">
+                                        <span class="input-group-text">$</span>
+                                        <input
+                                          type="number"
+                                          class="form-control"
+                                          id="budget"
+                                          v-model.number="campaignForm.budget"
+                                          :placeholder="campaignForm.budget_mode === 'BUDGET_MODE_DAY' ? '50.00' : '1500.00'"
+                                          min="50"
+                                          step="0.01"
+                                          :class="{ 'is-invalid': campaignFormErrors.budget }"
+                                        >
+                                      </div>
+                                      <div v-if="campaignFormErrors.budget" class="invalid-feedback">
+                                        {{ campaignFormErrors.budget }}
+                                      </div>
+                                      <div class="form-text">
+                                        Minimum: $50 {{ campaignForm.budget_mode === 'BUDGET_MODE_DAY' ? 'per day' : 'total' }}
+                                        <span v-if="campaignForm.budget_mode === 'BUDGET_MODE_TOTAL' && campaignForm.budget > 0">
+                                          (Approx. ${{ (campaignForm.budget / 30).toFixed(2) }} per day)
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <!-- Bid Strategy -->
+                                    <div class="col-12">
+                                      <label for="bidType" class="form-label fw-bold">
+                                        Bidding Strategy
+                                      </label>
+                                      <select
+                                        class="form-select"
+                                        id="bidType"
+                                        v-model="campaignForm.bid_type"
+                                      >
+                                        <option 
+                                          v-for="bidType in bidTypes" 
+                                          :key="bidType.value" 
+                                          :value="bidType.value"
+                                        >
+                                          {{ bidType.label }}
+                                        </option>
+                                      </select>
+                                      <div class="form-text">
+                                        We'll automatically bid to get you the most results for your budget
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Schedule Settings -->
+                              <div class="col-12">
+                                <div class="schedule-section p-4 border rounded">
+                                  <h6 class="mb-3">
+                                    <i class="bi bi-calendar3 me-2"></i>Schedule
+                                  </h6>
+                                  
+                                  <div class="row g-3">
+                                    <div class="col-md-6">
+                                      <label for="scheduleStart" class="form-label fw-bold">
+                                        Start Date
+                                      </label>
+                                      <input
+                                        type="datetime-local"
+                                        class="form-control"
+                                        id="scheduleStart"
+                                        v-model="campaignForm.schedule_start_time"
+                                      >
+                                    </div>
+                                    <div class="col-md-6">
+                                      <label for="scheduleEnd" class="form-label fw-bold">
+                                        End Date <span class="text-muted">(Optional)</span>
+                                      </label>
+                                      <input
+                                        type="datetime-local"
+                                        class="form-control"
+                                        id="scheduleEnd"
+                                        v-model="campaignForm.schedule_end_time"
+                                      >
+                                    </div>
+                                  </div>
+                                  <div class="form-text mt-2">
+                                    Leave end date empty to run campaign continuously until manually paused
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <!-- Budget Amount -->
-                          <div class="col-md-6 col-12">
-                            <label for="budget" class="form-label">
-                              Budget Amount ($) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                              <span class="input-group-text">$</span>
-                              <input
-                                type="number"
-                                class="form-control"
-                                id="budget"
-                                v-model.number="campaignForm.budget"
-                                placeholder="50.00"
-                                min="20"
-                                step="0.01"
-                                :class="{ 'is-invalid': campaignFormErrors.budget }"
-                                required
-                              >
-                            </div>
-                            <div v-if="campaignFormErrors.budget" class="invalid-feedback">
-                              {{ campaignFormErrors.budget }}
-                            </div>
-                            <div class="form-text">
-                              {{ campaignForm.budget_mode === 'BUDGET_MODE_DAY' ? 'Daily' : 'Total lifetime' }} budget minimum: $20
+                          <!-- Step 4: Review & Create -->
+                          <div v-if="currentFormStep === 4" class="wizard-step">
+                            <h5 class="mb-4 text-primary">
+                              <i class="bi bi-check-square me-2"></i>Review & Create
+                            </h5>
+                            
+                            <div class="campaign-review">
+                              <!-- Campaign Summary -->
+                              <div class="review-section mb-4 p-4 border rounded bg-light">
+                                <h6 class="mb-3">Campaign Summary</h6>
+                                <div class="row g-2">
+                                  <div class="col-md-6">
+                                    <strong>Campaign Name:</strong><br>
+                                    <span class="text-muted">{{ campaignForm.campaign_name || 'Not specified' }}</span>
+                                  </div>
+                                  <div class="col-md-6">
+                                    <strong>Objective:</strong><br>
+                                    <span class="text-muted">{{ 
+                                      campaignObjectives.find(obj => obj.value === campaignForm.objective_type)?.label || 'Not selected'
+                                    }}</span>
+                                  </div>
+                                  <div class="col-md-6">
+                                    <strong>Budget:</strong><br>
+                                    <span class="text-muted">
+                                      ${{ campaignForm.budget }} {{ campaignForm.budget_mode === 'BUDGET_MODE_DAY' ? 'per day' : 'total' }}
+                                    </span>
+                                  </div>
+                                  <div class="col-md-6">
+                                    <strong>Bid Strategy:</strong><br>
+                                    <span class="text-muted">{{ campaignForm.bid_type.replace('_', ' ') }}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Important Notes -->
+                              <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                  <i class="bi bi-info-circle me-2"></i>Before you create this campaign
+                                </h6>
+                                <ul class="mb-0">
+                                  <li>Make sure you have ad creatives ready for your ad groups</li>
+                                  <li>Review TikTok's advertising policies to ensure compliance</li>
+                                  <li>Your campaign will be created in a paused state for review</li>
+                                  <li>You can modify most settings after creation</li>
+                                </ul>
+                              </div>
                             </div>
                           </div>
 
-                          <!-- App Promotion Type (conditional) -->
-                          <div v-if="campaignForm.objective_type === 'APP_PROMOTION'" class="col-md-6 col-12">
-                            <label for="appPromotionType" class="form-label">
-                              App Promotion Type <span class="text-danger">*</span>
-                            </label>
-                            <select
-                              class="form-select"
-                              id="appPromotionType"
-                              v-model="campaignForm.app_promotion_type"
-                              :class="{ 'is-invalid': campaignFormErrors.app_promotion_type }"
-                              required
-                            >
-                              <option value="">Select promotion type</option>
-                              <option value="APP_INSTALL">App Installs</option>
-                              <option value="APP_RETARGETING">App Retargeting</option>
-                            </select>
-                            <div v-if="campaignFormErrors.app_promotion_type" class="invalid-feedback">
-                              {{ campaignFormErrors.app_promotion_type }}
-                            </div>
-                          </div>
-
-                          <!-- Campaign Description (optional) -->
-                          <div class="col-12">
-                            <label for="campaignDescription" class="form-label">
-                              Campaign Description <span class="text-muted">(Optional)</span>
-                            </label>
-                            <textarea
-                              class="form-control"
-                              id="campaignDescription"
-                              v-model="campaignForm.description"
-                              rows="3"
-                              placeholder="Describe your campaign goals and target audience..."
-                            ></textarea>
-                          </div>
-
-                          <!-- Form Actions -->
-                          <div class="col-12">
-                            <div class="d-flex gap-2 pt-3">
+                          <!-- Navigation & Actions -->
+                          <div class="wizard-navigation d-flex justify-content-between align-items-center pt-4 border-top">
+                            <div>
                               <button
-                                type="submit"
-                                class="btn btn-primary"
-                                :disabled="isCreatingCampaign || !isFormValid"
+                                v-if="currentFormStep > 1"
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                @click="currentFormStep--"
+                                :disabled="isCreatingCampaign"
                               >
-                                <div v-if="isCreatingCampaign" class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                <i v-else class="bi bi-plus me-2"></i>
-                                {{ isCreatingCampaign ? 'Creating...' : 'Create Campaign' }}
+                                <i class="bi bi-arrow-left me-2"></i>Previous
                               </button>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
                               <button
                                 type="button"
                                 class="btn btn-outline-secondary"
@@ -354,13 +572,34 @@
                               >
                                 <i class="bi bi-arrow-clockwise me-2"></i>Reset
                               </button>
+                              
+                              <button
+                                v-if="currentFormStep < totalFormSteps"
+                                type="button"
+                                class="btn btn-primary"
+                                @click="nextStep"
+                                :disabled="!isStepValid"
+                              >
+                                Next<i class="bi bi-arrow-right ms-2"></i>
+                              </button>
+                              
+                              <button
+                                v-if="currentFormStep === totalFormSteps"
+                                type="submit"
+                                class="btn btn-success btn-lg"
+                                :disabled="isCreatingCampaign || !isFormValid"
+                              >
+                                <div v-if="isCreatingCampaign" class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                <i v-else class="bi bi-plus-circle me-2"></i>
+                                {{ isCreatingCampaign ? 'Creating Campaign...' : 'Create Campaign' }}
+                              </button>
                             </div>
                           </div>
 
                           <!-- Success/Error Messages -->
-                          <div v-if="campaignCreationMessage" class="col-12">
+                          <div v-if="campaignCreationMessage" class="mt-3">
                             <div 
-                              class="alert mt-3"
+                              class="alert"
                               :class="campaignCreationSuccess ? 'alert-success' : 'alert-danger'"
                             >
                               <i 
@@ -370,8 +609,8 @@
                               {{ campaignCreationMessage }}
                             </div>
                           </div>
-                        </div>
-                      </form>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -425,20 +664,126 @@ const store = useTikTokStore()
 const campaigns = computed(() => store.campaigns)
 const campaignStats = computed(() => store.campaignStats)
 
-// Campaign creation form data
+// Campaign creation form data - расширенная версия
 const campaignForm = ref({
   campaign_name: '',
   objective_type: '',
   budget_mode: '',
   budget: 50,
   app_promotion_type: '',
-  description: ''
+  description: '',
+  // Дополнительные параметры
+  rf_campaign_type: 'STANDARD',
+  campaign_type: 'REGULAR_CAMPAIGN',
+  schedule_type: 'SCHEDULE_START_END',
+  schedule_start_time: '',
+  schedule_end_time: '',
+  dayparting: 'ALL_TIME',
+  bid_type: 'BID_TYPE_NO_BID',
+  deep_bid_type: '',
+  optimization_goal: '',
+  conversion_id: '',
+  deep_cpa_bid: 0,
+  // Targeting
+  languages: [],
+  locations: [],
+  age_groups: [],
+  genders: [],
+  interests: [],
+  behaviors: [],
+  // Креативные настройки
+  brand_safety_type: 'STANDARD_INVENTORY',
+  brand_safety_partner: '',
+  inventory_filter_enabled: false,
+  comment_disabled: false
 })
 
 const campaignFormErrors = ref({})
 const isCreatingCampaign = ref(false)
 const campaignCreationMessage = ref('')
 const campaignCreationSuccess = ref(false)
+
+// Дополнительные состояния для расширенной формы
+const showAdvancedSettings = ref(false)
+const currentFormStep = ref(1) // Многоступенчатая форма
+const totalFormSteps = ref(4)
+
+// Computed опции для селектов на основе API данных
+const campaignObjectives = computed(() => {
+  if (store.campaignMetadata.objectives.length > 0) {
+    return store.campaignMetadata.objectives.map(obj => ({
+      value: obj.value,
+      label: obj.name,
+      desc: getObjectiveDescription(obj.value)
+    }))
+  }
+  
+  // Fallback если API не загрузился
+  return [
+    { value: 'REACH', label: 'Reach - Brand Awareness', desc: 'Show your ads to the maximum number of people' },
+    { value: 'TRAFFIC', label: 'Traffic - Website visits', desc: 'Drive traffic to your website or app' },
+    { value: 'APP_PROMOTION', label: 'App Promotion', desc: 'Promote your mobile app' },
+    { value: 'WEB_CONVERSIONS', label: 'Conversions', desc: 'Drive valuable actions on your website' },
+    { value: 'LEAD_GENERATION', label: 'Lead Generation', desc: 'Collect leads for your business' },
+    { value: 'ENGAGEMENT', label: 'Engagement', desc: 'Get more likes, comments, shares, and follows' },
+    { value: 'VIDEO_VIEW', label: 'Video Views', desc: 'Get more views for your videos' },
+    { value: 'CATALOG_SALES', label: 'Catalog Sales', desc: 'Show products from your catalog' }
+  ]
+})
+
+// Computed опции для типов ставок на основе API данных
+const bidTypes = computed(() => {
+  if (store.campaignMetadata.bidTypes.length > 0) {
+    return store.campaignMetadata.bidTypes.map(bid => ({
+      value: bid.value,
+      label: bid.name,
+      desc: getBidTypeDescription(bid.value)
+    }))
+  }
+  
+  // Fallback если API не загрузился
+  return [
+    { value: 'BID_TYPE_NO_BID', label: 'Automatic Bidding', desc: 'Let TikTok optimize your bidding automatically' },
+    { value: 'BID_TYPE_MAX_CONVERSION', label: 'Maximum Conversions', desc: 'Maximize conversions within your budget' },
+    { value: 'BID_TYPE_CUSTOM', label: 'Custom Bid', desc: 'Set your own bid amount' }
+  ]
+})
+
+const budgetModes = [
+  { value: 'BUDGET_MODE_DAY', label: 'Daily Budget', desc: 'Set a budget for each day' },
+  { value: 'BUDGET_MODE_TOTAL', label: 'Lifetime Budget', desc: 'Set a total budget for the entire campaign duration' }
+]
+
+const appPromotionTypes = [
+  { value: 'APP_INSTALL', label: 'App Installs', desc: 'Drive new app installations' },
+  { value: 'APP_RETARGETING', label: 'App Retargeting', desc: 'Re-engage existing app users' }
+]
+
+const optimizationGoals = {
+  'REACH': ['REACH'],
+  'TRAFFIC': ['CLICK', 'LANDING_PAGE_VIEW'],
+  'APP_PROMOTION': ['INSTALL', 'APP_EVENT'],
+  'WEB_CONVERSIONS': ['CONVERSION', 'VALUE'],
+  'LEAD_GENERATION': ['LEAD'],
+  'ENGAGEMENT': ['LIKE', 'COMMENT', 'SHARE', 'PROFILE_VISIT'],
+  'VIDEO_VIEW': ['VIEW_CONTENT', 'COMPLETE_VIEW'],
+  'CATALOG_SALES': ['PRODUCT_DETAILS_PAGE_VIEW', 'ADD_TO_CART', 'PURCHASE']
+}
+
+const ageGroups = [
+  { value: 'AGE_13_17', label: '13-17' },
+  { value: 'AGE_18_24', label: '18-24' },
+  { value: 'AGE_25_34', label: '25-34' },
+  { value: 'AGE_35_44', label: '35-44' },
+  { value: 'AGE_45_54', label: '45-54' },
+  { value: 'AGE_55_PLUS', label: '55+' }
+]
+
+const genderOptions = [
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'UNLIMITED', label: 'All genders' }
+]
 
 // Computed properties
 const shouldShowCampaignManager = computed(() => {
@@ -455,7 +800,7 @@ const isFormValid = computed(() => {
   const hasRequiredFields = form.campaign_name && 
                            form.objective_type && 
                            form.budget_mode && 
-                           form.budget >= 20
+                           form.budget >= 50
   
   // If APP_PROMOTION is selected, app_promotion_type is required
   if (form.objective_type === 'APP_PROMOTION') {
@@ -473,6 +818,30 @@ const isAdminAccount = (account) => {
   return account.advertiser_id === ADMIN_ADVERTISER_ID || 
          account.name === 'News World One' || 
          account.company === 'News World One'
+}
+
+// Helper функции для описаний
+const getObjectiveDescription = (objective) => {
+  const descriptions = {
+    'REACH': 'Show your ads to the maximum number of people',
+    'TRAFFIC': 'Drive traffic to your website or app',
+    'APP_PROMOTION': 'Promote your mobile app',
+    'WEB_CONVERSIONS': 'Drive valuable actions on your website',
+    'LEAD_GENERATION': 'Collect leads for your business',
+    'ENGAGEMENT': 'Get more likes, comments, shares, and follows',
+    'VIDEO_VIEW': 'Get more views for your videos',
+    'CATALOG_SALES': 'Show products from your catalog'
+  }
+  return descriptions[objective] || 'Campaign objective'
+}
+
+const getBidTypeDescription = (bidType) => {
+  const descriptions = {
+    'BID_TYPE_NO_BID': 'Let TikTok optimize your bidding automatically',
+    'BID_TYPE_MAX_CONVERSION': 'Maximize conversions within your budget',
+    'BID_TYPE_CUSTOM': 'Set your own bid amount'
+  }
+  return descriptions[bidType] || 'Bidding strategy'
 }
 
 // Methods
@@ -586,8 +955,8 @@ const validateCampaignForm = () => {
   }
 
   // Budget validation
-  if (!form.budget || form.budget < 20) {
-    errors.budget = 'Budget must be at least $20'
+  if (!form.budget || form.budget < 50) {
+    errors.budget = 'Budget must be at least $50'
   } else if (form.budget > 999999) {
     errors.budget = 'Budget cannot exceed $999,999'
   }
@@ -602,6 +971,11 @@ const validateCampaignForm = () => {
 }
 
 const handleCreateCampaign = async () => {
+  // Ensure we're on the last step
+  if (currentFormStep.value !== totalFormSteps.value) {
+    return
+  }
+
   // Reset previous messages
   campaignCreationMessage.value = ''
   campaignCreationSuccess.value = false
@@ -616,20 +990,64 @@ const handleCreateCampaign = async () => {
   isCreatingCampaign.value = true
 
   try {
-    // Prepare campaign data for API
+    const form = campaignForm.value
+
+    // Prepare comprehensive campaign data for API
     const campaignData = {
-      campaign_name: campaignForm.value.campaign_name.trim(),
-      objective_type: campaignForm.value.objective_type,
-      budget_mode: campaignForm.value.budget_mode,
-      budget: campaignForm.value.budget
+      // Basic required fields
+      campaign_name: form.campaign_name.trim(),
+      objective_type: form.objective_type,
+      budget_mode: form.budget_mode,
+      budget: parseFloat(form.budget)
     }
 
-    // Add app promotion type if needed
-    if (campaignForm.value.objective_type === 'APP_PROMOTION' && campaignForm.value.app_promotion_type) {
-      campaignData.app_promotion_type = campaignForm.value.app_promotion_type
+    // Add optional fields if they have values
+    if (form.description?.trim()) {
+      campaignData.description = form.description.trim()
     }
 
-    console.log('Creating campaign with data:', campaignData)
+    // App promotion specific
+    if (form.objective_type === 'APP_PROMOTION' && form.app_promotion_type) {
+      campaignData.app_promotion_type = form.app_promotion_type
+    }
+
+    // Budget and bidding
+    if (form.bid_type) {
+      campaignData.bid_type = form.bid_type
+    }
+
+    if (form.optimization_goal) {
+      campaignData.optimization_goal = form.optimization_goal
+    }
+
+    // Schedule
+    if (form.schedule_start_time) {
+      campaignData.schedule_start_time = form.schedule_start_time
+    }
+
+    if (form.schedule_end_time) {
+      campaignData.schedule_end_time = form.schedule_end_time
+    }
+
+    // Campaign type settings - только если это не стандартные значения
+    if (form.rf_campaign_type && form.rf_campaign_type !== 'STANDARD') {
+      campaignData.rf_campaign_type = form.rf_campaign_type
+    }
+
+    // Убираем campaign_type так как он может вызывать ошибки
+    // if (form.campaign_type) {
+    //   campaignData.campaign_type = form.campaign_type
+    // }
+
+    // Убираем дополнительные настройки безопасности, они могут вызывать ошибки
+    // if (form.brand_safety_type) {
+    //   campaignData.brand_safety_type = form.brand_safety_type
+    // }
+
+    // campaignData.comment_disabled = form.comment_disabled || false
+    // campaignData.inventory_filter_enabled = form.inventory_filter_enabled || false
+
+    console.log('Creating comprehensive campaign with data:', campaignData)
 
     // Call store method to create campaign
     const success = await store.createCampaign(campaignData)
@@ -643,7 +1061,13 @@ const handleCreateCampaign = async () => {
         resetCampaignForm()
         campaignCreationMessage.value = ''
         
-        // Close the accordion section
+        // Switch to overview section
+        const createAccordion = document.getElementById('creatorCollapse')
+        if (createAccordion && createAccordion.classList.contains('show')) {
+          const createButton = document.querySelector('[data-bs-target="#creatorCollapse"]')
+          createButton?.click()
+        }
+
         const overviewAccordion = document.getElementById('overviewCollapse')
         if (overviewAccordion && !overviewAccordion.classList.contains('show')) {
           const overviewButton = document.querySelector('[data-bs-target="#overviewCollapse"]')
@@ -663,6 +1087,40 @@ const handleCreateCampaign = async () => {
   }
 }
 
+// Wizard navigation methods
+const isStepValid = computed(() => {
+  const step = currentFormStep.value
+  const form = campaignForm.value
+  
+  switch (step) {
+    case 1: // Basic Info
+      return form.campaign_name.trim().length >= 3
+    case 2: // Objective
+      if (form.objective_type === 'APP_PROMOTION') {
+        return form.objective_type && form.app_promotion_type
+      }
+      return form.objective_type
+    case 3: // Budget
+      return form.budget_mode && form.budget >= 50
+    case 4: // Review
+      return isFormValid.value
+    default:
+      return false
+  }
+})
+
+const nextStep = () => {
+  if (currentFormStep.value < totalFormSteps.value && isStepValid.value) {
+    currentFormStep.value++
+  }
+}
+
+const previousStep = () => {
+  if (currentFormStep.value > 1) {
+    currentFormStep.value--
+  }
+}
+
 const resetCampaignForm = () => {
   campaignForm.value = {
     campaign_name: '',
@@ -670,19 +1128,45 @@ const resetCampaignForm = () => {
     budget_mode: '',
     budget: 50,
     app_promotion_type: '',
-    description: ''
+    description: '',
+    // Reset all other fields
+    rf_campaign_type: 'STANDARD',
+    campaign_type: 'REGULAR_CAMPAIGN',
+    schedule_type: 'SCHEDULE_START_END',
+    schedule_start_time: '',
+    schedule_end_time: '',
+    dayparting: 'ALL_TIME',
+    bid_type: 'BID_TYPE_NO_BID',
+    deep_bid_type: '',
+    optimization_goal: '',
+    conversion_id: '',
+    deep_cpa_bid: 0,
+    languages: [],
+    locations: [],
+    age_groups: [],
+    genders: [],
+    interests: [],
+    behaviors: [],
+    brand_safety_type: 'STANDARD_INVENTORY',
+    brand_safety_partner: '',
+    inventory_filter_enabled: false,
+    comment_disabled: false
   }
   
   campaignFormErrors.value = {}
   campaignCreationMessage.value = ''
   campaignCreationSuccess.value = false
+  currentFormStep.value = 1
 }
 
 // Watch for selected advertiser changes
 watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
   if (newAdvertiserId) {
-    console.log('Loading campaigns for account:', newAdvertiserId)
-    await refreshCampaignData()
+    console.log('Loading campaigns and metadata for account:', newAdvertiserId)
+    await Promise.all([
+      refreshCampaignData(),
+      store.getCampaignMetadata()
+    ])
   }
 })
 
@@ -690,7 +1174,10 @@ watch(() => store.selectedAdvertiserId, async (newAdvertiserId) => {
 onMounted(async () => {
   console.log('TikTok Campaign Manager mounted')
   if (store.selectedAdvertiserId) {
-    await refreshCampaignData()
+    await Promise.all([
+      refreshCampaignData(),
+      store.getCampaignMetadata()
+    ])
   }
 })
 </script>
@@ -943,6 +1430,165 @@ onMounted(async () => {
   }
 }
 
+/* Campaign creation wizard styles */
+.campaign-creation-wizard {
+  background-color: white;
+}
+
+.wizard-progress {
+  background-color: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.wizard-content {
+  min-height: 500px;
+}
+
+.wizard-step {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Objective selection cards */
+.objective-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.objective-card {
+  border: 2px solid #e9ecef;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: white;
+}
+
+.objective-card:hover {
+  border-color: #0d6efd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.objective-card.selected {
+  border-color: #0d6efd;
+  background-color: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+}
+
+.objective-header {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #212529;
+}
+
+.objective-desc {
+  color: #6c757d;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* App promotion cards */
+.app-promotion-card {
+  border: 2px solid #e9ecef;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: white;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.app-promotion-card:hover {
+  border-color: #0d6efd;
+}
+
+.app-promotion-card.selected {
+  border-color: #0d6efd;
+  background-color: #f0f7ff;
+}
+
+/* Budget selection cards */
+.budget-card {
+  border: 2px solid #e9ecef;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: white;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.budget-card:hover {
+  border-color: #198754;
+}
+
+.budget-card.selected {
+  border-color: #198754;
+  background-color: #f0fff4;
+}
+
+/* Budget and schedule sections */
+.budget-section, .schedule-section {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef !important;
+}
+
+.budget-section h6, .schedule-section h6 {
+  color: #495057;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+/* Review section */
+.campaign-review .review-section {
+  background-color: #f8f9fa !important;
+}
+
+/* Wizard navigation */
+.wizard-navigation {
+  background-color: #f8f9fa;
+  margin: 0 -1.5rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+  border-bottom-left-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+}
+
+/* Progress bar styling */
+.progress-bar {
+  background-color: #0d6efd;
+  transition: width 0.3s ease;
+}
+
+.progress {
+  background-color: #e9ecef;
+}
+
+/* Form improvements */
+.form-label.fw-bold {
+  color: #212529;
+  font-size: 0.875rem;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.input-group-lg .form-control {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
 /* Campaign creation form styles */
 .campaign-creation-form {
   max-width: 100%;
@@ -963,6 +1609,41 @@ onMounted(async () => {
   border-color: var(--bs-border-color);
 }
 
+/* Mobile responsive wizard styles */
+@media (max-width: 767.98px) {
+  .objective-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .wizard-content {
+    padding: 1rem !important;
+    min-height: 400px;
+  }
+  
+  .wizard-navigation {
+    margin: 0 -1rem -1rem -1rem;
+    padding: 1rem;
+  }
+  
+  .wizard-navigation .d-flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .wizard-navigation .btn {
+    width: 100%;
+  }
+  
+  .progress-bar {
+    height: 8px;
+  }
+  
+  .budget-section,
+  .schedule-section {
+    padding: 1rem !important;
+  }
+}
+
 /* Mobile responsive form styles */
 @media (max-width: 575.98px) {
   .campaign-creation-form .col-md-6 {
@@ -978,13 +1659,33 @@ onMounted(async () => {
     font-size: 0.875rem;
   }
   
-  .campaign-creation-form .btn {
-    width: 100%;
-    margin-bottom: 0.5rem;
+  .objective-card {
+    padding: 0.75rem;
   }
   
-  .campaign-creation-form .d-flex {
+  .objective-desc {
+    font-size: 0.8rem;
+  }
+  
+  .budget-card,
+  .app-promotion-card {
     flex-direction: column;
+    text-align: center;
+    padding: 0.5rem;
+  }
+  
+  .wizard-progress .d-flex {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  
+  .wizard-progress .badge {
+    align-self: center;
+  }
+  
+  .wizard-progress small {
+    font-size: 0.7rem;
   }
 }
 

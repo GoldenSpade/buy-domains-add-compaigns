@@ -99,6 +99,97 @@ router.get('/advertiser-info', async (req, res) => {
   }
 })
 
+// ============ CAMPAIGN METADATA ENDPOINTS ============
+
+// Получение метаданных для создания кампаний
+router.get('/campaign-metadata', async (req, res) => {
+  const { access_token, advertiser_id } = req.query
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    // Получаем доступные цели кампаний
+    const objectivesResponse = await axios.get(`${TIKTOK_API_BASE}/tool/campaign_creation/`, {
+      headers: {
+        'Access-Token': access_token,
+      },
+      params: {
+        advertiser_id: advertiser_id,
+        tool_type: 'CAMPAIGN_OBJECTIVE'
+      },
+    })
+
+    // Получаем доступные типы ставок
+    const bidTypesResponse = await axios.get(`${TIKTOK_API_BASE}/tool/campaign_creation/`, {
+      headers: {
+        'Access-Token': access_token,
+      },
+      params: {
+        advertiser_id: advertiser_id,
+        tool_type: 'BID_TYPE'
+      },
+    })
+
+    // Получаем доступные типы кампаний
+    const campaignTypesResponse = await axios.get(`${TIKTOK_API_BASE}/tool/campaign_creation/`, {
+      headers: {
+        'Access-Token': access_token,
+      },
+      params: {
+        advertiser_id: advertiser_id,
+        tool_type: 'RF_CAMPAIGN_TYPE'
+      },
+    })
+
+    const metadata = {
+      objectives: objectivesResponse.data.data?.list || [],
+      bidTypes: bidTypesResponse.data.data?.list || [],
+      campaignTypes: campaignTypesResponse.data.data?.list || [],
+    }
+
+    res.json({
+      success: true,
+      data: metadata,
+    })
+  } catch (error) {
+    console.error('Error fetching campaign metadata:', error.response?.data || error.message)
+    
+    // Если API endpoint не работает, возвращаем fallback данные
+    const fallbackData = {
+      objectives: [
+        { value: 'REACH', name: 'Reach - Brand Awareness' },
+        { value: 'TRAFFIC', name: 'Traffic - Website visits' },
+        { value: 'APP_PROMOTION', name: 'App Promotion' },
+        { value: 'WEB_CONVERSIONS', name: 'Conversions' },
+        { value: 'LEAD_GENERATION', name: 'Lead Generation' },
+        { value: 'ENGAGEMENT', name: 'Engagement' },
+        { value: 'VIDEO_VIEW', name: 'Video Views' },
+        { value: 'CATALOG_SALES', name: 'Catalog Sales' }
+      ],
+      bidTypes: [
+        { value: 'BID_TYPE_NO_BID', name: 'Automatic Bidding' },
+        { value: 'BID_TYPE_MAX_CONVERSION', name: 'Maximum Conversions' },
+        { value: 'BID_TYPE_CUSTOM', name: 'Custom Bid' }
+      ],
+      campaignTypes: [
+        { value: 'STANDARD', name: 'Standard Campaign' },
+        { value: 'MISSION', name: 'Mission Campaign' }
+      ]
+    }
+
+    res.json({
+      success: true,
+      data: fallbackData,
+      fallback: true,
+    })
+  }
+})
+
 // ============ CAMPAIGN MANAGEMENT ENDPOINTS ============
 
 // Получение списка кампаний
