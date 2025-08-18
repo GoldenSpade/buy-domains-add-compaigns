@@ -192,7 +192,7 @@ router.put('/campaigns/:campaign_id/status', async (req, res) => {
     const response = await axios.post(`${TIKTOK_API_BASE}/campaign/status/update/`, {
       advertiser_id: advertiser_id,
       campaign_ids: JSON.stringify([campaign_id]),
-      operation: operation // "ENABLE", "DISABLE", "DELETE"
+      operation_status: operation // "ENABLE", "DISABLE", "DELETE"
     }, {
       headers: {
         'Access-Token': access_token,

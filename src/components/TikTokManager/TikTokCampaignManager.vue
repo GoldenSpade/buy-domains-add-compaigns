@@ -132,7 +132,7 @@
                               <i class="bi bi-play"></i>
                             </button>
                             <button 
-                              class="btn btn-outline-dark btn-sm campaign-btn" 
+                              class="btn btn-outline-secondary btn-sm campaign-btn" 
                               title="Pause"
                               @click="pauseCampaign(campaign.campaign_id)"
                               :disabled="campaign.operation_status !== 'ENABLE' || store.loading"
@@ -145,6 +145,14 @@
                               :disabled="store.loading"
                             >
                               <i class="bi bi-pencil"></i>
+                            </button>
+                            <button 
+                              class="btn btn-outline-danger btn-sm campaign-btn" 
+                              title="Delete"
+                              @click="deleteCampaign(campaign.campaign_id, campaign.campaign_name)"
+                              :disabled="store.loading"
+                            >
+                              <i class="bi bi-trash"></i>
                             </button>
                           </div>
                         </div>
@@ -524,6 +532,29 @@ const pauseCampaign = async (campaignId) => {
   }
 }
 
+const deleteCampaign = async (campaignId, campaignName) => {
+  // Показываем конфирмацию
+  const confirmed = confirm(`Are you sure you want to delete the campaign "${campaignName}"?\n\nThis action cannot be undone.`)
+  
+  if (confirmed) {
+    const success = await store.updateCampaignStatus(campaignId, 'DELETE')
+    if (success) {
+      console.log('Campaign deleted successfully')
+      
+      // Удаляем кампанию из локального списка сразу
+      store.campaigns = store.campaigns.filter(c => c.campaign_id !== campaignId)
+      
+      // Обновляем статистику
+      store.campaignStats.active = store.campaigns.filter(c => c.operation_status === 'ENABLE').length
+      
+      // Показываем уведомление
+      alert(`Campaign "${campaignName}" has been deleted successfully.`)
+    } else {
+      alert(`Failed to delete campaign "${campaignName}". Please try again.`)
+    }
+  }
+}
+
 const refreshCampaignData = async () => {
   if (store.selectedAdvertiserId) {
     await store.loadCampaignData()
@@ -769,6 +800,26 @@ onMounted(async () => {
 .campaign-actions {
   display: flex;
   gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.campaign-btn {
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Кнопка удаления */
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.btn-outline-danger {
+  border-color: #dc3545;
+  color: #dc3545;
 }
 
 .campaign-name {
@@ -809,6 +860,11 @@ onMounted(async () => {
   .campaign-actions {
     width: 100%;
     justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  
+  .campaign-btn {
+    min-width: 32px;
   }
   
   .campaign-btn {
@@ -877,9 +933,13 @@ onMounted(async () => {
   }
   
   .campaign-btn {
-    min-width: 32px;
+    min-width: 28px;
     padding: 0.2rem 0.4rem;
     font-size: 0.8rem;
+  }
+  
+  .campaign-actions {
+    justify-content: space-between;
   }
 }
 
