@@ -113,49 +113,30 @@ router.get('/campaign-metadata', async (req, res) => {
   }
 
   try {
-    console.log('Fetching campaign metadata for advertiser:', advertiser_id)
-    console.log('Using API base:', TIKTOK_API_BASE)
+    console.log('Using fallback campaign metadata for advertiser:', advertiser_id)
     
-    // Получаем доступные цели кампаний
-    const objectivesUrl = `${TIKTOK_API_BASE}/tool/campaign_creation/`
-    console.log('Requesting objectives from:', objectivesUrl)
-    
-    const objectivesResponse = await axios.get(objectivesUrl, {
-      headers: {
-        'Access-Token': access_token,
-      },
-      params: {
-        advertiser_id: advertiser_id,
-        tool_type: 'CAMPAIGN_OBJECTIVE'
-      },
-    })
-
-    // Получаем доступные типы ставок
-    const bidTypesResponse = await axios.get(`${TIKTOK_API_BASE}/tool/campaign_creation/`, {
-      headers: {
-        'Access-Token': access_token,
-      },
-      params: {
-        advertiser_id: advertiser_id,
-        tool_type: 'BID_TYPE'
-      },
-    })
-
-    // Получаем доступные типы кампаний
-    const campaignTypesResponse = await axios.get(`${TIKTOK_API_BASE}/tool/campaign_creation/`, {
-      headers: {
-        'Access-Token': access_token,
-      },
-      params: {
-        advertiser_id: advertiser_id,
-        tool_type: 'RF_CAMPAIGN_TYPE'
-      },
-    })
-
+    // Используем статичные fallback данные вместо API запросов к несуществующим эндпоинтам
+    // Эти данные основаны на документации TikTok Business API
     const metadata = {
-      objectives: objectivesResponse.data.data?.list || [],
-      bidTypes: bidTypesResponse.data.data?.list || [],
-      campaignTypes: campaignTypesResponse.data.data?.list || [],
+      objectives: [
+        { value: 'REACH', name: 'Reach - Brand Awareness' },
+        { value: 'TRAFFIC', name: 'Traffic - Website visits' },
+        { value: 'APP_PROMOTION', name: 'App Promotion' },
+        { value: 'WEB_CONVERSIONS', name: 'Conversions' },
+        { value: 'LEAD_GENERATION', name: 'Lead Generation' },
+        { value: 'ENGAGEMENT', name: 'Engagement' },
+        { value: 'VIDEO_VIEW', name: 'Video Views' },
+        { value: 'CATALOG_SALES', name: 'Catalog Sales' }
+      ],
+      bidTypes: [
+        { value: 'BID_TYPE_NO_BID', name: 'Automatic Bidding' },
+        { value: 'BID_TYPE_MAX_CONVERSION', name: 'Maximum Conversions' },
+        { value: 'BID_TYPE_CUSTOM', name: 'Custom Bid' }
+      ],
+      campaignTypes: [
+        { value: 'AUCTION', name: 'Auction Campaign' },
+        { value: 'REACH_FREQUENCY', name: 'Reach & Frequency' }
+      ]
     }
 
     res.json({
