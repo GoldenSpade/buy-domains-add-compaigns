@@ -107,19 +107,44 @@
                       <div
                         v-for="campaign in recentCampaigns"
                         :key="campaign.campaign_id"
-                        class="list-group-item"
+                        class="list-group-item py-3"
                       >
                         <div class="campaign-item-wrapper">
                           <div class="campaign-info">
-                            <h6 class="campaign-name">{{ campaign.campaign_name }}</h6>
-                            <div class="campaign-details">
-                              <span class="campaign-budget">Budget: ${{ campaign.budget }}</span>
-                              <span class="campaign-separator">|</span>
-                              <span class="campaign-status">
-                                Status: <span :class="getCampaignStatusClass(campaign.operation_status)">
-                                  {{ campaign.operation_status }}
-                                </span>
-                              </span>
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                              <h6 class="campaign-name mb-0">{{ campaign.campaign_name }}</h6>
+                              <small class="text-muted ms-3">ID: {{ campaign.campaign_id }}</small>
+                            </div>
+                            
+                            <div class="campaign-details mb-3">
+                              <div class="row g-3">
+                                <div class="col-md-6">
+                                  <small class="text-muted d-block mb-1">Budget & Type</small>
+                                  <span class="fw-medium">
+                                    ${{ campaign.budget || 'N/A' }} 
+                                    <small class="text-muted">({{ formatCampaignBudgetMode(campaign.budget_mode) }})</small>
+                                  </span>
+                                  <br>
+                                  <small class="text-muted">Objective: {{ formatCampaignObjective(campaign.objective_type) }}</small>
+                                </div>
+                                <div class="col-md-6">
+                                  <small class="text-muted d-block mb-1">Status & Performance</small>
+                                  <span class="fw-medium">
+                                    <span :class="getCampaignStatusClass(campaign.operation_status)">
+                                      {{ formatCampaignStatus(campaign.operation_status) }}
+                                    </span>
+                                  </span>
+                                  <br>
+                                  <small class="text-muted">Type: {{ formatCampaignType(campaign.campaign_type) }}</small>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div class="campaign-meta">
+                              <small class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                Created: {{ formatCampaignDate(campaign.create_time) }}
+                              </small>
                             </div>
                           </div>
                           <div class="campaign-actions">
@@ -803,7 +828,16 @@ const shouldShowCampaignManager = computed(() => {
 })
 
 const recentCampaigns = computed(() => {
-  return campaigns.value.slice(0, 5) // Show only 5 most recent
+  // Sort by create_time (newest first) and take first 5
+  return campaigns.value
+    .slice() // Create copy to avoid mutating original array
+    .sort((a, b) => {
+      // Parse dates and sort in descending order (newest first)
+      const dateA = new Date(typeof a.create_time === 'number' ? a.create_time * 1000 : a.create_time || 0)
+      const dateB = new Date(typeof b.create_time === 'number' ? b.create_time * 1000 : b.create_time || 0)
+      return dateB - dateA
+    })
+    .slice(0, 5)
 })
 
 // Form validation
@@ -887,6 +921,67 @@ const getCampaignStatusClass = (status) => {
     PENDING: 'text-info',
   }
   return statusClasses[status] || 'text-muted'
+}
+
+const formatCampaignStatus = (status) => {
+  const statusNames = {
+    ENABLE: 'Active',
+    DISABLE: 'Disabled',
+    PAUSED: 'Paused',
+    PENDING: 'Pending',
+  }
+  return statusNames[status] || status
+}
+
+const formatCampaignBudgetMode = (mode) => {
+  const modeNames = {
+    BUDGET_MODE_DAY: 'Daily',
+    BUDGET_MODE_TOTAL: 'Total',
+    CAMPAIGN_BUDGET_MODE_DAILY: 'Daily',
+    CAMPAIGN_BUDGET_MODE_TOTAL: 'Total',
+  }
+  return modeNames[mode] || mode || 'Daily'
+}
+
+const formatCampaignObjective = (objective) => {
+  const objectiveNames = {
+    REACH: 'Reach',
+    TRAFFIC: 'Traffic',
+    APP_PROMOTION: 'App Promotion',
+    WEB_CONVERSIONS: 'Conversions',
+    LEAD_GENERATION: 'Lead Generation',
+    ENGAGEMENT: 'Engagement',
+    VIDEO_VIEW: 'Video Views',
+    CATALOG_SALES: 'Catalog Sales',
+  }
+  return objectiveNames[objective] || objective || 'Traffic'
+}
+
+const formatCampaignType = (type) => {
+  const typeNames = {
+    AUCTION: 'Auction',
+    REACH_FREQUENCY: 'Reach & Frequency',
+    MANUAL_CAMPAIGN: 'Manual',
+    AUTOMATED_CAMPAIGN: 'Automated',
+  }
+  return typeNames[type] || type || 'Standard'
+}
+
+const formatCampaignDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  try {
+    // Handle both timestamp and date string formats
+    const date = new Date(typeof dateString === 'number' ? dateString * 1000 : dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
 }
 
 

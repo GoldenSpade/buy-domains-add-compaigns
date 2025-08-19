@@ -120,19 +120,44 @@
                   <div
                     v-for="adGroup in recentAdGroups"
                     :key="adGroup.adgroup_id"
-                    class="list-group-item"
+                    class="list-group-item py-3"
                   >
                     <div class="adgroup-item-wrapper">
                       <div class="adgroup-info">
-                        <h6 class="adgroup-name">{{ adGroup.adgroup_name }}</h6>
-                        <div class="adgroup-details">
-                          <span class="adgroup-budget">Budget: ${{ adGroup.budget || 'N/A' }}</span>
-                          <span class="adgroup-separator">|</span>
-                          <span class="adgroup-status">
-                            Status: <span :class="getAdGroupStatusClass(adGroup.operation_status)">
-                              {{ adGroup.operation_status }}
-                            </span>
-                          </span>
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                          <h6 class="adgroup-name mb-0">{{ adGroup.adgroup_name }}</h6>
+                          <small class="text-muted ms-3">ID: {{ adGroup.adgroup_id }}</small>
+                        </div>
+                        
+                        <div class="adgroup-details mb-3">
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <small class="text-muted d-block mb-1">Budget & Bid</small>
+                              <span class="fw-medium">
+                                ${{ adGroup.budget || 'N/A' }} 
+                                <small class="text-muted">({{ formatBudgetMode(adGroup.budget_mode) }})</small>
+                              </span>
+                              <br>
+                              <small class="text-muted">Bid: {{ adGroup.bid_type === 'BID_TYPE_CUSTOM' ? 'Custom' : adGroup.bid_type }}</small>
+                            </div>
+                            <div class="col-md-6">
+                              <small class="text-muted d-block mb-1">Status & Goal</small>
+                              <span class="fw-medium">
+                                <span :class="getAdGroupStatusClass(adGroup.operation_status)">
+                                  {{ formatOperationStatus(adGroup.operation_status) }}
+                                </span>
+                              </span>
+                              <br>
+                              <small class="text-muted">Goal: {{ formatOptimizationGoal(adGroup.optimization_goal) }}</small>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div class="adgroup-meta">
+                          <small class="text-muted">
+                            <i class="bi bi-calendar3 me-1"></i>
+                            Created: {{ formatDate(adGroup.create_time) }}
+                          </small>
                         </div>
                       </div>
                       <div class="adgroup-actions">
@@ -1019,6 +1044,51 @@ const getAdGroupStatusClass = (status) => {
     PENDING: 'text-info',
   }
   return statusClasses[status] || 'text-muted'
+}
+
+const formatOperationStatus = (status) => {
+  const statusNames = {
+    ENABLE: 'Active',
+    DISABLE: 'Disabled',
+    PAUSED: 'Paused',
+    PENDING: 'Pending',
+  }
+  return statusNames[status] || status
+}
+
+const formatOptimizationGoal = (goal) => {
+  const goalNames = {
+    CLICK: 'Clicks',
+    CONVERSION: 'Conversions',
+    REACH: 'Reach',
+    VIDEO_VIEW: 'Video Views',
+    IMPRESSION: 'Impressions',
+  }
+  return goalNames[goal] || goal
+}
+
+const formatBudgetMode = (mode) => {
+  const modeNames = {
+    BUDGET_MODE_DAY: 'Daily',
+    BUDGET_MODE_TOTAL: 'Total',
+  }
+  return modeNames[mode] || mode
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
 }
 
 const getLocationName = (locationId) => {
