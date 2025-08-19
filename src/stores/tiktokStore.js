@@ -935,7 +935,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
   }
 
   // Обновление статуса Ad Group
-  const updateAdGroupStatus = async (adGroupId, operation) => {
+  const updateAdGroupStatus = async (adGroupId, operation, campaignId = null) => {
     if (!accessToken.value || !selectedAdvertiserId.value) {
       error.value = 'Access token and selected advertiser ID are required'
       return false
@@ -960,8 +960,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
       const result = handleApiResponse(data, `Ad Group ${operationText} successfully!`, 'Ad Group Status Update')
       
       if (result.isSuccess) {
-        // Перезагружаем список Ad Groups
-        await getAdGroups()
+        // Перезагружаем список Ad Groups для указанной кампании
+        const targetCampaignId = campaignId || selectedCampaignId.value
+        await getAdGroups(targetCampaignId)
         return true
       } else {
         return false

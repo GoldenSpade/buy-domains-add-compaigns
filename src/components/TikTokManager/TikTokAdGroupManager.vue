@@ -153,13 +153,6 @@
                           <i class="bi bi-pause"></i>
                         </button>
                         <button 
-                          class="btn btn-outline-primary btn-sm adgroup-btn" 
-                          title="Edit"
-                          :disabled="store.loading"
-                        >
-                          <i class="bi bi-pencil"></i>
-                        </button>
-                        <button 
                           class="btn btn-outline-danger btn-sm adgroup-btn" 
                           title="Delete"
                           @click="deleteAdGroup(adGroup.adgroup_id, adGroup.adgroup_name)"
@@ -411,7 +404,7 @@
                               <span 
                                 v-for="interestId in adGroupForm.interests" 
                                 :key="interestId"
-                                class="badge bg-secondary me-1 mb-1"
+                                class="badge bg-primary me-1 mb-1"
                               >
                                 {{ getInterestName(interestId) }}
                                 <button 
@@ -450,7 +443,7 @@
                               <span 
                                 v-for="languageCode in adGroupForm.languages" 
                                 :key="languageCode"
-                                class="badge bg-info me-1 mb-1"
+                                class="badge bg-primary me-1 mb-1"
                               >
                                 {{ getLanguageName(languageCode) }}
                                 <button 
@@ -814,7 +807,16 @@ const selectedCampaignName = computed(() => {
 })
 
 const recentAdGroups = computed(() => {
-  return store.adGroups.slice(0, 10) // Show 10 most recent
+  // Sort by create_time (newest first) and take first 10
+  return store.adGroups
+    .slice() // Create copy to avoid mutating original array
+    .sort((a, b) => {
+      // Parse dates and sort in descending order (newest first)
+      const dateA = new Date(a.create_time || 0)
+      const dateB = new Date(b.create_time || 0)
+      return dateB - dateA
+    })
+    .slice(0, 10)
 })
 
 // Ad Group creation form data
@@ -1106,14 +1108,14 @@ const removeLanguage = (languageCode) => {
 
 // Ad Group actions
 const startAdGroup = async (adGroupId) => {
-  const success = await store.updateAdGroupStatus(adGroupId, 'ENABLE')
+  const success = await store.updateAdGroupStatus(adGroupId, 'ENABLE', props.campaignId)
   if (success) {
     console.log('Ad Group started successfully')
   }
 }
 
 const pauseAdGroup = async (adGroupId) => {
-  const success = await store.updateAdGroupStatus(adGroupId, 'DISABLE')
+  const success = await store.updateAdGroupStatus(adGroupId, 'DISABLE', props.campaignId)
   if (success) {
     console.log('Ad Group paused successfully')
   }
@@ -1123,7 +1125,7 @@ const deleteAdGroup = async (adGroupId, adGroupName) => {
   const confirmed = confirm(`Are you sure you want to delete the ad group "${adGroupName}"?\n\nThis action cannot be undone.`)
   
   if (confirmed) {
-    const success = await store.updateAdGroupStatus(adGroupId, 'DELETE')
+    const success = await store.updateAdGroupStatus(adGroupId, 'DELETE', props.campaignId)
     if (success) {
       console.log('Ad Group deleted successfully')
     }
@@ -1262,10 +1264,7 @@ const handleCreateAdGroup = async () => {
 
     const success = await store.createAdGroup(adGroupData)
 
-    if (success) {
-      adGroupCreationMessage.value = `Ad Group "${adGroupData.adgroup_name}" created successfully!`
-      adGroupCreationSuccess.value = true
-      
+    if (success) {      
       // The store already refreshes the list in createAdGroup, but let's force a component refresh
       console.log('Ad Group created successfully. Current count:', store.adGroups.length)
       
@@ -1278,19 +1277,49 @@ const handleCreateAdGroup = async () => {
       setTimeout(() => {
         resetAdGroupForm()
         
-        // Switch to overview section
+        console.log('Starting accordion switching...')
+        
+        // Close the create ad group accordion
         const createAccordion = document.getElementById('adGroupCreatorCollapse')
-        if (createAccordion && createAccordion.classList.contains('show')) {
-          const createButton = document.querySelector('[data-bs-target="#adGroupCreatorCollapse"]')
-          createButton?.click()
+        const createButton = document.querySelector('[data-bs-target="#adGroupCreatorCollapse"]')
+        
+        console.log('Create accordion element:', createAccordion)
+        console.log('Create button element:', createButton)
+        console.log('Create accordion has show class:', createAccordion?.classList.contains('show'))
+        
+        if (createAccordion && createAccordion.classList.contains('show') && createButton) {
+          console.log('Closing create accordion...')
+          // Try Bootstrap API first, fallback to button click
+          if (window.bootstrap && window.bootstrap.Collapse) {
+            const createCollapse = new window.bootstrap.Collapse(createAccordion)
+            createCollapse.hide()
+          } else {
+            createButton.click()
+          }
         }
-
-        const overviewAccordion = document.getElementById('adGroupOverviewCollapse')
-        if (overviewAccordion && !overviewAccordion.classList.contains('show')) {
+        
+        // Open the overview accordion with delay
+        setTimeout(() => {
+          const overviewAccordion = document.getElementById('adGroupOverviewCollapse')
           const overviewButton = document.querySelector('[data-bs-target="#adGroupOverviewCollapse"]')
-          overviewButton?.click()
-        }
-      }, 1000) // Уменьшили время с 3 сек до 1 сек
+          
+          console.log('Overview accordion element:', overviewAccordion)
+          console.log('Overview button element:', overviewButton)
+          console.log('Overview accordion has show class:', overviewAccordion?.classList.contains('show'))
+          
+          if (overviewAccordion && !overviewAccordion.classList.contains('show') && overviewButton) {
+            console.log('Opening overview accordion...')
+            // Try Bootstrap API first, fallback to button click
+            if (window.bootstrap && window.bootstrap.Collapse) {
+              const overviewCollapse = new window.bootstrap.Collapse(overviewAccordion)
+              overviewCollapse.show()
+            } else {
+              overviewButton.click()
+            }
+          }
+        }, 400)
+        
+      }, 500)
     }
   } catch (error) {
     console.error('Error creating ad group:', error)
