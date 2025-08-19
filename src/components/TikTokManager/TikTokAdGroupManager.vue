@@ -770,19 +770,7 @@
                         </div>
                       </div>
 
-                      <!-- Success/Error Messages -->
-                      <div v-if="adGroupCreationMessage" class="mt-3">
-                        <div 
-                          class="alert"
-                          :class="adGroupCreationSuccess ? 'alert-success' : 'alert-danger'"
-                        >
-                          <i 
-                            class="bi me-2"
-                            :class="adGroupCreationSuccess ? 'bi-check-circle' : 'bi-exclamation-triangle'"
-                          ></i>
-                          {{ adGroupCreationMessage }}
-                        </div>
-                      </div>
+                      <!-- Success/Error Messages убраны - используем тосты -->
                     </form>
                   </div>
                 </div>
@@ -855,8 +843,6 @@ const adGroupForm = ref({
 
 const adGroupFormErrors = ref({})
 const isCreatingAdGroup = ref(false)
-const adGroupCreationMessage = ref('')
-const adGroupCreationSuccess = ref(false)
 
 // Form wizard state
 const currentFormStep = ref(1)
@@ -1140,9 +1126,6 @@ const deleteAdGroup = async (adGroupId, adGroupName) => {
     const success = await store.updateAdGroupStatus(adGroupId, 'DELETE')
     if (success) {
       console.log('Ad Group deleted successfully')
-      alert(`Ad Group "${adGroupName}" has been deleted successfully.`)
-    } else {
-      alert(`Failed to delete ad group "${adGroupName}". Please try again.`)
     }
   }
 }
@@ -1213,12 +1196,7 @@ const handleCreateAdGroup = async () => {
     return
   }
 
-  adGroupCreationMessage.value = ''
-  adGroupCreationSuccess.value = false
-
   if (!validateAdGroupForm()) {
-    adGroupCreationMessage.value = 'Please fix the form errors before submitting'
-    adGroupCreationSuccess.value = false
     return
   }
 
@@ -1299,7 +1277,6 @@ const handleCreateAdGroup = async () => {
       
       setTimeout(() => {
         resetAdGroupForm()
-        adGroupCreationMessage.value = ''
         
         // Switch to overview section
         const createAccordion = document.getElementById('adGroupCreatorCollapse')
@@ -1313,15 +1290,11 @@ const handleCreateAdGroup = async () => {
           const overviewButton = document.querySelector('[data-bs-target="#adGroupOverviewCollapse"]')
           overviewButton?.click()
         }
-      }, 3000)
-    } else {
-      adGroupCreationMessage.value = store.error || 'Failed to create ad group. Please try again.'
-      adGroupCreationSuccess.value = false
+      }, 1000) // Уменьшили время с 3 сек до 1 сек
     }
   } catch (error) {
     console.error('Error creating ad group:', error)
-    adGroupCreationMessage.value = error.message || 'An unexpected error occurred while creating the ad group.'
-    adGroupCreationSuccess.value = false
+    // Ошибки теперь обрабатываются в store через тосты
   } finally {
     isCreatingAdGroup.value = false
   }
@@ -1356,8 +1329,6 @@ const resetAdGroupForm = () => {
   }
   
   adGroupFormErrors.value = {}
-  adGroupCreationMessage.value = ''
-  adGroupCreationSuccess.value = false
   currentFormStep.value = 1
   selectedLocation.value = ''
   selectedInterest.value = ''

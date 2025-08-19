@@ -604,19 +604,7 @@
                             </div>
                           </div>
 
-                          <!-- Success/Error Messages -->
-                          <div v-if="campaignCreationMessage" class="mt-3">
-                            <div 
-                              class="alert"
-                              :class="campaignCreationSuccess ? 'alert-success' : 'alert-danger'"
-                            >
-                              <i 
-                                class="bi me-2"
-                                :class="campaignCreationSuccess ? 'bi-check-circle' : 'bi-exclamation-triangle'"
-                              ></i>
-                              {{ campaignCreationMessage }}
-                            </div>
-                          </div>
+                          <!-- Success/Error Messages убраны - используем тосты -->
                         </form>
                       </div>
                     </div>
@@ -717,8 +705,7 @@ const campaignForm = ref({
 
 const campaignFormErrors = ref({})
 const isCreatingCampaign = ref(false)
-const campaignCreationMessage = ref('')
-const campaignCreationSuccess = ref(false)
+// Campaign creation messages убраны - используем тосты
 
 // Дополнительные состояния для расширенной формы
 const showAdvancedSettings = ref(false)
@@ -948,11 +935,6 @@ const deleteCampaign = async (campaignId, campaignName) => {
       
       // Обновляем статистику
       store.campaignStats.active = store.campaigns.filter(c => c.operation_status === 'ENABLE').length
-      
-      // Показываем уведомление
-      alert(`Campaign "${campaignName}" has been deleted successfully.`)
-    } else {
-      alert(`Failed to delete campaign "${campaignName}". Please try again.`)
     }
   }
 }
@@ -1022,14 +1004,8 @@ const handleCreateCampaign = async () => {
     return
   }
 
-  // Reset previous messages
-  campaignCreationMessage.value = ''
-  campaignCreationSuccess.value = false
-
   // Validate form
   if (!validateCampaignForm()) {
-    campaignCreationMessage.value = 'Please fix the form errors before submitting'
-    campaignCreationSuccess.value = false
     return
   }
 
@@ -1099,13 +1075,9 @@ const handleCreateCampaign = async () => {
     const success = await store.createCampaign(campaignData)
 
     if (success) {
-      campaignCreationMessage.value = `Campaign "${campaignData.campaign_name}" created successfully!`
-      campaignCreationSuccess.value = true
-      
       // Reset form after successful creation
       setTimeout(() => {
         resetCampaignForm()
-        campaignCreationMessage.value = ''
         
         // Switch to overview section
         const createAccordion = document.getElementById('creatorCollapse')
@@ -1119,15 +1091,11 @@ const handleCreateCampaign = async () => {
           const overviewButton = document.querySelector('[data-bs-target="#overviewCollapse"]')
           overviewButton?.click()
         }
-      }, 3000)
-    } else {
-      campaignCreationMessage.value = store.error || 'Failed to create campaign. Please try again.'
-      campaignCreationSuccess.value = false
+      }, 1000) // Уменьшили время с 3 сек до 1 сек
     }
   } catch (error) {
     console.error('Error creating campaign:', error)
-    campaignCreationMessage.value = error.message || 'An unexpected error occurred while creating the campaign.'
-    campaignCreationSuccess.value = false
+    // Ошибки теперь обрабатываются в store через тосты
   } finally {
     isCreatingCampaign.value = false
   }
@@ -1200,8 +1168,6 @@ const resetCampaignForm = () => {
   }
   
   campaignFormErrors.value = {}
-  campaignCreationMessage.value = ''
-  campaignCreationSuccess.value = false
   currentFormStep.value = 1
 }
 

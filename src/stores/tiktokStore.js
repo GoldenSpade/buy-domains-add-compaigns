@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
+import { toast } from 'vue3-toastify'
 
 export const useTikTokStore = defineStore('tiktok', () => {
   const loading = ref(false)
@@ -82,6 +83,52 @@ export const useTikTokStore = defineStore('tiktok', () => {
     } catch (e) {
       console.warn('Failed to clear tokens from localStorage:', e)
     }
+  }
+
+  // Обработка API ответов с тостами
+  const handleApiResponse = (response, successMessage = '', context = '') => {
+    console.log('handleApiResponse:', { response, successMessage, context })
+
+    // Успех: response.success === true И (нет data.code ИЛИ data.code === 0)
+    if (response.success && (!response.data?.code || response.data.code === 0)) {
+      if (successMessage) {
+        toast.success(successMessage, {
+          position: toast.POSITION.TOP_RIGHT,
+          autoClose: 3000,
+        })
+      }
+      return { isSuccess: true, isError: false }
+    }
+
+    // TikTok API ошибка: response.success === true НО data.code !== 0
+    if (response.success && response.data?.code && response.data.code !== 0) {
+      const errorMsg = response.data.message || `TikTok API Error (${response.data.code})`
+      const fullError = context ? `${context}: ${errorMsg}` : errorMsg
+      
+      toast.error(fullError, {
+        position: toast.POSITION.TOP_RIGHT,
+        autoClose: false, // Ошибки не скрываются автоматически
+      })
+      
+      error.value = errorMsg
+      return { isSuccess: false, isError: true, message: errorMsg }
+    }
+
+    // Общие ошибки: response.success === false
+    if (response.success === false) {
+      const errorMsg = response.error || 'Operation failed'
+      const fullError = context ? `${context}: ${errorMsg}` : errorMsg
+      
+      toast.error(fullError, {
+        position: toast.POSITION.TOP_RIGHT,
+        autoClose: false,
+      })
+      
+      error.value = errorMsg
+      return { isSuccess: false, isError: true, message: errorMsg }
+    }
+
+    return { isSuccess: false, isError: false }
   }
 
   // Функция автовыбора активного аккаунта
@@ -583,18 +630,23 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       const data = await response.json()
       
-      if (data.success) {
+      const result = handleApiResponse(data, `Campaign "${campaignData.campaign_name}" created successfully!`, 'Campaign Creation')
+      
+      if (result.isSuccess) {
         // Перезагружаем список кампаний
         await getCampaigns()
         loading.value = false
         return true
       } else {
-        error.value = data.error || 'Failed to create campaign'
         loading.value = false
         return false
       }
     } catch (err) {
       error.value = err.message
+      toast.error(`Campaign Creation: ${err.message}`, {
+        position: toast.POSITION.TOP_RIGHT,
+        autoClose: false,
+      })
       loading.value = false
       return false
     }
@@ -622,12 +674,14 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       const data = await response.json()
       
-      if (data.success) {
+      const operationText = operation === 'ENABLE' ? 'started' : operation === 'DISABLE' ? 'paused' : 'deleted'
+      const result = handleApiResponse(data, `Campaign ${operationText} successfully!`, 'Campaign Status Update')
+      
+      if (result.isSuccess) {
         // Перезагружаем список кампаний
         await getCampaigns()
         return true
       } else {
-        error.value = data.error || 'Failed to update campaign status'
         return false
       }
     } catch (err) {
@@ -858,18 +912,23 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       const data = await response.json()
       
-      if (data.success) {
+      const result = handleApiResponse(data, `Ad Group "${adGroupData.adgroup_name}" created successfully!`, 'Ad Group Creation')
+      
+      if (result.isSuccess) {
         // Перезагружаем список Ad Groups для текущей кампании
         await getAdGroups(adGroupData.campaign_id || selectedCampaignId.value)
         loading.value = false
         return true
       } else {
-        error.value = data.error || 'Failed to create ad group'
         loading.value = false
         return false
       }
     } catch (err) {
       error.value = err.message
+      toast.error(`Ad Group Creation: ${err.message}`, {
+        position: toast.POSITION.TOP_RIGHT,
+        autoClose: false,
+      })
       loading.value = false
       return false
     }
@@ -897,12 +956,14 @@ export const useTikTokStore = defineStore('tiktok', () => {
       
       const data = await response.json()
       
-      if (data.success) {
+      const operationText = operation === 'ENABLE' ? 'started' : operation === 'DISABLE' ? 'paused' : 'deleted'
+      const result = handleApiResponse(data, `Ad Group ${operationText} successfully!`, 'Ad Group Status Update')
+      
+      if (result.isSuccess) {
         // Перезагружаем список Ad Groups
         await getAdGroups()
         return true
       } else {
-        error.value = data.error || 'Failed to update ad group status'
         return false
       }
     } catch (err) {
