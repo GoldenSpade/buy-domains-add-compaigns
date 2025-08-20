@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { toast } from 'vue3-toastify'
 
 export const useTikTokStore = defineStore('tiktok', () => {
@@ -989,6 +989,33 @@ export const useTikTokStore = defineStore('tiktok', () => {
     return adGroupsLoaded
   }
 
+  // ============ IDENTITY MANAGEMENT FUNCTIONS ============
+
+  const getIdentities = async () => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return null
+    }
+
+    try {
+      const response = await apiRequest('/tiktok/identity/get/', 'POST', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value
+      })
+
+      if (response.success) {
+        return response.data.data || response.data
+      } else {
+        showError('Failed to load identities')
+        return null
+      }
+    } catch (error) {
+      console.error('Get identities error:', error)
+      showError(`Failed to load identities: ${error.message}`)
+      return null
+    }
+  }
+
   // ============ CREATIVE MANAGEMENT FUNCTIONS ============
 
   const uploadCreative = async (creativeData, type = 'image') => {
@@ -1202,6 +1229,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
       url = `${import.meta.env.VITE_API_BASE_URL}${url}?${params.toString()}`
     } else if (method !== 'GET' && data) {
       config.body = JSON.stringify(data)
+      url = `${import.meta.env.VITE_API_BASE_URL}${url}`
     }
 
     if (method === 'GET' && !data) {
@@ -1225,6 +1253,16 @@ export const useTikTokStore = defineStore('tiktok', () => {
       autoClose: 5000,
     })
   }
+
+  // Computed properties
+  const currentAdvertiser = computed(() => {
+    if (!advertisers.value?.data?.list || !selectedAdvertiserId.value) return null
+    return advertisers.value.data.list.find(adv => adv.advertiser_id === selectedAdvertiserId.value)
+  })
+
+  const currentIdentityId = computed(() => {
+    return currentAdvertiser.value?.owner_bc_id || selectedAdvertiserId.value
+  })
 
   return {
     loading,
@@ -1276,6 +1314,8 @@ export const useTikTokStore = defineStore('tiktok', () => {
     adGroupMetadata,
     adGroupMetadataLoading,
     getAdGroupMetadata,
+    // Identity management
+    getIdentities,
     // Creative management
     uploadCreative,
     getMediaLibrary,
@@ -1290,6 +1330,9 @@ export const useTikTokStore = defineStore('tiktok', () => {
     // Utility functions
     apiRequest,
     showSuccess,
-    showError
+    showError,
+    // Computed properties
+    currentAdvertiser,
+    currentIdentityId
   }
 })

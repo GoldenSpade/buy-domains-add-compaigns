@@ -1110,6 +1110,47 @@ router.get('/creative/media/list', async (req, res) => {
   }
 })
 
+// ============ IDENTITY MANAGEMENT ENDPOINTS ============
+
+// Получение списка доступных identity для advertiser'а
+router.post('/identity/get/', async (req, res) => {
+  const { access_token, advertiser_id } = req.body
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    console.log('Calling TikTok identity/get API for advertiser:', advertiser_id)
+    
+    const response = await axios.post(`${TIKTOK_API_BASE}/identity/get/`, {
+      advertiser_id: advertiser_id,
+      page_size: 50
+    }, {
+      headers: {
+        'Access-Token': access_token,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('TikTok identity/get response:', response.data)
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Identity get error:', error.response?.data || error.message)
+    res.json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
 // ============ AD MANAGEMENT ENDPOINTS ============
 
 // Создание объявлений
@@ -1124,10 +1165,14 @@ router.post('/ads/create', async (req, res) => {
   }
 
   try {
-    const response = await axios.post(`${TIKTOK_API_BASE}/ad/create/`, {
+    const requestPayload = {
       advertiser_id: advertiser_id,
       ...ad_data
-    }, {
+    }
+    
+    console.log('TikTok Ad Create Request:', JSON.stringify(requestPayload, null, 2))
+    
+    const response = await axios.post(`${TIKTOK_API_BASE}/ad/create/`, requestPayload, {
       headers: {
         'Access-Token': access_token,
         'Content-Type': 'application/json'

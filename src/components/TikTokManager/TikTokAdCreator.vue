@@ -397,26 +397,60 @@ export default {
 
       creating.value = true
       try {
+        console.log('Creating ad with adGroupId:', props.adGroupId)
+        console.log('Using identity_id:', store.currentIdentityId)
+        console.log('Creative type:', adForm.value.creative_type)
+        
+        // Get available identities from TikTok API
+        console.log('Getting available identities...')
+        const identities = await store.getIdentities()
+        console.log('Available identities:', identities)
+        
+        if (!identities || !identities.list || identities.list.length === 0) {
+          store.showError('No identities available for this advertiser. Please check your TikTok Business Center setup.')
+          return
+        }
+        
+        // Use the first available identity
+        const identity = identities.list[0]
+        console.log('Using identity:', identity)
+        
+        // Determine ad format and creative fields based on creative type
+        const isVideo = adForm.value.creative_type === 'video'
+        const adFormat = isVideo ? 'SINGLE_VIDEO' : 'SINGLE_IMAGE'
+        
+        // Prepare creative object according to TikTok API specification
+        const creative = {
+          ad_name: adForm.value.ad_name,
+          identity_id: identity.identity_id,
+          identity_type: identity.identity_type,
+          ad_format: adFormat,
+          ad_text: adForm.value.ad_text,
+          call_to_action: adForm.value.call_to_action,
+          landing_page_url: adForm.value.landing_page_url
+        }
+        
+        // Add media IDs based on type
+        if (isVideo) {
+          creative.video_id = adForm.value.creative_id
+        } else {
+          creative.image_ids = [adForm.value.creative_id]
+        }
+        
+        // Add optional fields to creative
+        if (adForm.value.display_name) {
+          creative.display_name = adForm.value.display_name
+        }
+        
         // Prepare ad data according to TikTok API specification
         const adData = {
           adgroup_id: props.adGroupId,
-          ad_name: adForm.value.ad_name,
-          ad_text: adForm.value.ad_text,
-          landing_page_url: adForm.value.landing_page_url,
-          call_to_action: adForm.value.call_to_action,
-          ad_format: adForm.value.creative_type === 'video' ? 'SINGLE_VIDEO' : 'SINGLE_IMAGE',
-          creatives: [{
-            creative_type: adForm.value.creative_type === 'video' ? 'VIDEO' : 'IMAGE',
-            [adForm.value.creative_type === 'video' ? 'video_id' : 'image_id']: adForm.value.creative_id
-          }]
+          creatives: [creative]
         }
 
-        // Add optional fields
-        if (adForm.value.display_name) {
-          adData.display_name = adForm.value.display_name
-        }
+        console.log('Final adData object:', JSON.stringify(adData, null, 2))
 
-        const response = await store.apiRequest('/api/tiktok/ads/create', 'POST', {
+        const response = await store.apiRequest('/tiktok/ads/create', 'POST', {
           access_token: store.accessToken,
           advertiser_id: store.selectedAdvertiserId,
           ad_data: adData

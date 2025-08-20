@@ -825,7 +825,8 @@
     <!-- TikTok Ad Creator Component -->
     <TikTokAdCreator 
       v-if="showAdCreator"
-      :selected-ad-group="selectedAdGroupForAds"
+      :ad-group-id="selectedAdGroupForAds?.adgroup_id"
+      :campaign-id="selectedAdGroupForAds?.campaign_id"
       @close="closeAdCreator"
       @open-uploader="openCreativeUploader"
       @ad-created="onAdCreated"
