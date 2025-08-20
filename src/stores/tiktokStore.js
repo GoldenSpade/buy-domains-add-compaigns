@@ -52,6 +52,10 @@ export const useTikTokStore = defineStore('tiktok', () => {
   })
   const adGroupMetadataLoading = ref(false)
 
+  // Ads management state
+  const ads = ref([])
+  const adsLoading = ref(false)
+
   // Завантаження з localStorage
   function loadFromLocalStorage(key) {
     try {
@@ -985,6 +989,243 @@ export const useTikTokStore = defineStore('tiktok', () => {
     return adGroupsLoaded
   }
 
+  // ============ CREATIVE MANAGEMENT FUNCTIONS ============
+
+  const uploadCreative = async (creativeData, type = 'image') => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return false
+    }
+
+    const endpoint = type === 'image' ? '/tiktok/creative/image/upload' : '/tiktok/creative/video/upload'
+    
+    try {
+      const response = await apiRequest(endpoint, 'POST', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value,
+        ...creativeData
+      })
+
+      if (response.success && response.data?.code === 0) {
+        showSuccess(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`)
+        return response.data.data
+      } else {
+        showError(`Failed to upload ${type}: ${response.data?.message || 'Unknown error'}`)
+        return false
+      }
+    } catch (error) {
+      console.error(`${type} upload error:`, error)
+      showError(`Failed to upload ${type}: ${error.message}`)
+      return false
+    }
+  }
+
+  const getMediaLibrary = async (mediaType = '') => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return null
+    }
+
+    try {
+      const params = {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value
+      }
+      
+      if (mediaType) {
+        params.media_type = mediaType
+      }
+
+      const response = await apiRequest('/tiktok/creative/media/list', 'GET', params)
+
+      if (response.success) {
+        return response.data.data || response.data
+      } else {
+        showError('Failed to load media library')
+        return null
+      }
+    } catch (error) {
+      console.error('Media library error:', error)
+      showError(`Failed to load media library: ${error.message}`)
+      return null
+    }
+  }
+
+  // ============ AD MANAGEMENT FUNCTIONS ============
+
+  const getAds = async (campaignId = '', adGroupId = '') => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return false
+    }
+
+    adsLoading.value = true
+    
+    try {
+      const params = {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value
+      }
+
+      if (campaignId) params.campaign_id = campaignId
+      if (adGroupId) params.adgroup_id = adGroupId
+
+      const response = await apiRequest('/tiktok/ads/list', 'GET', params)
+
+      if (response.success) {
+        ads.value = response.data.data?.list || []
+        return true
+      } else {
+        showError('Failed to load ads')
+        return false
+      }
+    } catch (error) {
+      console.error('Get ads error:', error)
+      showError(`Failed to load ads: ${error.message}`)
+      return false
+    } finally {
+      adsLoading.value = false
+    }
+  }
+
+  const createAd = async (adData) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return false
+    }
+
+    try {
+      const response = await apiRequest('/tiktok/ads/create', 'POST', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value,
+        ad_data: adData
+      })
+
+      const result = handleApiResponse(response, `Ad "${adData.ad_name}" created successfully!`, 'Ad Creation')
+      
+      if (result.isSuccess) {
+        // Refresh ads list
+        await getAds()
+        return response.data.data
+      } else {
+        return false
+      }
+    } catch (error) {
+      console.error('Create ad error:', error)
+      showError(`Failed to create ad: ${error.message}`)
+      return false
+    }
+  }
+
+  const updateAdStatus = async (adId, operation) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return false
+    }
+
+    try {
+      const response = await apiRequest(`/tiktok/ads/${adId}/status`, 'PUT', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value,
+        operation: operation
+      })
+
+      const result = handleApiResponse(response, `Ad ${operation.toLowerCase()}d successfully!`, 'Ad Status Update')
+      
+      if (result.isSuccess) {
+        // Refresh ads list
+        await getAds()
+        return true
+      } else {
+        return false
+      }
+    } catch (error) {
+      console.error('Update ad status error:', error)
+      showError(`Failed to update ad status: ${error.message}`)
+      return false
+    }
+  }
+
+  // ============ CAMPAIGN FINALIZATION FUNCTIONS ============
+
+  const finalizeCampaign = async (campaignId) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return false
+    }
+
+    try {
+      const response = await apiRequest('/tiktok/campaign/finalize', 'POST', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value,
+        campaign_id: campaignId
+      })
+
+      if (response.success) {
+        const summary = response.data.summary
+        showSuccess(`Campaign finalized! ${summary.activated_components} components activated.`)
+        
+        // Refresh all data
+        await getCampaigns()
+        await getAdGroups(campaignId)
+        await getAds(campaignId)
+        
+        return response.data
+      } else {
+        showError(`Failed to finalize campaign: ${response.error}`)
+        return false
+      }
+    } catch (error) {
+      console.error('Campaign finalization error:', error)
+      showError(`Failed to finalize campaign: ${error.message}`)
+      return false
+    }
+  }
+
+  // ============ UTILITY FUNCTIONS ============
+
+  const apiRequest = async (url, method = 'GET', data = null) => {
+    const config = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+
+    if (method === 'GET' && data) {
+      const params = new URLSearchParams()
+      Object.keys(data).forEach(key => {
+        if (data[key] !== null && data[key] !== undefined) {
+          params.append(key, data[key])
+        }
+      })
+      url = `${import.meta.env.VITE_API_BASE_URL}${url}?${params.toString()}`
+    } else if (method !== 'GET' && data) {
+      config.body = JSON.stringify(data)
+    }
+
+    if (method === 'GET' && !data) {
+      url = `${import.meta.env.VITE_API_BASE_URL}${url}`
+    }
+
+    const response = await fetch(url, config)
+    return await response.json()
+  }
+
+  const showSuccess = (message) => {
+    toast.success(message, {
+      position: toast.POSITION.TOP_RIGHT,
+      autoClose: 3000,
+    })
+  }
+
+  const showError = (message) => {
+    toast.error(message, {
+      position: toast.POSITION.TOP_RIGHT,
+      autoClose: 5000,
+    })
+  }
+
   return {
     loading,
     authUrl,
@@ -1035,5 +1276,20 @@ export const useTikTokStore = defineStore('tiktok', () => {
     adGroupMetadata,
     adGroupMetadataLoading,
     getAdGroupMetadata,
+    // Creative management
+    uploadCreative,
+    getMediaLibrary,
+    // Ad management 
+    ads,
+    adsLoading,
+    getAds,
+    createAd,
+    updateAdStatus,
+    // Campaign finalization
+    finalizeCampaign,
+    // Utility functions
+    apiRequest,
+    showSuccess,
+    showError
   }
 })

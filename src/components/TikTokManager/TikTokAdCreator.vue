@@ -1,0 +1,574 @@
+<template>
+  <div class="ad-creator">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+      <div>
+        <h4 class="mb-1">
+          <i class="bi bi-plus-circle me-2 text-primary"></i>Ad Creator
+        </h4>
+        <p class="text-muted small mb-0">
+          Create compelling ads for your TikTok campaign
+        </p>
+        <div v-if="selectedAdGroup" class="mt-2">
+          <span class="badge bg-primary">
+            <i class="bi bi-collection me-1"></i>
+            Ad Group: {{ selectedAdGroup.adgroup_name }}
+          </span>
+        </div>
+      </div>
+      <button 
+        class="btn btn-outline-secondary" 
+        @click="$emit('close')"
+        :disabled="creating"
+      >
+        <i class="bi bi-x me-1"></i>Close
+      </button>
+    </div>
+
+    <!-- Ad Form -->
+    <form @submit.prevent="createAd" class="needs-validation" novalidate>
+      <div class="row g-4">
+        <!-- Creative Selection -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="bi bi-image me-2"></i>Select Creative
+              </h6>
+            </div>
+            <div class="card-body">
+              <!-- Creative Type Selection -->
+              <div class="mb-3">
+                <label class="form-label fw-bold">Creative Type <span class="text-danger">*</span></label>
+                <div class="btn-group w-100" role="group">
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    id="creativeTypeImage"
+                    v-model="adForm.creative_type"
+                    value="image"
+                    @change="loadCreatives"
+                  >
+                  <label class="btn btn-outline-primary" for="creativeTypeImage">
+                    <i class="bi bi-image me-1"></i>Image
+                  </label>
+                  
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    id="creativeTypeVideo"
+                    v-model="adForm.creative_type"
+                    value="video"
+                    @change="loadCreatives"
+                  >
+                  <label class="btn btn-outline-primary" for="creativeTypeVideo">
+                    <i class="bi bi-camera-video me-1"></i>Video
+                  </label>
+                </div>
+              </div>
+
+              <!-- Creative Loading -->
+              <div v-if="creativesLoading" class="text-center py-4">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-2 text-muted">Loading creatives...</p>
+              </div>
+
+              <!-- No Creatives -->
+              <div v-else-if="availableCreatives.length === 0 && adForm.creative_type" class="text-center py-4">
+                <i class="bi bi-folder2-open display-6 text-muted"></i>
+                <p class="text-muted mt-2">No {{ adForm.creative_type }}s uploaded</p>
+                <button 
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  @click="$emit('open-uploader')"
+                >
+                  <i class="bi bi-cloud-upload me-1"></i>Upload {{ adForm.creative_type }}s
+                </button>
+              </div>
+
+              <!-- Creative Selection -->
+              <div v-else-if="availableCreatives.length > 0" class="row g-2">
+                <div 
+                  v-for="creative in availableCreatives" 
+                  :key="creative.id"
+                  class="col-6 col-md-4 col-lg-3"
+                >
+                  <div 
+                    class="creative-selector"
+                    :class="{ 'selected': adForm.creative_id === creative.id }"
+                    @click="selectCreative(creative)"
+                  >
+                    <img 
+                      v-if="adForm.creative_type === 'image'"
+                      :src="creative.preview_url || creative.image_url" 
+                      :alt="creative.filename"
+                      class="img-fluid rounded"
+                    />
+                    <video 
+                      v-else
+                      :src="creative.preview_url || creative.video_url" 
+                      class="img-fluid rounded"
+                      muted
+                      @mouseenter="$event.target.play()"
+                      @mouseleave="$event.target.pause()"
+                    ></video>
+                    <div class="selection-overlay">
+                      <i class="bi bi-check-circle display-6 text-success"></i>
+                    </div>
+                    <div class="creative-info">
+                      <small class="text-white d-block">{{ creative.filename }}</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ad Content -->
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="bi bi-pencil me-2"></i>Ad Content
+              </h6>
+            </div>
+            <div class="card-body">
+              <!-- Ad Name -->
+              <div class="mb-3">
+                <label for="adName" class="form-label fw-bold">
+                  Ad Name <span class="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="adName"
+                  v-model="adForm.ad_name"
+                  placeholder="Enter a descriptive name for your ad"
+                  required
+                >
+              </div>
+
+              <!-- Ad Text -->
+              <div class="mb-3">
+                <label for="adText" class="form-label fw-bold">
+                  Ad Text <span class="text-danger">*</span>
+                </label>
+                <textarea
+                  class="form-control"
+                  id="adText"
+                  v-model="adForm.ad_text"
+                  rows="3"
+                  placeholder="Write compelling ad copy that engages your audience"
+                  maxlength="100"
+                  required
+                ></textarea>
+                <div class="form-text">
+                  {{ adForm.ad_text ? adForm.ad_text.length : 0 }}/100 characters
+                </div>
+              </div>
+
+              <!-- Landing Page URL -->
+              <div class="mb-3">
+                <label for="landingPageUrl" class="form-label fw-bold">
+                  Landing Page URL <span class="text-danger">*</span>
+                </label>
+                <input
+                  type="url"
+                  class="form-control"
+                  id="landingPageUrl"
+                  v-model="adForm.landing_page_url"
+                  placeholder="https://your-website.com/landing-page"
+                  required
+                >
+              </div>
+
+              <!-- Display Name -->
+              <div class="mb-3">
+                <label for="displayName" class="form-label fw-bold">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="displayName"
+                  v-model="adForm.display_name"
+                  placeholder="Brand or app name to display in the ad"
+                  maxlength="25"
+                >
+                <div class="form-text">
+                  {{ adForm.display_name ? adForm.display_name.length : 0 }}/25 characters
+                </div>
+              </div>
+
+              <!-- Call to Action -->
+              <div class="mb-3">
+                <label for="callToAction" class="form-label fw-bold">
+                  Call to Action <span class="text-danger">*</span>
+                </label>
+                <select
+                  class="form-select"
+                  id="callToAction"
+                  v-model="adForm.call_to_action"
+                  required
+                >
+                  <option value="">Select a call to action</option>
+                  <option value="LEARN_MORE">Learn More</option>
+                  <option value="SHOP_NOW">Shop Now</option>
+                  <option value="SIGN_UP">Sign Up</option>
+                  <option value="DOWNLOAD">Download</option>
+                  <option value="BOOK_NOW">Book Now</option>
+                  <option value="GET_OFFER">Get Offer</option>
+                  <option value="CONTACT_US">Contact Us</option>
+                  <option value="APPLY_NOW">Apply Now</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="bi bi-eye me-2"></i>Preview
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="ad-preview">
+                <!-- Creative Preview -->
+                <div v-if="selectedCreative" class="creative-preview mb-3">
+                  <img 
+                    v-if="adForm.creative_type === 'image'"
+                    :src="selectedCreative.preview_url || selectedCreative.image_url" 
+                    class="img-fluid rounded"
+                    alt="Selected creative"
+                  />
+                  <video 
+                    v-else
+                    :src="selectedCreative.preview_url || selectedCreative.video_url" 
+                    class="img-fluid rounded"
+                    controls
+                    muted
+                  ></video>
+                </div>
+                <div v-else class="creative-placeholder mb-3">
+                  <i class="bi bi-image display-6 text-muted"></i>
+                  <p class="text-muted small">Select a creative</p>
+                </div>
+
+                <!-- Text Preview -->
+                <div class="text-preview">
+                  <div class="ad-text mb-2">
+                    {{ adForm.ad_text || 'Your ad text will appear here...' }}
+                  </div>
+                  <div class="display-name mb-2">
+                    <strong>{{ adForm.display_name || 'Your Brand' }}</strong>
+                  </div>
+                  <button 
+                    class="btn btn-primary btn-sm w-100"
+                    :class="{ 'opacity-50': !adForm.call_to_action }"
+                    disabled
+                  >
+                    {{ adForm.call_to_action ? adForm.call_to_action.replace('_', ' ') : 'Call to Action' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="d-flex justify-content-end mt-4">
+        <button 
+          type="submit"
+          class="btn btn-success btn-lg"
+          :disabled="creating || !isFormValid"
+        >
+          <div v-if="creating" class="spinner-border spinner-border-sm me-2" role="status"></div>
+          <i v-else class="bi bi-plus-circle me-2"></i>
+          {{ creating ? 'Creating Ad...' : 'Create Ad' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</template>
+
+<script>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useTikTokStore } from '../../stores/tiktokStore'
+
+export default {
+  name: 'TikTokAdCreator',
+  props: {
+    adGroupId: {
+      type: String,
+      required: true
+    },
+    campaignId: {
+      type: String,
+      required: true
+    }
+  },
+  emits: ['close', 'ad-created', 'open-uploader'],
+  setup(props, { emit }) {
+    const store = useTikTokStore()
+    
+    // State
+    const creating = ref(false)
+    const creativesLoading = ref(false)
+    const availableCreatives = ref([])
+    const selectedCreative = ref(null)
+    
+    const adForm = ref({
+      ad_name: '',
+      ad_text: '',
+      landing_page_url: '',
+      display_name: '',
+      call_to_action: '',
+      creative_type: 'image',
+      creative_id: ''
+    })
+
+    // Computed
+    const selectedAdGroup = computed(() => {
+      return store.adGroups.find(ag => ag.adgroup_id === props.adGroupId)
+    })
+
+    const isFormValid = computed(() => {
+      return adForm.value.ad_name &&
+             adForm.value.ad_text &&
+             adForm.value.landing_page_url &&
+             adForm.value.call_to_action &&
+             adForm.value.creative_id
+    })
+
+    // Methods
+    const loadCreatives = async () => {
+      if (!adForm.value.creative_type) return
+      
+      creativesLoading.value = true
+      try {
+        const response = await store.apiRequest('/tiktok/creative/media/list', 'GET', {
+          access_token: store.accessToken,
+          advertiser_id: store.selectedAdvertiserId,
+          media_type: adForm.value.creative_type
+        })
+
+        if (response.success) {
+          if (adForm.value.creative_type === 'image') {
+            availableCreatives.value = (response.data.data?.images || response.data.images || []).map(img => ({
+              id: img.image_id,
+              filename: img.filename,
+              preview_url: img.preview_url,
+              image_url: img.image_url,
+              size: img.size
+            }))
+          } else {
+            availableCreatives.value = (response.data.data?.videos || response.data.videos || []).map(vid => ({
+              id: vid.video_id,
+              filename: vid.filename,
+              preview_url: vid.preview_url,
+              video_url: vid.video_url,
+              size: vid.size
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load creatives:', error)
+        store.showError('Failed to load creatives')
+      } finally {
+        creativesLoading.value = false
+      }
+    }
+
+    const selectCreative = (creative) => {
+      adForm.value.creative_id = creative.id
+      selectedCreative.value = creative
+    }
+
+    const createAd = async () => {
+      if (!isFormValid.value) {
+        store.showError('Please fill in all required fields')
+        return
+      }
+
+      creating.value = true
+      try {
+        // Prepare ad data according to TikTok API specification
+        const adData = {
+          adgroup_id: props.adGroupId,
+          ad_name: adForm.value.ad_name,
+          ad_text: adForm.value.ad_text,
+          landing_page_url: adForm.value.landing_page_url,
+          call_to_action: adForm.value.call_to_action,
+          ad_format: adForm.value.creative_type === 'video' ? 'SINGLE_VIDEO' : 'SINGLE_IMAGE',
+          creatives: [{
+            creative_type: adForm.value.creative_type === 'video' ? 'VIDEO' : 'IMAGE',
+            [adForm.value.creative_type === 'video' ? 'video_id' : 'image_id']: adForm.value.creative_id
+          }]
+        }
+
+        // Add optional fields
+        if (adForm.value.display_name) {
+          adData.display_name = adForm.value.display_name
+        }
+
+        const response = await store.apiRequest('/api/tiktok/ads/create', 'POST', {
+          access_token: store.accessToken,
+          advertiser_id: store.selectedAdvertiserId,
+          ad_data: adData
+        })
+
+        if (response.success && response.data?.code === 0) {
+          store.showSuccess('Ad created successfully!')
+          emit('ad-created', response.data.data)
+          
+          // Reset form
+          adForm.value = {
+            ad_name: '',
+            ad_text: '',
+            landing_page_url: '',
+            display_name: '',
+            call_to_action: '',
+            creative_type: 'image',
+            creative_id: ''
+          }
+          selectedCreative.value = null
+        } else {
+          const errorMessage = response.data?.message || response.error || 'Failed to create ad'
+          store.showError(`Failed to create ad: ${errorMessage}`)
+        }
+      } catch (error) {
+        console.error('Ad creation error:', error)
+        store.showError(`Failed to create ad: ${error.message}`)
+      } finally {
+        creating.value = false
+      }
+    }
+
+    // Watchers
+    watch(() => adForm.value.creative_type, () => {
+      adForm.value.creative_id = ''
+      selectedCreative.value = null
+      availableCreatives.value = []
+    })
+
+    // Lifecycle
+    onMounted(() => {
+      loadCreatives()
+    })
+
+    return {
+      // State
+      creating,
+      creativesLoading,
+      availableCreatives,
+      selectedCreative,
+      adForm,
+      
+      // Computed
+      selectedAdGroup,
+      isFormValid,
+      
+      // Methods
+      loadCreatives,
+      selectCreative,
+      createAd
+    }
+  }
+}
+</script>
+
+<style scoped>
+.creative-selector {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.creative-selector:hover {
+  border-color: #0d6efd;
+  transform: scale(1.02);
+}
+
+.creative-selector.selected {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(25, 135, 84, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.creative-selector.selected .selection-overlay {
+  opacity: 1;
+}
+
+.creative-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 0.5rem;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.creative-selector:hover .creative-info {
+  transform: translateY(0);
+}
+
+.creative-placeholder {
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ad-preview {
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.creative-preview {
+  max-height: 300px;
+  overflow: hidden;
+  border-radius: 0.375rem;
+}
+
+.text-preview .ad-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #495057;
+}
+
+.text-preview .display-name {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+</style>

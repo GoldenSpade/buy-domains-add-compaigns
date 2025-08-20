@@ -162,6 +162,22 @@
                       </div>
                       <div class="adgroup-actions">
                         <button 
+                          class="btn btn-outline-primary btn-sm adgroup-btn" 
+                          title="Upload Creatives"
+                          @click="openCreativeUploader(adGroup)"
+                          :disabled="store.loading"
+                        >
+                          <i class="bi bi-camera"></i>
+                        </button>
+                        <button 
+                          class="btn btn-outline-info btn-sm adgroup-btn" 
+                          title="Create Ads"
+                          @click="openAdCreator(adGroup)"
+                          :disabled="store.loading"
+                        >
+                          <i class="bi bi-plus-circle"></i>
+                        </button>
+                        <button 
                           class="btn btn-outline-success btn-sm adgroup-btn" 
                           title="Start"
                           @click="startAdGroup(adGroup.adgroup_id)"
@@ -798,12 +814,30 @@
         </div>
       </div>
     </div>
+
+    <!-- TikTok Creative Uploader Component -->
+    <TikTokCreativeUploader 
+      v-if="showCreativeUploader"
+      @close="closeCreativeUploader"
+      @upload-complete="onCreativeUploaded"
+    />
+
+    <!-- TikTok Ad Creator Component -->
+    <TikTokAdCreator 
+      v-if="showAdCreator"
+      :selected-ad-group="selectedAdGroupForAds"
+      @close="closeAdCreator"
+      @open-uploader="openCreativeUploader"
+      @ad-created="onAdCreated"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import { useTikTokStore } from '@/stores/tiktokStore'
+import TikTokCreativeUploader from './TikTokCreativeUploader.vue'
+import TikTokAdCreator from './TikTokAdCreator.vue'
 
 const store = useTikTokStore()
 
@@ -877,6 +911,11 @@ const totalFormSteps = ref(4)
 const selectedLocation = ref('')
 const selectedInterest = ref('')
 const selectedLanguage = ref('')
+
+// Creative uploader and ad creator state
+const showCreativeUploader = ref(false)
+const showAdCreator = ref(false)
+const selectedAdGroupForAds = ref(null)
 
 // Static options
 const budgetModes = [
@@ -1432,6 +1471,44 @@ const resetAdGroupForm = () => {
   selectedLocation.value = ''
   selectedInterest.value = ''
   selectedLanguage.value = ''
+}
+
+// Creative uploader methods
+const openCreativeUploader = (adGroup = null) => {
+  selectedAdGroupForAds.value = adGroup
+  showCreativeUploader.value = true
+}
+
+const closeCreativeUploader = () => {
+  showCreativeUploader.value = false
+  selectedAdGroupForAds.value = null
+}
+
+const onCreativeUploaded = (uploadedCreative) => {
+  console.log('Creative uploaded successfully:', uploadedCreative)
+  // Refresh media library in store if needed
+  if (store.loadMediaLibrary) {
+    store.loadMediaLibrary()
+  }
+}
+
+// Ad creator methods
+const openAdCreator = (adGroup) => {
+  selectedAdGroupForAds.value = adGroup
+  showAdCreator.value = true
+}
+
+const closeAdCreator = () => {
+  showAdCreator.value = false
+  selectedAdGroupForAds.value = null
+}
+
+const onAdCreated = (createdAd) => {
+  console.log('Ad created successfully:', createdAd)
+  // Refresh ads data in store if needed
+  if (store.loadAdsData) {
+    store.loadAdsData(selectedAdGroupForAds.value?.campaign_id, selectedAdGroupForAds.value?.adgroup_id)
+  }
 }
 
 // Watch for campaign changes

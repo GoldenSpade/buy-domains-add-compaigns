@@ -1,6 +1,7 @@
 import express from 'express'
 import axios from 'axios'
 import dotenv from 'dotenv'
+import crypto from 'crypto'
 
 dotenv.config()
 
@@ -871,6 +872,550 @@ router.get('/adgroup-stats', async (req, res) => {
         error: error.response?.data || error.message,
       })
     }
+  }
+})
+
+// ============ CREATIVE MANAGEMENT ENDPOINTS ============
+
+// Загрузка изображений (multipart метод)
+router.post('/creative/image/upload', async (req, res) => {
+  const { access_token, advertiser_id, image_data, image_name } = req.body
+
+  if (!access_token || !advertiser_id || !image_data) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and image data are required',
+    })
+  }
+
+  try {
+    // Обрабатываем data URI и извлекаем MIME тип
+    let base64Data = image_data
+    let mimeType = 'image/jpeg'
+    
+    if (image_data.startsWith('data:')) {
+      const [header, data] = image_data.split(',')
+      base64Data = data
+      const mimeMatch = header.match(/data:([^;]+)/)
+      if (mimeMatch) {
+        mimeType = mimeMatch[1]
+      }
+    }
+    
+    base64Data = base64Data.replace(/\s+/g, '')
+    const binaryBuffer = Buffer.from(base64Data, 'base64')
+    const imageSignature = crypto.createHash('md5').update(binaryBuffer).digest('hex')
+    
+    let fileName = image_name || 'uploaded_image'
+    const extension = mimeType.split('/')[1].replace('jpeg', 'jpg')
+    if (!fileName.toLowerCase().endsWith(`.${extension}`)) {
+      fileName += `.${extension}`
+    }
+    
+    console.log('Uploading image via multipart/form-data:')
+    console.log('- File name:', fileName)
+    console.log('- MIME type:', mimeType)
+    console.log('- File size:', `${(binaryBuffer.length / 1024 / 1024).toFixed(2)} MB`)
+    
+    // Создаем FormData для multipart
+    const FormData = (await import('form-data')).default
+    const form = new FormData()
+    
+    form.append('advertiser_id', advertiser_id)
+    form.append('image_file', binaryBuffer, {
+      filename: fileName,
+      contentType: mimeType
+    })
+    form.append('image_signature', imageSignature)
+    
+    const response = await axios.post(`${TIKTOK_API_BASE}/file/image/ad/upload/`, form, {
+      headers: {
+        'Access-Token': access_token,
+        ...form.getHeaders()
+      },
+      timeout: 60000
+    })
+
+    console.log('Image upload response:', response.data)
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Image upload error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Загрузка видео
+router.post('/creative/video/upload', async (req, res) => {
+  const { access_token, advertiser_id, video_data, video_name } = req.body
+
+  if (!access_token || !advertiser_id || !video_data) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and video data are required',
+    })
+  }
+
+  try {
+    // Обрабатываем data URI и извлекаем MIME тип
+    let base64Data = video_data
+    let mimeType = 'video/mp4'
+    
+    if (video_data.startsWith('data:')) {
+      const [header, data] = video_data.split(',')
+      base64Data = data
+      const mimeMatch = header.match(/data:([^;]+)/)
+      if (mimeMatch) {
+        mimeType = mimeMatch[1]
+      }
+    }
+    
+    base64Data = base64Data.replace(/\s+/g, '')
+    const binaryBuffer = Buffer.from(base64Data, 'base64')
+    const videoSignature = crypto.createHash('md5').update(binaryBuffer).digest('hex')
+    
+    let fileName = video_name || 'uploaded_video'
+    const extension = mimeType.split('/')[1]
+    if (!fileName.toLowerCase().endsWith(`.${extension}`)) {
+      fileName += `.${extension}`
+    }
+    
+    console.log('Uploading video:')
+    console.log('- File name:', fileName)
+    console.log('- MIME type:', mimeType)
+    console.log('- File size:', `${(binaryBuffer.length / 1024 / 1024).toFixed(2)} MB`)
+    
+    // Создаем FormData для multipart
+    const FormData = (await import('form-data')).default
+    const form = new FormData()
+    
+    form.append('advertiser_id', advertiser_id)
+    form.append('video_file', binaryBuffer, {
+      filename: fileName,
+      contentType: mimeType
+    })
+    form.append('video_signature', videoSignature)
+    
+    const response = await axios.post(`${TIKTOK_API_BASE}/file/video/ad/upload/`, form, {
+      headers: {
+        'Access-Token': access_token,
+        ...form.getHeaders()
+      },
+      timeout: 120000 // 2 минуты для видео
+    })
+
+    console.log('Video upload response:', response.data)
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Video upload error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Получение списка загруженных медиа
+router.get('/creative/media/list', async (req, res) => {
+  const { access_token, advertiser_id, media_type } = req.query
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    console.log('Loading media list for advertiser:', advertiser_id, 'type:', media_type)
+    
+    if (media_type === 'image') {
+      // Получаем только изображения
+      const response = await axios.get(`${TIKTOK_API_BASE}/file/image/ad/search/`, {
+        headers: { 'Access-Token': access_token },
+        params: { advertiser_id: advertiser_id }
+      })
+      
+      const images = response.data.data?.list || []
+      return res.json({
+        success: true,
+        data: {
+          images: images.map(img => ({ ...img, media_type: 'image' })),
+          videos: [],
+          total: images.length
+        }
+      })
+    } else if (media_type === 'video') {
+      // Получаем только видео
+      const response = await axios.get(`${TIKTOK_API_BASE}/file/video/ad/search/`, {
+        headers: { 'Access-Token': access_token },
+        params: { advertiser_id: advertiser_id }
+      })
+      
+      const videos = response.data.data?.list || []
+      return res.json({
+        success: true,
+        data: {
+          images: [],
+          videos: videos.map(vid => ({ ...vid, media_type: 'video' })),
+          total: videos.length
+        }
+      })
+    } else {
+      // Получаем и то и другое параллельно
+      const [imageResponse, videoResponse] = await Promise.allSettled([
+        axios.get(`${TIKTOK_API_BASE}/file/image/ad/search/`, {
+          headers: { 'Access-Token': access_token },
+          params: { advertiser_id: advertiser_id }
+        }),
+        axios.get(`${TIKTOK_API_BASE}/file/video/ad/search/`, {
+          headers: { 'Access-Token': access_token },
+          params: { advertiser_id: advertiser_id }
+        })
+      ])
+
+      const images = imageResponse.status === 'fulfilled' && imageResponse.value.data.data?.list 
+        ? imageResponse.value.data.data.list 
+        : []
+        
+      const videos = videoResponse.status === 'fulfilled' && videoResponse.value.data.data?.list 
+        ? videoResponse.value.data.data.list 
+        : []
+
+      console.log('Loaded images:', images.length, 'videos:', videos.length)
+      
+      return res.json({
+        success: true,
+        data: {
+          images: images.map(img => ({ ...img, media_type: 'image' })),
+          videos: videos.map(vid => ({ ...vid, media_type: 'video' })),
+          total: images.length + videos.length
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Error loading media list:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// ============ AD MANAGEMENT ENDPOINTS ============
+
+// Создание объявлений
+router.post('/ads/create', async (req, res) => {
+  const { access_token, advertiser_id, ad_data } = req.body
+
+  if (!access_token || !advertiser_id || !ad_data) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and ad data are required',
+    })
+  }
+
+  try {
+    const response = await axios.post(`${TIKTOK_API_BASE}/ad/create/`, {
+      advertiser_id: advertiser_id,
+      ...ad_data
+    }, {
+      headers: {
+        'Access-Token': access_token,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Ad creation error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Получение списка объявлений
+router.get('/ads/list', async (req, res) => {
+  const { access_token, advertiser_id, campaign_id, adgroup_id } = req.query
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    const params = {
+      advertiser_id: advertiser_id,
+      fields: JSON.stringify([
+        'ad_id',
+        'ad_name',
+        'adgroup_id',
+        'campaign_id',
+        'operation_status',
+        'ad_format',
+        'create_time'
+      ])
+    }
+
+    // Фильтрация по campaign_id или adgroup_id
+    if (campaign_id) {
+      params.campaign_ids = JSON.stringify([campaign_id])
+    }
+    if (adgroup_id) {
+      params.adgroup_ids = JSON.stringify([adgroup_id])
+    }
+
+    const response = await axios.get(`${TIKTOK_API_BASE}/ad/get/`, {
+      headers: {
+        'Access-Token': access_token,
+      },
+      params: params,
+    })
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Управление статусом объявлений
+router.put('/ads/:ad_id/status', async (req, res) => {
+  const { ad_id } = req.params
+  const { access_token, advertiser_id, operation } = req.body
+
+  if (!access_token || !advertiser_id || !operation) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and operation are required',
+    })
+  }
+
+  try {
+    const response = await axios.post(`${TIKTOK_API_BASE}/ad/status/update/`, {
+      advertiser_id: advertiser_id,
+      ad_ids: JSON.stringify([ad_id]),
+      operation_status: operation // "ENABLE", "DISABLE", "DELETE"
+    }, {
+      headers: {
+        'Access-Token': access_token,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// ============ CAMPAIGN FINALIZATION ENDPOINTS ============
+
+// Финализация и запуск полной кампании
+router.post('/campaign/finalize', async (req, res) => {
+  const { access_token, advertiser_id, campaign_id } = req.body
+
+  if (!access_token || !advertiser_id || !campaign_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and campaign ID are required',
+    })
+  }
+
+  try {
+    console.log(`Starting campaign finalization for campaign ${campaign_id}`)
+    
+    // Получаем информацию о кампании
+    const campaignResponse = await axios.get(`${TIKTOK_API_BASE}/campaign/get/`, {
+      headers: { 'Access-Token': access_token },
+      params: {
+        advertiser_id: advertiser_id,
+        campaign_ids: JSON.stringify([campaign_id]),
+        fields: JSON.stringify(['campaign_id', 'campaign_name', 'operation_status'])
+      }
+    })
+
+    const campaign = campaignResponse.data.data?.list?.[0]
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: 'Campaign not found'
+      })
+    }
+
+    // Получаем Ad Groups
+    const adGroupResponse = await axios.get(`${TIKTOK_API_BASE}/adgroup/get/`, {
+      headers: { 'Access-Token': access_token },
+      params: {
+        advertiser_id: advertiser_id,
+        campaign_ids: JSON.stringify([campaign_id]),
+        fields: JSON.stringify(['adgroup_id', 'adgroup_name', 'operation_status'])
+      }
+    })
+
+    const adGroups = adGroupResponse.data.data?.list || []
+    if (adGroups.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No Ad Groups found for this campaign. Create at least one Ad Group before launching.'
+      })
+    }
+
+    // Получаем объявления для каждой Ad Group
+    const adsResponse = await axios.get(`${TIKTOK_API_BASE}/ad/get/`, {
+      headers: { 'Access-Token': access_token },
+      params: {
+        advertiser_id: advertiser_id,
+        campaign_ids: JSON.stringify([campaign_id]),
+        fields: JSON.stringify(['ad_id', 'ad_name', 'adgroup_id', 'operation_status'])
+      }
+    })
+
+    const ads = adsResponse.data.data?.list || []
+    if (ads.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No Ads found for this campaign. Create at least one Ad before launching.'
+      })
+    }
+
+    // Проверяем, что все компоненты готовы к запуску
+    const validationResults = {
+      campaign: {
+        id: campaign.campaign_id,
+        name: campaign.campaign_name,
+        status: campaign.operation_status,
+        ready: campaign.operation_status !== 'DELETE'
+      },
+      adGroups: adGroups.map(ag => ({
+        id: ag.adgroup_id,
+        name: ag.adgroup_name,
+        status: ag.operation_status,
+        ready: ag.operation_status !== 'DELETE'
+      })),
+      ads: ads.map(ad => ({
+        id: ad.ad_id,
+        name: ad.ad_name,
+        adgroup_id: ad.adgroup_id,
+        status: ad.operation_status,
+        ready: ad.operation_status !== 'DELETE'
+      }))
+    }
+
+    // Активируем все компоненты если они не активны
+    const activationResults = []
+
+    // Активируем кампанию
+    if (campaign.operation_status !== 'ENABLE') {
+      try {
+        await axios.post(`${TIKTOK_API_BASE}/campaign/status/update/`, {
+          advertiser_id: advertiser_id,
+          campaign_ids: JSON.stringify([campaign_id]),
+          operation_status: 'ENABLE'
+        }, {
+          headers: {
+            'Access-Token': access_token,
+            'Content-Type': 'application/json'
+          }
+        })
+        activationResults.push({ type: 'campaign', id: campaign_id, action: 'enabled' })
+      } catch (error) {
+        console.error('Failed to enable campaign:', error.response?.data)
+        activationResults.push({ type: 'campaign', id: campaign_id, action: 'failed', error: error.response?.data })
+      }
+    }
+
+    // Активируем Ad Groups
+    for (const adGroup of adGroups) {
+      if (adGroup.operation_status !== 'ENABLE') {
+        try {
+          await axios.post(`${TIKTOK_API_BASE}/adgroup/status/update/`, {
+            advertiser_id: advertiser_id,
+            adgroup_ids: JSON.stringify([adGroup.adgroup_id]),
+            operation_status: 'ENABLE'
+          }, {
+            headers: {
+              'Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          })
+          activationResults.push({ type: 'adgroup', id: adGroup.adgroup_id, action: 'enabled' })
+        } catch (error) {
+          console.error('Failed to enable ad group:', error.response?.data)
+          activationResults.push({ type: 'adgroup', id: adGroup.adgroup_id, action: 'failed', error: error.response?.data })
+        }
+      }
+    }
+
+    // Активируем объявления
+    for (const ad of ads) {
+      if (ad.operation_status !== 'ENABLE') {
+        try {
+          await axios.post(`${TIKTOK_API_BASE}/ad/status/update/`, {
+            advertiser_id: advertiser_id,
+            ad_ids: JSON.stringify([ad.ad_id]),
+            operation_status: 'ENABLE'
+          }, {
+            headers: {
+              'Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          })
+          activationResults.push({ type: 'ad', id: ad.ad_id, action: 'enabled' })
+        } catch (error) {
+          console.error('Failed to enable ad:', error.response?.data)
+          activationResults.push({ type: 'ad', id: ad.ad_id, action: 'failed', error: error.response?.data })
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        campaign_id: campaign_id,
+        validation: validationResults,
+        activation: activationResults,
+        summary: {
+          campaign_ready: validationResults.campaign.ready,
+          adgroups_count: adGroups.length,
+          ads_count: ads.length,
+          activated_components: activationResults.filter(r => r.action === 'enabled').length,
+          failed_activations: activationResults.filter(r => r.action === 'failed').length
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Campaign finalization error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
   }
 })
 
