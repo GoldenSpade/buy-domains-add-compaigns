@@ -37,33 +37,11 @@
               </h6>
             </div>
             <div class="card-body">
-              <!-- Creative Type Selection -->
+              <!-- Video Creative Only -->
               <div class="mb-3">
                 <label class="form-label fw-bold">Creative Type <span class="text-danger">*</span></label>
-                <div class="btn-group w-100" role="group">
-                  <input 
-                    type="radio" 
-                    class="btn-check" 
-                    id="creativeTypeImage"
-                    v-model="adForm.creative_type"
-                    value="image"
-                    @change="loadCreatives"
-                  >
-                  <label class="btn btn-outline-primary" for="creativeTypeImage">
-                    <i class="bi bi-image me-1"></i>Image
-                  </label>
-                  
-                  <input 
-                    type="radio" 
-                    class="btn-check" 
-                    id="creativeTypeVideo"
-                    v-model="adForm.creative_type"
-                    value="video"
-                    @change="loadCreatives"
-                  >
-                  <label class="btn btn-outline-primary" for="creativeTypeVideo">
-                    <i class="bi bi-camera-video me-1"></i>Video
-                  </label>
+                <div class="alert alert-info">
+                  <i class="bi bi-camera-video me-2"></i>Only video creatives are supported
                 </div>
               </div>
 
@@ -76,13 +54,13 @@
               <!-- No Creatives -->
               <div v-else-if="availableCreatives.length === 0 && adForm.creative_type" class="text-center py-4">
                 <i class="bi bi-folder2-open display-6 text-muted"></i>
-                <p class="text-muted mt-2">No {{ adForm.creative_type }}s uploaded</p>
+                <p class="text-muted mt-2">No videos uploaded</p>
                 <button 
                   type="button"
                   class="btn btn-outline-primary btn-sm"
                   @click="$emit('open-uploader')"
                 >
-                  <i class="bi bi-cloud-upload me-1"></i>Upload {{ adForm.creative_type }}s
+                  <i class="bi bi-cloud-upload me-1"></i>Upload videos
                 </button>
               </div>
 
@@ -102,14 +80,7 @@
                     }"
                     @click="selectCreative(creative)"
                   >
-                    <img 
-                      v-if="adForm.creative_type === 'image'"
-                      :src="creative.preview_url || creative.image_url" 
-                      :alt="creative.filename"
-                      class="img-fluid rounded"
-                    />
                     <video 
-                      v-else
                       :src="creative.preview_url || creative.video_url" 
                       class="img-fluid rounded"
                       muted
@@ -247,14 +218,7 @@
               <div class="ad-preview">
                 <!-- Creative Preview -->
                 <div v-if="selectedCreative" class="creative-preview mb-3">
-                  <img 
-                    v-if="adForm.creative_type === 'image'"
-                    :src="selectedCreative.preview_url || selectedCreative.image_url" 
-                    class="img-fluid rounded"
-                    alt="Selected creative"
-                  />
                   <video 
-                    v-else
                     :src="selectedCreative.preview_url || selectedCreative.video_url" 
                     class="img-fluid rounded"
                     controls
@@ -262,8 +226,8 @@
                   ></video>
                 </div>
                 <div v-else class="creative-placeholder mb-3">
-                  <i class="bi bi-image display-6 text-muted"></i>
-                  <p class="text-muted small">Select a creative</p>
+                  <i class="bi bi-camera-video display-6 text-muted"></i>
+                  <p class="text-muted small">Select a video</p>
                 </div>
 
                 <!-- Text Preview -->
@@ -336,7 +300,7 @@ export default {
       landing_page_url: '',
       display_name: '',
       call_to_action: '',
-      creative_type: 'image',
+      creative_type: 'video',
       creative_id: ''
     })
 
@@ -355,70 +319,25 @@ export default {
 
     // Methods
     const loadCreatives = async () => {
-      if (!adForm.value.creative_type) return
-      
       creativesLoading.value = true
       try {
         const response = await store.apiRequest('/tiktok/creative/media/list', 'GET', {
           access_token: store.accessToken,
-          advertiser_id: store.selectedAdvertiserId,
-          media_type: adForm.value.creative_type
+          advertiser_id: store.selectedAdvertiserId
         })
 
         if (response.success) {
-          if (adForm.value.creative_type === 'image') {
-            availableCreatives.value = (response.data.data?.images || response.data.images || []).map(img => {
-              const aspectRatio = img.width && img.height ? (img.width / img.height) : null
-              const aspectRatioText = aspectRatio ? `${aspectRatio.toFixed(2)}:1` : 'Unknown'
-              let qualityLabel = ''
-              
-              // Определяем качество aspect ratio для TikTok
-              if (aspectRatio) {
-                if (Math.abs(aspectRatio - 1.91) <= 0.2) {
-                  qualityLabel = '✅ Recommended (1.91:1)'
-                } else if (Math.abs(aspectRatio - 1.0) <= 0.2) {
-                  qualityLabel = '✅ Square (1:1)'
-                } else if (Math.abs(aspectRatio - 0.56) <= 0.2) {
-                  qualityLabel = '✅ Vertical (9:16)'
-                } else {
-                  qualityLabel = '⚠️ Non-standard ratio'
-                }
-              }
-              
-              return {
-                id: img.image_id,
-                filename: img.filename,
-                preview_url: img.preview_url,
-                image_url: img.image_url,
-                size: img.size,
-                width: img.width,
-                height: img.height,
-                aspectRatio: aspectRatio,
-                aspectRatioText: aspectRatioText,
-                qualityLabel: qualityLabel,
-                displayable: img.displayable
-              }
-            }).sort((a, b) => {
-              // Сортируем: сначала displayable изображения с хорошим aspect ratio
-              const aGood = a.displayable && a.qualityLabel.startsWith('✅')
-              const bGood = b.displayable && b.qualityLabel.startsWith('✅')
-              if (aGood && !bGood) return -1
-              if (!aGood && bGood) return 1
-              return 0
-            })
-          } else {
-            availableCreatives.value = (response.data.data?.videos || response.data.videos || []).map(vid => ({
-              id: vid.video_id,
-              filename: vid.filename,
-              preview_url: vid.preview_url,
-              video_url: vid.video_url,
-              size: vid.size
-            }))
-          }
+          availableCreatives.value = (response.data.data?.videos || response.data.videos || []).map(vid => ({
+            id: vid.video_id,
+            filename: vid.filename,
+            preview_url: vid.preview_url,
+            video_url: vid.video_url,
+            size: vid.size
+          }))
         }
       } catch (error) {
-        console.error('Failed to load creatives:', error)
-        store.showError('Failed to load creatives')
+        console.error('Failed to load videos:', error)
+        store.showError('Failed to load videos')
       } finally {
         creativesLoading.value = false
       }
@@ -444,12 +363,44 @@ export default {
         // Create Custom Identity instead of searching for existing ones
         console.log('Creating Custom Identity for the ad...')
         
+        // Upload video placeholder for identity profile image
+        console.log('Uploading video placeholder for identity profile image...')
+        let placeholderImageId = null
+        
+        try {
+          const placeholderResponse = await store.apiRequest('/tiktok/creative/video-placeholder/upload', 'POST', {
+            access_token: store.accessToken,
+            advertiser_id: store.selectedAdvertiserId
+          })
+          
+          console.log('Placeholder upload response:', placeholderResponse)
+          
+          if (placeholderResponse.success && placeholderResponse.data?.code === 0) {
+            placeholderImageId = placeholderResponse.data?.data?.image_id || placeholderResponse.data?.image_id
+            console.log('Video placeholder uploaded with ID:', placeholderImageId)
+          } else {
+            console.warn('Placeholder upload failed:', placeholderResponse.data?.message || placeholderResponse.error)
+          }
+        } catch (error) {
+          console.warn('Placeholder upload error:', error)
+        }
+        
+        // If placeholder upload failed, try to continue without image_ids (some TikTok ads might work without them)
+        if (!placeholderImageId) {
+          console.warn('No placeholder image available, attempting to create ad without thumbnail')
+          store.showError('Warning: Creating ad without thumbnail image - this might cause issues')
+        }
+        
         // Prepare Custom Identity data
         const customIdentityData = {
           identity_name: `Ad Identity - ${adForm.value.ad_name}`,
           identity_type: 'CUSTOMIZED_USER',
-          display_name: adForm.value.display_name || 'Brand Name',
-          profile_image: adForm.value.creative_id // Use the same image as creative
+          display_name: adForm.value.display_name || 'Brand Name'
+        }
+        
+        // Only add profile_image if we have placeholderImageId
+        if (placeholderImageId) {
+          customIdentityData.profile_image = placeholderImageId
         }
         
         console.log('Custom Identity data:', customIdentityData)
@@ -462,113 +413,39 @@ export default {
           return
         }
         
-        // Determine ad format and creative fields based on creative type
-        const isVideo = adForm.value.creative_type === 'video'
-        const adFormat = isVideo ? 'SINGLE_VIDEO' : 'SINGLE_IMAGE'
+        // Only video ads are supported
+        console.log('Creating video ad with video_id:', adForm.value.creative_id)
+        
+        // Validate that we have video ID
+        if (!adForm.value.creative_id) {
+          store.showError('Video ID is required for ad creation')
+          return
+        }
         
         // Prepare creative object according to TikTok API specification
         const creative = {
           ad_name: adForm.value.ad_name,
           identity_id: identity.identity_id,
           identity_type: identity.identity_type || 'CUSTOMIZED_USER',
-          ad_format: adFormat,
+          ad_format: 'SINGLE_VIDEO',
           ad_text: adForm.value.ad_text,
           call_to_action: adForm.value.call_to_action,
-          landing_page_url: adForm.value.landing_page_url
+          landing_page_url: adForm.value.landing_page_url,
+          video_id: adForm.value.creative_id
         }
         
-        // Add media IDs based on type
-        if (isVideo) {
-          creative.video_id = adForm.value.creative_id
-          console.log('Using video_id:', adForm.value.creative_id)
-          
-          // TikTok requires thumbnail with matching aspect ratio to video
-          // Get video info to determine aspect ratio
-          const mediaResponse = await store.apiRequest('/tiktok/creative/media/list', 'GET', {
-            access_token: store.accessToken,
-            advertiser_id: store.selectedAdvertiserId
-          })
-          
-          if (mediaResponse.success) {
-            const selectedVideo = (mediaResponse.data.data?.videos || mediaResponse.data.videos || [])
-              .find(vid => vid.video_id === adForm.value.creative_id)
-            
-            if (selectedVideo) {
-              const videoAspectRatio = selectedVideo.width / selectedVideo.height
-              console.log(`Video aspect ratio: ${videoAspectRatio.toFixed(2)} (${selectedVideo.width}x${selectedVideo.height})`)
-              
-              // Find image with matching aspect ratio (tolerance ±0.2)
-              // Priority: exact aspect ratio match > displayable status
-              const allImages = (mediaResponse.data.data?.images || mediaResponse.data.images || [])
-              const displayableImages = allImages.filter(img => img.displayable === true)
-              
-              let matchingImage = null
-              
-              // First try displayable images with matching aspect ratio
-              for (const img of displayableImages) {
-                const imgAspectRatio = img.width / img.height
-                console.log(`Displayable image "${img.file_name}" aspect ratio: ${imgAspectRatio.toFixed(2)} (${img.width}x${img.height})`)
-                
-                if (Math.abs(imgAspectRatio - videoAspectRatio) <= 0.2) {
-                  matchingImage = img
-                  break
-                }
-              }
-              
-              // If no displayable image matches, try ALL images for perfect aspect ratio match
-              if (!matchingImage) {
-                console.log('No matching displayable image found. Trying all images...')
-                for (const img of allImages) {
-                  const imgAspectRatio = img.width / img.height
-                  console.log(`All images check - "${img.file_name}" aspect ratio: ${imgAspectRatio.toFixed(2)} (${img.width}x${img.height}), displayable: ${img.displayable}`)
-                  
-                  if (Math.abs(imgAspectRatio - videoAspectRatio) <= 0.2) {
-                    matchingImage = img
-                    console.log('Found perfect aspect ratio match in non-displayable images!')
-                    break
-                  }
-                }
-              }
-              
-              if (matchingImage) {
-                creative.image_ids = [matchingImage.image_id]
-                console.log('Using thumbnail:', matchingImage.file_name, matchingImage.image_id, `displayable: ${matchingImage.displayable}`)
-              } else {
-                console.warn('No thumbnail image found with matching aspect ratio to video')
-                console.warn(`Video ratio: ${videoAspectRatio.toFixed(2)}, Available image ratios:`, 
-                  allImages.map(img => `${img.file_name}: ${(img.width / img.height).toFixed(2)} (displayable: ${img.displayable})`))
-                
-                // Fallback: use any displayable image (square images often work)
-                if (displayableImages.length > 0) {
-                  // Prefer square images as fallback
-                  const squareImage = displayableImages.find(img => Math.abs((img.width / img.height) - 1.0) <= 0.1)
-                  const fallbackImage = squareImage || displayableImages[0]
-                  
-                  creative.image_ids = [fallbackImage.image_id]
-                  console.log('Using fallback thumbnail:', fallbackImage.file_name, fallbackImage.image_id)
-                }
-              }
-            }
-          }
+        // Only add image_ids if we have a placeholder image
+        if (placeholderImageId) {
+          creative.image_ids = [placeholderImageId]
+          console.log('Using placeholder thumbnail:', placeholderImageId)
         } else {
-          // Image ad - validate the selected image has good aspect ratio
-          const selectedImage = availableCreatives.value.find(img => img.id === adForm.value.creative_id)
-          if (selectedImage) {
-            console.log(`Selected image: ${selectedImage.filename}`)
-            console.log(`Image dimensions: ${selectedImage.width}×${selectedImage.height}`)
-            console.log(`Aspect ratio: ${selectedImage.aspectRatioText}`)
-            console.log(`Quality: ${selectedImage.qualityLabel}`)
-            console.log(`Displayable: ${selectedImage.displayable}`)
-            
-            if (selectedImage.qualityLabel.startsWith('⚠️')) {
-              console.warn('Warning: Selected image has non-standard aspect ratio for TikTok ads')
-              console.warn('Recommended ratios: 1.91:1 (1200x628), 1:1 (square), or 9:16 (vertical)')
-            }
-          }
-          
-          creative.image_ids = [adForm.value.creative_id]
-          console.log('Using image_ids:', [adForm.value.creative_id])
+          console.log('Creating ad without thumbnail image')
         }
+        
+        console.log('Creative object validation:')
+        console.log('- video_id:', adForm.value.creative_id)
+        console.log('- image_ids:', creative.image_ids)
+        console.log('- identity_id:', identity.identity_id)
         
         // Add optional fields to creative
         if (adForm.value.display_name) {

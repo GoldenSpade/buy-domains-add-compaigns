@@ -7,7 +7,7 @@
           <i class="bi bi-camera me-2 text-primary"></i>Creative Uploader
         </h4>
         <p class="text-muted small mb-0">
-          Upload images and videos for your TikTok ads
+          Upload videos for your TikTok ads
         </p>
       </div>
       <button 
@@ -21,77 +21,8 @@
 
     <!-- Upload Section -->
     <div class="row g-4 mb-4">
-      <!-- Image Upload -->
-      <div class="col-md-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <h6 class="mb-0">
-              <i class="bi bi-image me-2"></i>Upload Images
-            </h6>
-          </div>
-          <div class="card-body">
-            <!-- Drop Zone -->
-            <div 
-              class="drop-zone"
-              :class="{ 'drag-over': imageDragOver, 'uploading': uploading }"
-              @dragover.prevent="imageDragOver = true"
-              @dragleave.prevent="imageDragOver = false"
-              @drop.prevent="handleImageDrop"
-              @click="$refs.imageInput.click()"
-            >
-              <div class="text-center py-4">
-                <i class="bi bi-cloud-upload display-6 text-muted mb-2"></i>
-                <p class="mb-2">Drag & drop images here or <strong>click to browse</strong></p>
-                <small class="text-muted">
-                  Supported: JPG, PNG, GIF<br>
-                  Max size: 10MB | Min: 200x200px
-                </small>
-              </div>
-            </div>
-            
-            <input 
-              ref="imageInput"
-              type="file" 
-              multiple
-              accept="image/*"
-              style="display: none"
-              @change="handleImageSelect"
-            />
-
-            <!-- Image Previews -->
-            <div v-if="imageFiles.length > 0" class="mt-3">
-              <h6 class="mb-2">Selected Images</h6>
-              <div class="row g-2">
-                <div 
-                  v-for="(file, index) in imageFiles" 
-                  :key="index"
-                  class="col-6 col-md-4"
-                >
-                  <div class="image-preview">
-                    <img :src="file.preview" alt="Preview" class="img-fluid rounded">
-                    <button 
-                      class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
-                      @click="removeImageFile(index)"
-                      :disabled="uploading"
-                    >
-                      <i class="bi bi-x"></i>
-                    </button>
-                    <div v-if="file.uploading" class="upload-overlay">
-                      <div class="spinner-border spinner-border-sm text-light"></div>
-                    </div>
-                    <div v-if="file.uploaded" class="upload-overlay bg-success">
-                      <i class="bi bi-check-circle text-light"></i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Video Upload -->
-      <div class="col-md-6">
+      <div class="col-12">
         <div class="card h-100">
           <div class="card-header">
             <h6 class="mb-0">
@@ -164,21 +95,21 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <span class="text-muted">
-          {{ imageFiles.length }} images, {{ videoFiles.length }} videos selected
+          {{ videoFiles.length }} videos selected
         </span>
       </div>
       <div>
         <button 
           class="btn btn-outline-secondary me-2"
           @click="clearAllFiles"
-          :disabled="uploading || (imageFiles.length === 0 && videoFiles.length === 0)"
+          :disabled="uploading || videoFiles.length === 0"
         >
           <i class="bi bi-trash me-1"></i>Clear All
         </button>
         <button 
           class="btn btn-primary"
           @click="uploadAllFiles"
-          :disabled="uploading || (imageFiles.length === 0 && videoFiles.length === 0)"
+          :disabled="uploading || videoFiles.length === 0"
         >
           <div v-if="uploading" class="spinner-border spinner-border-sm me-2" role="status"></div>
           <i v-else class="bi bi-cloud-upload me-1"></i>
@@ -211,36 +142,12 @@
           <p class="mt-2 text-muted">Loading media library...</p>
         </div>
         
-        <div v-else-if="mediaLibrary.images.length === 0 && mediaLibrary.videos.length === 0" class="text-center py-4">
+        <div v-else-if="mediaLibrary.videos.length === 0" class="text-center py-4">
           <i class="bi bi-folder2-open display-6 text-muted"></i>
           <p class="text-muted mt-2">No media uploaded yet</p>
         </div>
 
         <div v-else>
-          <!-- Images -->
-          <div v-if="mediaLibrary.images.length > 0" class="mb-4">
-            <h6 class="mb-2">Images ({{ mediaLibrary.images.length }})</h6>
-            <div class="row g-2">
-              <div 
-                v-for="image in mediaLibrary.images" 
-                :key="image.image_id"
-                class="col-6 col-md-3 col-lg-2"
-              >
-                <div class="media-item">
-                  <img 
-                    :src="image.preview_url || image.image_url" 
-                    :alt="image.filename"
-                    class="img-fluid rounded"
-                  />
-                  <div class="media-info">
-                    <small class="text-muted d-block">{{ image.filename }}</small>
-                    <small class="text-muted">{{ formatFileSize(image.size) }}</small>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Videos -->
           <div v-if="mediaLibrary.videos.length > 0">
             <h6 class="mb-2">Videos ({{ mediaLibrary.videos.length }})</h6>
@@ -281,36 +188,16 @@ export default {
     const store = useTikTokStore()
     
     // State
-    const imageFiles = ref([])
     const videoFiles = ref([])
-    const imageDragOver = ref(false)
     const videoDragOver = ref(false)
     const uploading = ref(false)
     const mediaLoading = ref(false)
     
     const mediaLibrary = reactive({
-      images: [],
       videos: []
     })
 
     // File validation
-    const validateImageFile = (file) => {
-      const maxSize = 10 * 1024 * 1024 // 10MB
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif']
-      
-      if (!allowedTypes.includes(file.type)) {
-        store.showError('Invalid image format. Please use JPG, PNG, or GIF.')
-        return false
-      }
-      
-      if (file.size > maxSize) {
-        store.showError('Image too large. Maximum size is 10MB.')
-        return false
-      }
-      
-      return true
-    }
-
     const validateVideoFile = (file) => {
       const maxSize = 500 * 1024 * 1024 // 500MB
       const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo']
@@ -329,12 +216,12 @@ export default {
     }
 
     // File processing
-    const processFiles = (files, type) => {
+    const processVideoFiles = (files) => {
       const fileArray = Array.from(files)
       const processedFiles = []
 
       fileArray.forEach(file => {
-        const isValid = type === 'image' ? validateImageFile(file) : validateVideoFile(file)
+        const isValid = validateVideoFile(file)
         if (!isValid) return
 
         const fileObj = {
@@ -350,39 +237,19 @@ export default {
         processedFiles.push(fileObj)
       })
 
-      if (type === 'image') {
-        imageFiles.value = [...imageFiles.value, ...processedFiles]
-      } else {
-        videoFiles.value = [...videoFiles.value, ...processedFiles]
-      }
+      videoFiles.value = [...videoFiles.value, ...processedFiles]
     }
 
     // Event handlers
-    const handleImageDrop = (e) => {
-      imageDragOver.value = false
-      const files = e.dataTransfer.files
-      processFiles(files, 'image')
-    }
-
     const handleVideoDrop = (e) => {
       videoDragOver.value = false
       const files = e.dataTransfer.files
-      processFiles(files, 'video')
-    }
-
-    const handleImageSelect = (e) => {
-      processFiles(e.target.files, 'image')
-      e.target.value = '' // Reset input
+      processVideoFiles(files)
     }
 
     const handleVideoSelect = (e) => {
-      processFiles(e.target.files, 'video')
+      processVideoFiles(e.target.files)
       e.target.value = '' // Reset input
-    }
-
-    const removeImageFile = (index) => {
-      URL.revokeObjectURL(imageFiles.value[index].preview)
-      imageFiles.value.splice(index, 1)
     }
 
     const removeVideoFile = (index) => {
@@ -391,14 +258,12 @@ export default {
     }
 
     const clearAllFiles = () => {
-      imageFiles.value.forEach(file => URL.revokeObjectURL(file.preview))
       videoFiles.value.forEach(file => URL.revokeObjectURL(file.preview))
-      imageFiles.value = []
       videoFiles.value = []
     }
 
     // Upload functions
-    const uploadFile = async (fileObj, type) => {
+    const uploadVideoFile = async (fileObj) => {
       if (!store.accessToken || !store.selectedAdvertiserId) {
         store.showError('Please authenticate and select an advertiser account first.')
         return false
@@ -415,30 +280,26 @@ export default {
           reader.readAsDataURL(fileObj.file)
         })
 
-        const endpoint = type === 'image' ? '/tiktok/creative/image/upload' : '/tiktok/creative/video/upload'
-        const dataKey = type === 'image' ? 'image_data' : 'video_data'
-        const nameKey = type === 'image' ? 'image_name' : 'video_name'
-
-        const response = await store.apiRequest(endpoint, 'POST', {
+        const response = await store.apiRequest('/tiktok/creative/video/upload', 'POST', {
           access_token: store.accessToken,
           advertiser_id: store.selectedAdvertiserId,
-          [dataKey]: base64Data,
-          [nameKey]: fileObj.name
+          video_data: base64Data,
+          video_name: fileObj.name
         })
 
         if (response.success && response.data?.code === 0) {
           fileObj.uploaded = true
           fileObj.uploadedData = response.data.data
-          store.showSuccess(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`)
-          emit('media-uploaded', { type, data: response.data.data })
+          store.showSuccess('Video uploaded successfully!')
+          emit('media-uploaded', { type: 'video', data: response.data.data })
           return true
         } else {
-          store.showError(`Failed to upload ${type}: ${response.data?.message || 'Unknown error'}`)
+          store.showError(`Failed to upload video: ${response.data?.message || 'Unknown error'}`)
           return false
         }
       } catch (error) {
-        console.error(`${type} upload error:`, error)
-        store.showError(`Failed to upload ${type}: ${error.message}`)
+        console.error('Video upload error:', error)
+        store.showError(`Failed to upload video: ${error.message}`)
         return false
       } finally {
         fileObj.uploading = false
@@ -449,26 +310,18 @@ export default {
       if (uploading.value) return
       
       uploading.value = true
-      const allFiles = [...imageFiles.value, ...videoFiles.value]
       let successCount = 0
 
       try {
-        for (const file of imageFiles.value) {
-          if (!file.uploaded) {
-            const success = await uploadFile(file, 'image')
-            if (success) successCount++
-          }
-        }
-
         for (const file of videoFiles.value) {
           if (!file.uploaded) {
-            const success = await uploadFile(file, 'video')
+            const success = await uploadVideoFile(file)
             if (success) successCount++
           }
         }
 
         if (successCount > 0) {
-          store.showSuccess(`${successCount} file(s) uploaded successfully!`)
+          store.showSuccess(`${successCount} video(s) uploaded successfully!`)
           await loadMediaLibrary() // Refresh media library
         }
       } finally {
@@ -488,7 +341,6 @@ export default {
         })
 
         if (response.success) {
-          mediaLibrary.images = response.data.data?.images || response.data.images || []
           mediaLibrary.videos = response.data.data?.videos || response.data.videos || []
         }
       } catch (error) {
@@ -514,20 +366,15 @@ export default {
 
     return {
       // State
-      imageFiles,
       videoFiles,
-      imageDragOver,
       videoDragOver,
       uploading,
       mediaLoading,
       mediaLibrary,
       
       // Methods
-      handleImageDrop,
       handleVideoDrop,
-      handleImageSelect,
       handleVideoSelect,
-      removeImageFile,
       removeVideoFile,
       clearAllFiles,
       uploadAllFiles,

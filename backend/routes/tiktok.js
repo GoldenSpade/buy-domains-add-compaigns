@@ -878,102 +878,7 @@ router.get('/adgroup-stats', async (req, res) => {
 
 // ============ CREATIVE MANAGEMENT ENDPOINTS ============
 
-// Загрузка изображений (multipart метод)
-router.post('/creative/image/upload', async (req, res) => {
-  const { access_token, advertiser_id, image_data, image_name } = req.body
-
-  if (!access_token || !advertiser_id || !image_data) {
-    return res.status(400).json({
-      success: false,
-      error: 'Access token, advertiser ID and image data are required',
-    })
-  }
-
-  try {
-    // Обрабатываем data URI и извлекаем MIME тип
-    let base64Data = image_data
-    let mimeType = 'image/jpeg'
-    
-    if (image_data.startsWith('data:')) {
-      const [header, data] = image_data.split(',')
-      base64Data = data
-      const mimeMatch = header.match(/data:([^;]+)/)
-      if (mimeMatch) {
-        mimeType = mimeMatch[1]
-      }
-    }
-    
-    base64Data = base64Data.replace(/\s+/g, '')
-    const binaryBuffer = Buffer.from(base64Data, 'base64')
-    const imageSignature = crypto.createHash('md5').update(binaryBuffer).digest('hex')
-    
-    let fileName = image_name || 'uploaded_image'
-    const extension = mimeType.split('/')[1].replace('jpeg', 'jpg')
-    if (!fileName.toLowerCase().endsWith(`.${extension}`)) {
-      fileName += `.${extension}`
-    }
-    
-    // Get image dimensions using image-size package
-    const dimensions = sizeOf(binaryBuffer)
-    
-    console.log('Uploading image via multipart/form-data:')
-    console.log('- File name:', fileName)
-    console.log('- MIME type:', mimeType)
-    console.log('- File size:', `${(binaryBuffer.length / 1024 / 1024).toFixed(2)} MB`)
-    console.log('- Dimensions:', `${dimensions.width}x${dimensions.height}`)
-    console.log('- Aspect ratio:', `${(dimensions.width / dimensions.height).toFixed(2)}:1`)
-    
-    // Check if image meets TikTok requirements
-    const aspectRatio = dimensions.width / dimensions.height
-    const validAspectRatios = [
-      { ratio: 1.91, name: '1.91:1 (Recommended)' },
-      { ratio: 1.0, name: '1:1 (Square)' },
-      { ratio: 0.56, name: '9:16 (Vertical)' }
-    ]
-    
-    const tolerance = 0.2
-    const isValidAspectRatio = validAspectRatios.some(valid => 
-      Math.abs(aspectRatio - valid.ratio) <= tolerance
-    )
-    
-    if (!isValidAspectRatio) {
-      console.log('WARNING: Image aspect ratio may not be suitable for TikTok ads')
-      console.log(`Current ratio: ${aspectRatio.toFixed(2)}:1`)
-      console.log('Recommended ratios:', validAspectRatios.map(r => r.name).join(', '))
-    }
-    
-    // Создаем FormData для multipart
-    const FormData = (await import('form-data')).default
-    const form = new FormData()
-    
-    form.append('advertiser_id', advertiser_id)
-    form.append('image_file', binaryBuffer, {
-      filename: fileName,
-      contentType: mimeType
-    })
-    form.append('image_signature', imageSignature)
-    
-    const response = await axios.post(`${TIKTOK_API_BASE}/file/image/ad/upload/`, form, {
-      headers: {
-        'Access-Token': access_token,
-        ...form.getHeaders()
-      },
-      timeout: 60000
-    })
-
-    console.log('Image upload response:', response.data)
-    res.json({
-      success: true,
-      data: response.data,
-    })
-  } catch (error) {
-    console.error('Image upload error:', error.response?.data || error.message)
-    res.status(500).json({
-      success: false,
-      error: error.response?.data || error.message,
-    })
-  }
-})
+// Image upload endpoint removed - only video upload is supported
 
 // Загрузка видео
 router.post('/creative/video/upload', async (req, res) => {
@@ -1048,9 +953,9 @@ router.post('/creative/video/upload', async (req, res) => {
   }
 })
 
-// Получение списка загруженных медиа
-router.get('/creative/media/list', async (req, res) => {
-  const { access_token, advertiser_id, media_type } = req.query
+// Загрузка статичной заглушки для видео
+router.post('/creative/video-placeholder/upload', async (req, res) => {
+  const { access_token, advertiser_id } = req.body
 
   if (!access_token || !advertiser_id) {
     return res.status(400).json({
@@ -1060,74 +965,122 @@ router.get('/creative/media/list', async (req, res) => {
   }
 
   try {
-    console.log('Loading media list for advertiser:', advertiser_id, 'type:', media_type)
+    const fs = await import('fs')
+    const path = await import('path')
+    const { fileURLToPath } = await import('url')
     
-    if (media_type === 'image') {
-      // Получаем только изображения
-      const response = await axios.get(`${TIKTOK_API_BASE}/file/image/ad/search/`, {
-        headers: { 'Access-Token': access_token },
-        params: { advertiser_id: advertiser_id }
-      })
-      
-      const images = response.data.data?.list || []
-      return res.json({
-        success: true,
-        data: {
-          images: images.map(img => ({ ...img, media_type: 'image' })),
-          videos: [],
-          total: images.length
-        }
-      })
-    } else if (media_type === 'video') {
-      // Получаем только видео
-      const response = await axios.get(`${TIKTOK_API_BASE}/file/video/ad/search/`, {
-        headers: { 'Access-Token': access_token },
-        params: { advertiser_id: advertiser_id }
-      })
-      
-      const videos = response.data.data?.list || []
-      return res.json({
-        success: true,
-        data: {
-          images: [],
-          videos: videos.map(vid => ({ ...vid, media_type: 'video' })),
-          total: videos.length
-        }
-      })
-    } else {
-      // Получаем и то и другое параллельно
-      const [imageResponse, videoResponse] = await Promise.allSettled([
-        axios.get(`${TIKTOK_API_BASE}/file/image/ad/search/`, {
-          headers: { 'Access-Token': access_token },
-          params: { advertiser_id: advertiser_id }
-        }),
-        axios.get(`${TIKTOK_API_BASE}/file/video/ad/search/`, {
-          headers: { 'Access-Token': access_token },
-          params: { advertiser_id: advertiser_id }
-        })
-      ])
-
-      const images = imageResponse.status === 'fulfilled' && imageResponse.value.data.data?.list 
-        ? imageResponse.value.data.data.list 
-        : []
-        
-      const videos = videoResponse.status === 'fulfilled' && videoResponse.value.data.data?.list 
-        ? videoResponse.value.data.data.list 
-        : []
-
-      console.log('Loaded images:', images.length, 'videos:', videos.length)
-      
-      return res.json({
-        success: true,
-        data: {
-          images: images.map(img => ({ ...img, media_type: 'image' })),
-          videos: videos.map(vid => ({ ...vid, media_type: 'video' })),
-          total: images.length + videos.length
-        }
+    // Get the current file path and construct path to placeholder
+    const __filename = fileURLToPath(import.meta.url)
+    const __dirname = path.dirname(__filename)
+    
+    // Try multiple possible paths for the placeholder file
+    const possiblePaths = [
+      path.join(__dirname, '../../src/assets/video-placeholder.png'),
+      path.join(process.cwd(), 'src/assets/video-placeholder.png'),
+      path.join(__dirname, '../src/assets/video-placeholder.png'),
+      path.join(__dirname, '../../frontend/src/assets/video-placeholder.png')
+    ]
+    
+    console.log('Looking for video placeholder file...')
+    console.log('Current working directory:', process.cwd())
+    console.log('__dirname:', __dirname)
+    
+    let placeholderPath = null
+    for (const testPath of possiblePaths) {
+      console.log('Checking path:', testPath, 'exists:', fs.existsSync(testPath))
+      if (fs.existsSync(testPath)) {
+        placeholderPath = testPath
+        break
+      }
+    }
+    
+    if (!placeholderPath) {
+      console.error('Video placeholder file not found in any of the expected locations')
+      return res.status(404).json({
+        success: false,
+        error: 'Video placeholder file not found'
       })
     }
+    
+    console.log('Video placeholder file found at:', placeholderPath)
+
+    // Read the placeholder file
+    const fileBuffer = fs.readFileSync(placeholderPath)
+    const fileSignature = crypto.createHash('md5').update(fileBuffer).digest('hex')
+    
+    console.log('Uploading video placeholder:')
+    console.log('- File size:', `${(fileBuffer.length / 1024).toFixed(2)} KB`)
+    console.log('- File signature:', fileSignature)
+    
+    // Create FormData for multipart upload
+    const FormData = (await import('form-data')).default
+    const form = new FormData()
+    
+    form.append('advertiser_id', advertiser_id)
+    form.append('image_file', fileBuffer, {
+      filename: 'video-placeholder.png',
+      contentType: 'image/png'
+    })
+    form.append('image_signature', fileSignature)
+    
+    // Note: Even though images are removed from UI, we still need this endpoint
+    // for video placeholder thumbnails required by TikTok API
+    const response = await axios.post(`${TIKTOK_API_BASE}/file/image/ad/upload/`, form, {
+      headers: {
+        'Access-Token': access_token,
+        ...form.getHeaders()
+      },
+      timeout: 60000
+    })
+
+    console.log('Video placeholder upload response:', response.data)
+    res.json({
+      success: true,
+      data: response.data,
+    })
   } catch (error) {
-    console.error('Error loading media list:', error.response?.data || error.message)
+    console.error('Video placeholder upload error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Получение списка загруженных медиа (только видео)
+router.get('/creative/media/list', async (req, res) => {
+  const { access_token, advertiser_id } = req.query
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    console.log('Loading video list for advertiser:', advertiser_id)
+    
+    // Получаем только видео (изображения не поддерживаются)
+    const response = await axios.get(`${TIKTOK_API_BASE}/file/video/ad/search/`, {
+      headers: { 'Access-Token': access_token },
+      params: { advertiser_id: advertiser_id }
+    })
+    
+    const videos = response.data.data?.list || []
+    
+    console.log('Loaded videos:', videos.length)
+    
+    return res.json({
+      success: true,
+      data: {
+        images: [], // Empty array - images not supported
+        videos: videos.map(vid => ({ ...vid, media_type: 'video' })),
+        total: videos.length
+      }
+    })
+  } catch (error) {
+    console.error('Error loading video list:', error.response?.data || error.message)
     res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
