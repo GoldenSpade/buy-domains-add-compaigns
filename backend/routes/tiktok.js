@@ -1016,12 +1016,19 @@ router.post('/creative/video-placeholder/upload', async (req, res) => {
     const FormData = (await import('form-data')).default
     const form = new FormData()
     
+    // Generate unique filename to avoid duplicates
+    const timestamp = Date.now()
+    const randomSuffix = Math.random().toString(36).substring(2, 8)
+    const uniqueFilename = `video-placeholder-${timestamp}-${randomSuffix}.png`
+    
     form.append('advertiser_id', advertiser_id)
     form.append('image_file', fileBuffer, {
-      filename: 'video-placeholder.png',
+      filename: uniqueFilename,
       contentType: 'image/png'
     })
     form.append('image_signature', fileSignature)
+    
+    console.log('Using unique filename:', uniqueFilename)
     
     // Note: Even though images are removed from UI, we still need this endpoint
     // for video placeholder thumbnails required by TikTok API
@@ -1040,6 +1047,42 @@ router.post('/creative/video-placeholder/upload', async (req, res) => {
     })
   } catch (error) {
     console.error('Video placeholder upload error:', error.response?.data || error.message)
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
+
+// Получение списка загруженных изображений
+router.get('/creative/images/list', async (req, res) => {
+  const { access_token, advertiser_id } = req.query
+
+  if (!access_token || !advertiser_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token and advertiser ID are required',
+    })
+  }
+
+  try {
+    const response = await axios.get(`${TIKTOK_API_BASE}/file/image/ad/search/`, {
+      headers: {
+        'Access-Token': access_token,
+      },
+      params: {
+        advertiser_id: advertiser_id,
+        page: 1,
+        page_size: 50
+      },
+    })
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Failed to get images:', error.response?.data || error.message)
     res.status(500).json({
       success: false,
       error: error.response?.data || error.message,

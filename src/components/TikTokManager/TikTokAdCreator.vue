@@ -379,16 +379,43 @@ export default {
             placeholderImageId = placeholderResponse.data?.data?.image_id || placeholderResponse.data?.image_id
             console.log('Video placeholder uploaded with ID:', placeholderImageId)
           } else {
-            console.warn('Placeholder upload failed:', placeholderResponse.data?.message || placeholderResponse.error)
+            const errorCode = placeholderResponse.data?.code
+            const errorMessage = placeholderResponse.data?.message || placeholderResponse.error
+            
+            if (errorCode === 40911) {
+              console.warn('Duplicate placeholder name, but continuing anyway. Error:', errorMessage)
+              // Try to continue without placeholder - this might still work
+            } else {
+              console.warn('Placeholder upload failed:', errorMessage)
+            }
           }
         } catch (error) {
           console.warn('Placeholder upload error:', error)
         }
         
-        // If placeholder upload failed, try to continue without image_ids (some TikTok ads might work without them)
+        // If placeholder upload failed, try to find existing images or continue without
         if (!placeholderImageId) {
-          console.warn('No placeholder image available, attempting to create ad without thumbnail')
-          store.showError('Warning: Creating ad without thumbnail image - this might cause issues')
+          console.warn('Placeholder upload failed, trying to find existing images...')
+          
+          try {
+            // Try to get existing images
+            const imagesResponse = await store.apiRequest('/tiktok/creative/images/list', 'GET', {
+              access_token: store.accessToken,
+              advertiser_id: store.selectedAdvertiserId
+            })
+            
+            if (imagesResponse.success && imagesResponse.data?.data?.images?.length > 0) {
+              // Use the first available image
+              placeholderImageId = imagesResponse.data.data.images[0].image_id
+              console.log('Using existing image as placeholder:', placeholderImageId)
+            } else {
+              console.warn('No existing images found, creating ad without thumbnail')
+              store.showError('Warning: Creating ad without thumbnail image - this might cause issues')
+            }
+          } catch (error) {
+            console.warn('Failed to get existing images:', error)
+            store.showError('Warning: Creating ad without thumbnail image - this might cause issues')
+          }
         }
         
         // Prepare Custom Identity data
