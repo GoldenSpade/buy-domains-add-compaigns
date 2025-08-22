@@ -95,7 +95,11 @@
                 >
                   <div 
                     class="creative-selector"
-                    :class="{ 'selected': adForm.creative_id === creative.id }"
+                    :class="{ 
+                      'selected': adForm.creative_id === creative.id,
+                      'recommended': creative.qualityLabel && creative.qualityLabel.startsWith('✅'),
+                      'warning': creative.qualityLabel && creative.qualityLabel.startsWith('⚠️')
+                    }"
                     @click="selectCreative(creative)"
                   >
                     <img 
@@ -117,6 +121,10 @@
                     </div>
                     <div class="creative-info">
                       <small class="text-white d-block">{{ creative.filename }}</small>
+                      <small v-if="creative.qualityLabel" class="text-white-50 d-block">{{ creative.qualityLabel }}</small>
+                      <small v-if="creative.width && creative.height" class="text-white-50 d-block">
+                        {{ creative.width }}×{{ creative.height }} ({{ creative.aspectRatioText }})
+                      </small>
                     </div>
                   </div>
                 </div>
@@ -359,13 +367,45 @@ export default {
 
         if (response.success) {
           if (adForm.value.creative_type === 'image') {
-            availableCreatives.value = (response.data.data?.images || response.data.images || []).map(img => ({
-              id: img.image_id,
-              filename: img.filename,
-              preview_url: img.preview_url,
-              image_url: img.image_url,
-              size: img.size
-            }))
+            availableCreatives.value = (response.data.data?.images || response.data.images || []).map(img => {
+              const aspectRatio = img.width && img.height ? (img.width / img.height) : null
+              const aspectRatioText = aspectRatio ? `${aspectRatio.toFixed(2)}:1` : 'Unknown'
+              let qualityLabel = ''
+              
+              // Определяем качество aspect ratio для TikTok
+              if (aspectRatio) {
+                if (Math.abs(aspectRatio - 1.91) <= 0.2) {
+                  qualityLabel = '✅ Recommended (1.91:1)'
+                } else if (Math.abs(aspectRatio - 1.0) <= 0.2) {
+                  qualityLabel = '✅ Square (1:1)'
+                } else if (Math.abs(aspectRatio - 0.56) <= 0.2) {
+                  qualityLabel = '✅ Vertical (9:16)'
+                } else {
+                  qualityLabel = '⚠️ Non-standard ratio'
+                }
+              }
+              
+              return {
+                id: img.image_id,
+                filename: img.filename,
+                preview_url: img.preview_url,
+                image_url: img.image_url,
+                size: img.size,
+                width: img.width,
+                height: img.height,
+                aspectRatio: aspectRatio,
+                aspectRatioText: aspectRatioText,
+                qualityLabel: qualityLabel,
+                displayable: img.displayable
+              }
+            }).sort((a, b) => {
+              // Сортируем: сначала displayable изображения с хорошим aspect ratio
+              const aGood = a.displayable && a.qualityLabel.startsWith('✅')
+              const bGood = b.displayable && b.qualityLabel.startsWith('✅')
+              if (aGood && !bGood) return -1
+              if (!aGood && bGood) return 1
+              return 0
+            })
           } else {
             availableCreatives.value = (response.data.data?.videos || response.data.videos || []).map(vid => ({
               id: vid.video_id,
@@ -440,8 +480,94 @@ export default {
         // Add media IDs based on type
         if (isVideo) {
           creative.video_id = adForm.value.creative_id
+          console.log('Using video_id:', adForm.value.creative_id)
+          
+          // TikTok requires thumbnail with matching aspect ratio to video
+          // Get video info to determine aspect ratio
+          const mediaResponse = await store.apiRequest('/tiktok/creative/media/list', 'GET', {
+            access_token: store.accessToken,
+            advertiser_id: store.selectedAdvertiserId
+          })
+          
+          if (mediaResponse.success) {
+            const selectedVideo = (mediaResponse.data.data?.videos || mediaResponse.data.videos || [])
+              .find(vid => vid.video_id === adForm.value.creative_id)
+            
+            if (selectedVideo) {
+              const videoAspectRatio = selectedVideo.width / selectedVideo.height
+              console.log(`Video aspect ratio: ${videoAspectRatio.toFixed(2)} (${selectedVideo.width}x${selectedVideo.height})`)
+              
+              // Find image with matching aspect ratio (tolerance ±0.2)
+              // Priority: exact aspect ratio match > displayable status
+              const allImages = (mediaResponse.data.data?.images || mediaResponse.data.images || [])
+              const displayableImages = allImages.filter(img => img.displayable === true)
+              
+              let matchingImage = null
+              
+              // First try displayable images with matching aspect ratio
+              for (const img of displayableImages) {
+                const imgAspectRatio = img.width / img.height
+                console.log(`Displayable image "${img.file_name}" aspect ratio: ${imgAspectRatio.toFixed(2)} (${img.width}x${img.height})`)
+                
+                if (Math.abs(imgAspectRatio - videoAspectRatio) <= 0.2) {
+                  matchingImage = img
+                  break
+                }
+              }
+              
+              // If no displayable image matches, try ALL images for perfect aspect ratio match
+              if (!matchingImage) {
+                console.log('No matching displayable image found. Trying all images...')
+                for (const img of allImages) {
+                  const imgAspectRatio = img.width / img.height
+                  console.log(`All images check - "${img.file_name}" aspect ratio: ${imgAspectRatio.toFixed(2)} (${img.width}x${img.height}), displayable: ${img.displayable}`)
+                  
+                  if (Math.abs(imgAspectRatio - videoAspectRatio) <= 0.2) {
+                    matchingImage = img
+                    console.log('Found perfect aspect ratio match in non-displayable images!')
+                    break
+                  }
+                }
+              }
+              
+              if (matchingImage) {
+                creative.image_ids = [matchingImage.image_id]
+                console.log('Using thumbnail:', matchingImage.file_name, matchingImage.image_id, `displayable: ${matchingImage.displayable}`)
+              } else {
+                console.warn('No thumbnail image found with matching aspect ratio to video')
+                console.warn(`Video ratio: ${videoAspectRatio.toFixed(2)}, Available image ratios:`, 
+                  allImages.map(img => `${img.file_name}: ${(img.width / img.height).toFixed(2)} (displayable: ${img.displayable})`))
+                
+                // Fallback: use any displayable image (square images often work)
+                if (displayableImages.length > 0) {
+                  // Prefer square images as fallback
+                  const squareImage = displayableImages.find(img => Math.abs((img.width / img.height) - 1.0) <= 0.1)
+                  const fallbackImage = squareImage || displayableImages[0]
+                  
+                  creative.image_ids = [fallbackImage.image_id]
+                  console.log('Using fallback thumbnail:', fallbackImage.file_name, fallbackImage.image_id)
+                }
+              }
+            }
+          }
         } else {
+          // Image ad - validate the selected image has good aspect ratio
+          const selectedImage = availableCreatives.value.find(img => img.id === adForm.value.creative_id)
+          if (selectedImage) {
+            console.log(`Selected image: ${selectedImage.filename}`)
+            console.log(`Image dimensions: ${selectedImage.width}×${selectedImage.height}`)
+            console.log(`Aspect ratio: ${selectedImage.aspectRatioText}`)
+            console.log(`Quality: ${selectedImage.qualityLabel}`)
+            console.log(`Displayable: ${selectedImage.displayable}`)
+            
+            if (selectedImage.qualityLabel.startsWith('⚠️')) {
+              console.warn('Warning: Selected image has non-standard aspect ratio for TikTok ads')
+              console.warn('Recommended ratios: 1.91:1 (1200x628), 1:1 (square), or 9:16 (vertical)')
+            }
+          }
+          
           creative.image_ids = [adForm.value.creative_id]
+          console.log('Using image_ids:', [adForm.value.creative_id])
         }
         
         // Add optional fields to creative
@@ -541,6 +667,26 @@ export default {
 .creative-selector.selected {
   border-color: #198754;
   box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.creative-selector.recommended {
+  border-color: #20c997;
+  box-shadow: 0 0 0 0.1rem rgba(32, 201, 151, 0.15);
+}
+
+.creative-selector.warning {
+  border-color: #ffc107;
+  box-shadow: 0 0 0 0.1rem rgba(255, 193, 7, 0.15);
+}
+
+.creative-selector.selected.recommended {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.creative-selector.selected.warning {
+  border-color: #fd7e14;
+  box-shadow: 0 0 0 0.2rem rgba(253, 126, 20, 0.25);
 }
 
 .selection-overlay {

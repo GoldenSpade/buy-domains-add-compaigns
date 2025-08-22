@@ -931,7 +931,7 @@ router.post('/creative/image/upload', async (req, res) => {
       { ratio: 0.56, name: '9:16 (Vertical)' }
     ]
     
-    const tolerance = 0.1
+    const tolerance = 0.2
     const isValidAspectRatio = validAspectRatios.some(valid => 
       Math.abs(aspectRatio - valid.ratio) <= tolerance
     )
