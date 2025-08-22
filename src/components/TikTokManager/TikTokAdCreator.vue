@@ -401,19 +401,26 @@ export default {
         console.log('Using identity_id:', store.currentIdentityId)
         console.log('Creative type:', adForm.value.creative_type)
         
-        // Get available identities from TikTok API
-        console.log('Getting available identities...')
-        const identities = await store.getIdentities()
-        console.log('Available identities:', identities)
+        // Create Custom Identity instead of searching for existing ones
+        console.log('Creating Custom Identity for the ad...')
         
-        if (!identities || !identities.list || identities.list.length === 0) {
-          store.showError('No identities available for this advertiser. Please check your TikTok Business Center setup.')
-          return
+        // Prepare Custom Identity data
+        const customIdentityData = {
+          identity_name: `Ad Identity - ${adForm.value.ad_name}`,
+          identity_type: 'CUSTOMIZED_USER',
+          display_name: adForm.value.display_name || 'Brand Name',
+          profile_image: adForm.value.creative_id // Use the same image as creative
         }
         
-        // Use the first available identity
-        const identity = identities.list[0]
-        console.log('Using identity:', identity)
+        console.log('Custom Identity data:', customIdentityData)
+        
+        const identity = await store.createCustomIdentity(customIdentityData)
+        console.log('Created Custom Identity:', identity)
+        
+        if (!identity) {
+          store.showError('Failed to create Custom Identity. Please try again.')
+          return
+        }
         
         // Determine ad format and creative fields based on creative type
         const isVideo = adForm.value.creative_type === 'video'
@@ -423,7 +430,7 @@ export default {
         const creative = {
           ad_name: adForm.value.ad_name,
           identity_id: identity.identity_id,
-          identity_type: identity.identity_type,
+          identity_type: identity.identity_type || 'CUSTOMIZED_USER',
           ad_format: adFormat,
           ad_text: adForm.value.ad_text,
           call_to_action: adForm.value.call_to_action,

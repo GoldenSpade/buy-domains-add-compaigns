@@ -1,7 +1,7 @@
 <template>
   <div class="creative-uploader">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
       <div>
         <h4 class="mb-1">
           <i class="bi bi-camera me-2 text-primary"></i>Creative Uploader

@@ -2,6 +2,7 @@ import express from 'express'
 import axios from 'axios'
 import dotenv from 'dotenv'
 import crypto from 'crypto'
+import sizeOf from 'image-size'
 
 dotenv.config()
 
@@ -912,10 +913,34 @@ router.post('/creative/image/upload', async (req, res) => {
       fileName += `.${extension}`
     }
     
+    // Get image dimensions using image-size package
+    const dimensions = sizeOf(binaryBuffer)
+    
     console.log('Uploading image via multipart/form-data:')
     console.log('- File name:', fileName)
     console.log('- MIME type:', mimeType)
     console.log('- File size:', `${(binaryBuffer.length / 1024 / 1024).toFixed(2)} MB`)
+    console.log('- Dimensions:', `${dimensions.width}x${dimensions.height}`)
+    console.log('- Aspect ratio:', `${(dimensions.width / dimensions.height).toFixed(2)}:1`)
+    
+    // Check if image meets TikTok requirements
+    const aspectRatio = dimensions.width / dimensions.height
+    const validAspectRatios = [
+      { ratio: 1.91, name: '1.91:1 (Recommended)' },
+      { ratio: 1.0, name: '1:1 (Square)' },
+      { ratio: 0.56, name: '9:16 (Vertical)' }
+    ]
+    
+    const tolerance = 0.1
+    const isValidAspectRatio = validAspectRatios.some(valid => 
+      Math.abs(aspectRatio - valid.ratio) <= tolerance
+    )
+    
+    if (!isValidAspectRatio) {
+      console.log('WARNING: Image aspect ratio may not be suitable for TikTok ads')
+      console.log(`Current ratio: ${aspectRatio.toFixed(2)}:1`)
+      console.log('Recommended ratios:', validAspectRatios.map(r => r.name).join(', '))
+    }
     
     // Создаем FormData для multipart
     const FormData = (await import('form-data')).default
@@ -1111,6 +1136,46 @@ router.get('/creative/media/list', async (req, res) => {
 })
 
 // ============ IDENTITY MANAGEMENT ENDPOINTS ============
+
+// Создание Custom Identity
+router.post('/identity/create/', async (req, res) => {
+  const { access_token, advertiser_id, identity_data } = req.body
+
+  if (!access_token || !advertiser_id || !identity_data) {
+    return res.status(400).json({
+      success: false,
+      error: 'Access token, advertiser ID and identity data are required',
+    })
+  }
+
+  try {
+    console.log('Creating TikTok Custom Identity for advertiser:', advertiser_id)
+    console.log('Identity data:', identity_data)
+    
+    const response = await axios.post(`${TIKTOK_API_BASE}/identity/create/`, {
+      advertiser_id: advertiser_id,
+      ...identity_data
+    }, {
+      headers: {
+        'Access-Token': access_token,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('TikTok identity/create response:', response.data)
+
+    res.json({
+      success: true,
+      data: response.data,
+    })
+  } catch (error) {
+    console.error('Identity creation error:', error.response?.data || error.message)
+    res.json({
+      success: false,
+      error: error.response?.data || error.message,
+    })
+  }
+})
 
 // Получение списка доступных identity для advertiser'а
 router.post('/identity/get/', async (req, res) => {

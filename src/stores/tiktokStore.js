@@ -991,6 +991,40 @@ export const useTikTokStore = defineStore('tiktok', () => {
 
   // ============ IDENTITY MANAGEMENT FUNCTIONS ============
 
+  // Создание Custom Identity
+  const createCustomIdentity = async (identityData) => {
+    if (!accessToken.value || !selectedAdvertiserId.value) {
+      showError('Access token and selected advertiser ID are required')
+      return null
+    }
+
+    try {
+      const response = await apiRequest('/tiktok/identity/create/', 'POST', {
+        access_token: accessToken.value,
+        advertiser_id: selectedAdvertiserId.value,
+        identity_data: identityData
+      })
+
+      if (response.success && response.data?.code === 0) {
+        showSuccess('Custom Identity created successfully!')
+        // Return created identity with the type we used
+        const createdIdentity = response.data.data || response.data
+        return {
+          ...createdIdentity,
+          identity_type: identityData.identity_type || 'CUSTOMIZED_USER'
+        }
+      } else {
+        const errorMessage = response.data?.message || response.error || 'Failed to create Custom Identity'
+        showError(`Failed to create Custom Identity: ${errorMessage}`)
+        return null
+      }
+    } catch (error) {
+      console.error('Error creating Custom Identity:', error)
+      showError(`Failed to create Custom Identity: ${error.message}`)
+      return null
+    }
+  }
+
   const getIdentities = async () => {
     if (!accessToken.value || !selectedAdvertiserId.value) {
       showError('Access token and selected advertiser ID are required')
@@ -1315,6 +1349,7 @@ export const useTikTokStore = defineStore('tiktok', () => {
     adGroupMetadataLoading,
     getAdGroupMetadata,
     // Identity management
+    createCustomIdentity,
     getIdentities,
     // Creative management
     uploadCreative,
