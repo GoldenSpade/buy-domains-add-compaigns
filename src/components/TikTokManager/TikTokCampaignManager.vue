@@ -92,7 +92,7 @@
                       <div class="btn-group" role="group">
                         <button class="btn btn-primary btn-sm" @click="openCreateCampaign">
                           <i class="bi bi-plus me-1 d-none d-sm-inline"></i>
-                          <span class="d-none d-sm-inline">Quick Create</span>
+                          <span class="d-none d-sm-inline">Create Campaign</span>
                           <span class="d-inline d-sm-none">Quick</span>
                         </button>
                       </div>
@@ -195,7 +195,7 @@
                       </p>
                       <div class="d-flex gap-2 justify-content-center">
                         <button class="btn btn-primary" @click="openCreateCampaign">
-                          <i class="bi bi-plus me-1"></i>Quick Create
+                          <i class="bi bi-plus me-1"></i>Create Campaign
                         </button>
                       </div>
                     </div>
